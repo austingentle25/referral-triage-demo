@@ -1,0 +1,18 @@
+name = "referral-sync-feedback"
+main = "src/index.js"
+compatibility_date = "2026-01-01"
+
+[vars]
+# The repository that receives the issues.
+#
+# Read the "Where the issues should go" section of DEPLOY.md before pointing
+# this anywhere. Issues on a public repository are readable by anyone on the
+# internet, and feedback is free text typed by staff working real referrals.
+GITHUB_REPO = "REPLACE_ME/REPLACE_ME"
+
+# Only this origin may POST here. The deployed tool's origin, no trailing slash.
+ALLOWED_ORIGIN = "https://austingentle25.github.io"
+
+# GITHUB_TOKEN is deliberately absent. It is a secret, set once with
+#   wrangler secret put GITHUB_TOKEN
+# and must never appear in this file or any other committed file.

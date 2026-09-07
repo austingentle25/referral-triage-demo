@@ -628,6 +628,13 @@
     border:1px solid var(--line); background:var(--panel); color:var(--ink);
   }
   .log-actions button:hover{ background:var(--bg); }
+  .fb-sent{ font-size:0.6875rem; font-weight:700; color:var(--k08f); margin-top:5px; }
+  .fb-unsent{ font-size:0.6875rem; font-weight:700; color:var(--review); margin-top:5px; line-height:1.4; }
+  .fb-unsent-bar{ margin-top:12px; padding:11px 13px; border-radius:9px; font-size:0.78rem;
+    background:var(--k13b); color:var(--review); border:1px solid var(--review);
+    display:flex; gap:10px; align-items:center; flex-wrap:wrap; line-height:1.45; }
+  .fb-unsent-bar button{ padding:6px 12px; font-size:0.75rem; border-radius:6px; cursor:pointer;
+    border:1px solid var(--review); background:var(--panel); color:var(--review); font-family:inherit; font-weight:600; }
   .log-transfer{ margin-top:12px; border:1px solid var(--line); border-radius:10px; padding:12px; }
   .log-transfer-hint{ font-size:0.75rem; color:var(--k03f); margin-bottom:8px; line-height:1.45; }
   .log-transfer textarea{ width:100%; font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
@@ -1142,7 +1149,46 @@
   // determinations in the sitting so several can be gathered and copied out at once.
   // The patient NAME is deliberately not captured - the Task ID identifies the case,
   // and the report gets pasted into email or chat where a name should not travel.
+  // Feedback relay. Empty until the Worker is deployed - see DEPLOY.md. While it
+  // is empty the tool behaves exactly as before: feedback is kept in the page and
+  // copied out by hand. Nothing about the determination logic depends on this.
+  var FEEDBACK_RELAY_URL = "";
+
   var feedbackLog = [];
+
+  // Sends one item and records what happened on the item itself, so the feedback
+  // view can say per report whether it reached GitHub. Never throws: a relay that
+  // is down must not cost the reviewer the note they just wrote.
+  function sendFeedbackItem(item){
+    if (!FEEDBACK_RELAY_URL){ item.sendState = "local"; return Promise.resolve(item); }
+    item.sendState = "sending";
+    return fetch(FEEDBACK_RELAY_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        note: item.note, short: item.short, part: item.part,
+        nodeId: item.nodeId, taskId: item.taskId,
+        text: item.text, path: item.path,
+        at: (item.at instanceof Date) ? item.at.toISOString() : String(item.at || "")
+      })
+    }).then(function(res){
+      return res.json().catch(function(){ return {}; }).then(function(body){
+        if (res.ok && body && body.ok){
+          item.sendState = "sent";
+          item.issueNumber = body.number || null;
+          item.issueUrl = body.url || null;
+        } else {
+          item.sendState = "failed";
+          item.sendError = (body && body.error) || ("Rejected (" + res.status + ")");
+        }
+        return item;
+      });
+    }).catch(function(){
+      item.sendState = "failed";
+      item.sendError = "Could not reach the relay";
+      return item;
+    });
+  }
   var feedbackSeq = 0;
   var viewMode = "flow";
   var runCounter = 0;
@@ -3592,15 +3638,32 @@
         note: note,
         at: new Date()
       });
+      var item = feedbackLog[feedbackLog.length - 1];
       updateFeedbackButton();
-      btn.textContent = "Added \u2713";
       if (input) input.value = "";
-      setTimeout(function(){
+      btn.textContent = FEEDBACK_RELAY_URL ? "Sending\u2026" : "Added \u2713";
+      sendFeedbackItem(item).then(function(){
+        updateFeedbackButton();
         var b = document.getElementById("feedbackSubmit");
-        if (b) b.textContent = "Add to feedback";
-      }, 1400);
+        if (b){
+          b.textContent = item.sendState === "sent" ? "Sent \u2713"
+                        : item.sendState === "failed" ? "Kept here - not sent"
+                        : "Added \u2713";
+          setTimeout(function(){
+            var b2 = document.getElementById("feedbackSubmit");
+            if (b2) b2.textContent = "Add to feedback";
+          }, item.sendState === "failed" ? 3200 : 1400);
+        }
+        if (viewMode === "feedback") render();
+      });
     });
   }
+  // Anything the relay has not accepted. With no relay configured everything is
+  // "local", which is not a failure - it is the tool working as it did before.
+  function unsentFeedback(){
+    return feedbackLog.filter(function(f){ return f.sendState === "failed"; });
+  }
+
   function updateFeedbackButton(){
     var b = document.getElementById("feedbackBtn");
     if (!b) return;
@@ -3657,8 +3720,11 @@
       html = '<div class="card"><h2>Feedback</h2>' +
         '<p>Nothing flagged yet. On any question, open <b>"Something wrong with this question? Flag it"</b> ' +
         'and describe the problem - the question and the full path that led to it are captured with it.</p>' +
-        '<p style="font-size:0.75rem;color:var(--ink-soft);">Reports live in this page only and are cleared ' +
-        'when the tab closes. Copy them out before you finish.</p>' +
+        '<p style="font-size:0.75rem;color:var(--ink-soft);">' +
+        (FEEDBACK_RELAY_URL
+          ? 'Each report is sent to the issue tracker as you submit it, and also kept here so you can copy the lot out. If a send fails you will be told, and it can be retried.'
+          : 'Reports live in this page only and are cleared when the tab closes. Copy them out before you finish.') +
+        '</p>' +
         '<div class="btnrow-continue"><button class="continue-btn" id="fbBackBtn">Back to task</button></div>' +
         '</div>';
     } else {
@@ -3673,12 +3739,29 @@
           '<div class="ob-value">' + escapeHtml(buildFeedbackReport().slice(0, 400)) + '...</div>' +
         '</div>' +
         feedbackLog.slice().reverse().map(function(f){
+          var status = "";
+          if (f.sendState === "sent"){
+            status = '<div class="fb-sent">Sent' +
+              (f.issueNumber ? " - issue #" + escapeHtml(String(f.issueNumber)) : "") + '</div>';
+          } else if (f.sendState === "failed"){
+            status = '<div class="fb-unsent">Not sent - ' + escapeHtml(f.sendError || "unknown reason") +
+              '. It is still here; use Retry below.</div>';
+          } else if (f.sendState === "sending"){
+            status = '<div class="fb-sent">Sending\u2026</div>';
+          }
           return '<div class="log-entry">' +
             '<div class="le-top"><b>' + escapeHtml(f.taskId) + '</b> - ' + escapeHtml(f.part) + '</div>' +
             '<div class="le-mid">' + escapeHtml(f.short) + '</div>' +
             '<div class="le-note">' + escapeHtml(f.note) + '</div>' +
+            status +
             '</div>';
         }).join("") +
+        (unsentFeedback().length
+          ? '<div class="fb-unsent-bar">' + unsentFeedback().length + ' report' +
+            (unsentFeedback().length === 1 ? " has" : "s have") + ' not reached GitHub. ' +
+            'They are still in this page and will be lost when the tab closes.' +
+            '<button type="button" id="fbRetryBtn">Retry sending</button></div>'
+          : "") +
         '<div class="btnrow-continue">' +
           '<button class="continue-btn" id="fbBackBtn">Back to task</button>' +
           '<button class="back-btn" id="fbClearBtn">Clear all feedback</button>' +
@@ -3687,6 +3770,16 @@
     }
     stage.innerHTML = html;
     document.getElementById("fbBackBtn").addEventListener("click", function(){ viewMode = "flow"; render(); });
+    var retry = document.getElementById("fbRetryBtn");
+    if (retry) retry.addEventListener("click", function(){
+      var pending = unsentFeedback();
+      retry.disabled = true;
+      retry.textContent = "Sending " + pending.length + "\u2026";
+      Promise.all(pending.map(sendFeedbackItem)).then(function(){
+        updateFeedbackButton();
+        render();
+      });
+    });
     var clr = document.getElementById("fbClearBtn");
     if (clr){
       clr.addEventListener("click", function(){
