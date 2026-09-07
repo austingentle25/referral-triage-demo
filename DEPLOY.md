@@ -22,7 +22,7 @@ offline and the issue format against real GitHub.
 | Issue repo | **`austingentle25/referral-sync-feedback`** — created, private |
 | `wrangler.toml` | Points at it. `ALLOWED_ORIGIN` set to the live tool |
 | Issue format | Proved against real GitHub — [issue #1](https://github.com/austingentle25/referral-sync-feedback/issues/1) |
-| Worker logic | 41 offline checks pass |
+| Worker logic | 59 offline checks pass |
 | Redaction | Applied in the page and again in the Worker |
 
 The issues go to a **private** repo, not the tool's public one. Feedback is free
@@ -32,27 +32,44 @@ like — it exists to show what an issue looks like.
 
 ## What is redacted before anything is sent
 
-The page scrubs first, then the Worker scrubs again on arrival, because a rule
-enforced only in the page protects nobody against a client that skips it.
+Every typed field in the graph was audited - 17 of them. The rule is by field,
+not by pattern-matching alone, so it is auditable rather than hopeful. The
+**label stays and only the value goes**, which keeps the trail diffable:
 
-| Removed | Where |
+```
+Patient name: [redacted] -> Task ID: Task-2041 -> Established (3 yrs)?: Yes -> ...
+```
+
+| Field | Sent? |
 |---|---|
-| The patient name for that determination, whole and by each part of it (so "Capes" is caught as well as "Steven H Capes") | Page only — the Worker cannot know the name |
-| Dates in any common form — a date of birth typed into the note | Page and Worker |
-| Runs of 7+ digits — MRN, account numbers | Page and Worker |
-| Formatted phone numbers | Page and Worker |
-| The patient-name step of the path | Already dropped before this |
+| Patient name | **Redacted** - always |
+| Mismatch detail, Block reason, VA setup notes, "what's wrong with insurance" | **Redacted** - free text, anything could be typed there |
+| Referring provider name / NPI / address / fax | **Redacted** - a named individual |
+| Task ID | **Kept** - internal reference, and what makes a report actionable |
+| Diagnosis | **Kept** - not identifying alone, and the most useful field for a routing complaint |
+| Everything selected from a list | Kept - no free text to leak |
 
-What survives is the complaint itself, the step, the node id, the Task ID and
-the decision path. A note reading *"Steven Capes has DOB 05/13/1948, phone
-602-555-0100, MRN 1234567890 - this question is unclear"* arrives as
-*"[removed] [removed] has DOB [removed], phone [removed], MRN [removed] - this
-question is unclear"*.
+On top of that, both the page and the Worker strip dates, runs of 7+ digits and
+formatted phone numbers, so a date of birth or an MRN typed into the note is
+removed even though the note itself cannot be excluded.
 
-The Task ID is kept deliberately: it is what makes a report actionable, and it
-is an internal task reference rather than patient identity.
+### The one risk that remains
+
+**The feedback note is free text and cannot be excluded - it is the feedback.**
+The page removes the current patient's name from it, and the Worker removes
+dates and long numbers. Neither can catch a nickname ("Steve" when the chart
+says "Steven"), a misspelling, or a *different* patient's name.
+
+The control for that is the reviewer, so the box now says so at the point of
+typing: *"This is sent to the issue tracker - describe the question, not the
+patient."* The tracker being private is the second line of defence.
+
+If that residual risk is unacceptable, the fix is to drop the note from the
+issue **title** - titles show in notification emails and issue lists, which is
+the widest exposure. Say the word; it is a two-line change.
 
 ---
+
 
 ## What is left, and only you can do it
 
@@ -127,7 +144,7 @@ between now and the deploy.
 Open the live tool, flag a problem on any question, and confirm:
 
 - the button reads **Sent ✓**
-- an issue appears in `referral-sync-feedback`
+- an issue appears in `referral-sync-feedback`, titled `Part N - ...: <the gist>`
 - the feedback view shows **issue #N** against that report
 
 Then break it on purpose: set `FEEDBACK_RELAY_URL` to a wrong URL locally and
@@ -143,7 +160,7 @@ silently, and that is the path that proves it.
 cd worker && /System/Library/Frameworks/JavaScriptCore.framework/Versions/A/Helpers/jsc test/harness.js
 ```
 
-41 checks, no install needed. It stubs `fetch`, `Response` and `Headers`, and
+59 checks, no install needed. It stubs `fetch`, `Response` and `Headers`, and
 covers the method and origin gates, missing configuration, empty and
 whitespace-only notes, unparseable and oversized bodies, the length caps, the
 issue formatting, markdown-fence escaping, control-character stripping, and
@@ -161,14 +178,18 @@ cd worker && wrangler dev
 
 ## What this does not do
 
-**No rate limiting.** The relay caps body size, rejects empty notes and refuses
-foreign origins, but nothing stops a determined person who has read the page
-source from posting repeatedly and filling the tracker with issues. Real rate
-limiting on Workers needs KV or a Durable Object to hold counters. If the relay
-is ever abused, that is the fix; it was left out rather than faked, because a
-per-isolate counter would look like protection and provide none.
+**A double-tap guard, but not a rate limiter.** An identical submission inside
+60 seconds is accepted and reported as success without opening a second issue,
+which is what stops a double-tap on Send producing duplicates. It is held in the
+isolate's memory, so it catches a burst from one person - the case it exists for
+- and nothing wider. Real rate limiting on Workers needs KV or a Durable Object;
+that was left out rather than faked, because a per-isolate counter dressed up as
+a rate limiter would look like protection and provide none.
 
-**No deduplication.** Submitting the same report twice opens two issues.
+The guard records a submission only **after** GitHub accepts it. Marking it on
+arrival would mean a submission GitHub rejected still counted as seen, so the
+reviewer's retry would be answered "already sent" with nothing on the other end
+- the one failure this design exists to prevent.
 
 **Reviewer notes and the Engineering flag are untouched.** Only the per-question
 feedback box sends anything. The Engineering flag still drafts a Slack message

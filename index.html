@@ -1165,7 +1165,43 @@
   // Deliberately not scrubbed: the answers recorded in the path. The referral
   // date belongs there and is not patient identity, and the patient-name step
   // is already dropped by buildWhyPathRedacted.
-  var RELAY_REDACTION = "[removed]";
+  var RELAY_REDACTION = "[redacted]";
+
+  // Free-text steps whose answer is replaced before anything is sent. The label
+  // stays so the trail keeps its shape and stays diffable; only the value goes.
+  //
+  // Chosen by auditing every typed field in the graph rather than by guessing.
+  // Where there was any doubt about what someone might type, the field is in
+  // here: a thinner issue is a far smaller problem than a patient name on GitHub.
+  //
+  // Deliberately kept: Task ID, an internal reference and the thing that makes a
+  // report actionable; and Diagnosis, which is the single most useful field for
+  // understanding a routing complaint and is not identifying on its own.
+  var RELAY_REDACT_CRUMBS = {
+    "Patient name": 1,                              // always - a real patient
+    "Mismatch detail": 1,                           // "briefly note..." free text
+    "What was updated / what's missing for VA setup": 1,
+    "Block reason": 1,                              // "briefly note the reason"
+    "What's wrong with insurance in Athena": 1,
+    "Referring provider name found": 1,             // a named individual
+    "Referring provider NPI found": 1,
+    "Referring provider address found": 1,
+    "Referring provider name": 1,
+    "Referring provider NPI": 1,
+    "Referring provider address": 1,
+    "Referring provider fax": 1
+  };
+
+  // The full trail, with the value of every risky step replaced. Built from the
+  // same crumbs as the "Why this path" box rather than a separate mechanism, so
+  // a triager reads exactly what the reviewer saw.
+  function buildWhyPathForRelay(){
+    return state.crumbs.filter(function(c){ return !c.divider; }).map(function(c){
+      var label = c.short;
+      if (RELAY_REDACT_CRUMBS[label]) return label + ": " + RELAY_REDACTION;
+      return label + ": " + c.answer;
+    }).join(" \u2192 ");
+  }
 
   function scrubForRelay(text, patientName){
     var t = String(text || "");
@@ -1207,8 +1243,8 @@
         part: item.part,
         nodeId: item.nodeId,
         taskId: item.taskId,
-        text: item.text,
-        path: scrubForRelay(item.path, item.patientName),
+        text: scrubForRelay(item.text, item.patientName),
+        path: scrubForRelay(item.relayPath || item.path, item.patientName),
         at: (item.at instanceof Date) ? item.at.toISOString() : String(item.at || "")
       })
     }).then(function(res){
@@ -3649,8 +3685,11 @@
       '<summary>Flag a problem with this question</summary>' +
       '<textarea id="feedbackInput" class="text-input textarea-input" rows="3" ' +
         'placeholder="What is wrong, or what should it have asked?"></textarea>' +
-      '<div class="feedback-hint">Captures this question and the full path that led here. ' +
-        'No patient name is included.</div>' +
+      '<div class="feedback-hint">Captures this question and the path that led here. The ' +
+        'patient name and every typed field are removed first.' +
+        (FEEDBACK_RELAY_URL
+          ? ' <b>This is sent to the issue tracker - describe the question, not the patient.</b>'
+          : '') + '</div>' +
       '<button type="button" class="continue-btn feedback-btn" id="feedbackSubmit">Add to feedback</button>' +
       '</details>';
   }
@@ -3677,6 +3716,7 @@
           : ""),
         part: node.partLabel || PART_LABELS[node.part] || ("Part " + node.part),
         path: buildWhyPathRedacted(),
+        relayPath: buildWhyPathForRelay(),
         note: note,
         at: new Date()
       });

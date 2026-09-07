@@ -173,7 +173,7 @@ const GOOD = JSON.stringify({
   const call = JSON.parse(lastCall.opts.body);
   check("posts to the configured repo", lastCall.url === "https://api.github.com/repos/someone/somerepo/issues");
   check("uses a bearer token", /^Bearer /.test(lastCall.opts.headers.Authorization));
-  check("title names the step", call.title.indexOf("Full Registration sweep") !== -1, call.title);
+  check("title names the part", call.title.indexOf("Part 5 - Writes & objects") === 0, call.title);
   check("body carries the note", call.body.indexOf("mention the referral") !== -1);
   check("body carries the node id", call.body.indexOf("p5_registration") !== -1);
   check("body carries the task id", call.body.indexOf("Task-1930") !== -1);
@@ -225,9 +225,35 @@ const GOOD = JSON.stringify({
   check("surrounding words survive", red.body.indexOf("patient DOB") !== -1);
   check("a date in the path is removed too", red.body.indexOf("06/18/2026") === -1);
 
+  /* title and body template */
+  out = await post(JSON.stringify({
+    note: "The Contracted question did not account for a plan that is contracted only for imaging",
+    short: "Contracted?", part: "Part 4 - Insurance Check", nodeId: "p4_q2", taskId: "Task-2041",
+    text: "Is this plan contracted with Biltmore?",
+    path: "Patient name: [redacted] -> Task ID: Task-2041 -> Contracted?: Yes",
+    at: "2026-09-07T20:00:00.000Z",
+  }));
+  const tmpl = JSON.parse(lastCall.opts.body);
+  check("title leads with the step label", tmpl.title.indexOf("Part 4 - Insurance Check:") === 0, tmpl.title);
+  check("title carries the gist", /Contracted question did not/.test(tmpl.title), tmpl.title);
+  check("title is trimmed at a word", !/\s\S*\.\.\.$/.test(tmpl.title.replace(/\.\.\.$/, "x")) || /\.\.\.$/.test(tmpl.title));
+  ["**Step:**", "**Question shown:**", "**Feedback:**", "**Task ID:**", "**Path so far:**", "**Submitted:**"]
+    .forEach(function (k) { check("body has " + k, tmpl.body.indexOf(k) !== -1); });
+  check("redacted name line keeps its shape", tmpl.body.indexOf("Patient name: [redacted]") !== -1);
+
+  /* double-tap guard */
+  const dupPayload = JSON.stringify({ note: "same thing twice", nodeId: "p4_q2", taskId: "Task-9" });
+  out = await post(dupPayload);
+  check("first submission opens an issue", out.res.status === 200 && lastCall !== null);
+  out = await post(dupPayload);
+  check("immediate repeat is not a second issue", lastCall === null, "a second issue was opened");
+  check("repeat is still reported as success", out.json && out.json.ok === true && out.json.duplicate === true);
+  out = await post(JSON.stringify({ note: "a different report", nodeId: "p4_q2", taskId: "Task-9" }));
+  check("a different report still gets through", lastCall !== null);
+
   /* upstream failures */
   nextReply = { status: 401, body: { message: "Bad credentials" } };
-  out = await post(GOOD);
+  out = await post(JSON.stringify({ note: "upstream 401 probe", nodeId: "n1", taskId: "T1" }));
   check("GitHub 401 becomes a 502", out.res.status === 502, "got " + out.res.status);
   check(
     "upstream message is not echoed to the page",
@@ -236,9 +262,21 @@ const GOOD = JSON.stringify({
   );
 
   nextReply = { throw: true };
-  out = await post(GOOD);
+  out = await post(JSON.stringify({ note: "network failure probe", nodeId: "n2", taskId: "T2" }));
   check("network failure becomes a 502", out.res.status === 502, "got " + out.res.status);
   nextReply = { status: 201, body: { number: 7, html_url: "https://example.invalid/7" } };
+
+  /* a submission GitHub rejected must not be treated as already sent */
+  const retryPayload = JSON.stringify({ note: "fails then retries", nodeId: "n3", taskId: "T3" });
+  nextReply = { status: 500, body: {} };
+  out = await post(retryPayload);
+  check("rejected submission returns a failure", out.res.status === 502);
+  nextReply = { status: 201, body: { number: 42, html_url: "https://example.invalid/42" } };
+  out = await post(retryPayload);
+  check("retry after a failure opens the issue", out.res.status === 200 && lastCall !== null);
+  check("retry is not reported as a duplicate", !(out.json && out.json.duplicate));
+  out = await post(retryPayload);
+  check("a repeat after success is a duplicate", out.json && out.json.duplicate === true);
 
   /* report */
   print("");

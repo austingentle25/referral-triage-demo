@@ -71,43 +71,73 @@ function fence(text) {
 }
 
 function buildIssue(item) {
-  const step = item.short || "Unlabelled step";
-  const part = item.part ? item.part + " - " : "";
-  const title = ("Feedback: " + part + step).slice(0, 240);
+  // Title: where it happened, then enough of the report to recognise it in a list.
+  const where = item.part || item.short || "Referral Sync Helper";
+  let gist = item.note.replace(/\s+/g, " ").trim();
+  if (gist.length > 60) gist = gist.slice(0, 60).replace(/\s+\S*$/, "") + "...";
+  const title = (where + ": " + gist).slice(0, 240);
 
   const lines = [];
-  lines.push("**Reported from Referral Sync Helper.**");
+  lines.push("**Step:** " + (item.part || "-") + (item.short ? " - " + item.short : ""));
   lines.push("");
-  lines.push("| | |");
-  lines.push("|---|---|");
-  lines.push("| Step | " + (item.short || "-") + " |");
-  lines.push("| Part | " + (item.part || "-") + " |");
-  lines.push("| Node | `" + (item.nodeId || "-") + "` |");
-  lines.push("| Task | " + (item.taskId || "-") + " |");
-  lines.push("| Submitted | " + (item.at || "-") + " |");
+  lines.push("**Question shown:**");
   lines.push("");
-  lines.push("### What was reported");
+  lines.push(fence(item.text || "-"));
+  lines.push("");
+  lines.push("**Feedback:**");
   lines.push("");
   lines.push(fence(item.note));
-  if (item.text) {
-    lines.push("");
-    lines.push("### Screen text");
-    lines.push("");
-    lines.push(fence(item.text));
-  }
-  if (item.path) {
-    lines.push("");
-    lines.push("### How they got there");
-    lines.push("");
-    lines.push(fence(item.path));
-  }
+  lines.push("");
+  lines.push("**Task ID:** " + (item.taskId || "-"));
+  lines.push("");
+  lines.push("**Path so far:**");
+  lines.push("");
+  lines.push(fence(item.path || "-"));
+  lines.push("");
+  lines.push("**Submitted:** " + (item.at || "-"));
+  lines.push("");
+  lines.push("**Node:** `" + (item.nodeId || "-") + "`");
   lines.push("");
   lines.push(
-    "<sub>Opened automatically by the feedback relay. The path is recorded with " +
-      "the patient-name step removed, and no visitor identifying information is " +
-      "collected.</sub>"
+    "<sub>Opened automatically by the feedback relay. The patient name and every " +
+      "other free-text field that could carry patient information are redacted " +
+      "before sending; the Task ID is kept deliberately as an internal reference. " +
+      "No visitor identifying information is collected.</sub>"
   );
   return { title: title, body: lines.join("\n") };
+}
+
+/**
+ * Double-tap guard. Holds a hash of each accepted submission for 60 seconds and
+ * refuses an exact repeat, so a second tap on Send does not open a second issue.
+ *
+ * Isolate-local on purpose: a burst from one person lands on one isolate, which
+ * is the case this exists for. It is not a rate limiter and does not pretend to
+ * be one - see DEPLOY.md.
+ */
+const RECENT = new Map();
+const DEDUPE_MS = 60 * 1000;
+
+function fingerprint(item) {
+  const s = [item.note, item.nodeId, item.taskId].join("|");
+  let h = 5381;
+  for (let i = 0; i < s.length; i++) h = ((h * 33) ^ s.charCodeAt(i)) >>> 0;
+  return h.toString(36) + ":" + s.length;
+}
+
+function seenRecently(key, now) {
+  for (const [k, t] of RECENT) if (now - t > DEDUPE_MS) RECENT.delete(k);
+  return RECENT.has(key);
+}
+
+/**
+ * Recorded only after an issue actually exists. Marking it on arrival would mean
+ * a submission GitHub rejected still counted as seen, so the reviewer's retry
+ * would be answered "already sent" with nothing on the other end - which is the
+ * one failure this whole design is meant to prevent.
+ */
+function rememberSent(key, now) {
+  RECENT.set(key, now);
 }
 
 export default {
@@ -153,6 +183,13 @@ export default {
       return json(env, 400, { ok: false, error: "Write something before sending." });
     }
 
+    const fp = fingerprint(item);
+    if (seenRecently(fp, Date.now())) {
+      // Reported as success: the feedback is recorded, just not twice. Telling
+      // the reviewer it failed would invite a third tap.
+      return json(env, 200, { ok: true, duplicate: true, number: null, url: null });
+    }
+
     const issue = buildIssue(item);
 
     let res;
@@ -180,6 +217,8 @@ export default {
         error: "GitHub rejected the request (" + res.status + ").",
       });
     }
+
+    rememberSent(fp, Date.now());
 
     let created = {};
     try {
