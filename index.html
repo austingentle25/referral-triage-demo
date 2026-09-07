@@ -2526,7 +2526,7 @@
       else if ((o.authObjNote || "").toLowerCase().indexOf("pending") !== -1) label = "Referral Authorization Pending";
       else label = "Additional Scheduling Information Required";
     }
-    return "Reviewed By Valerie Health (" + rawDate.replace(/\//g, ".") + ") / " + label;
+    return "Reviewed By Valerie Health (" + rawDate.replace(/\//g, ".") + ") - " + label;
   }
 
   function buildInternalNote(){
