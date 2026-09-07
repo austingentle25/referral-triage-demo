@@ -427,6 +427,27 @@
   }
   .back-btn:active{ background:var(--k33b); }
 
+  /* Flagging a question is uncommon, so the closed state is only a quiet line of
+     text - no panel, no border, low emphasis. The card appears once it is opened. */
+  .feedback-box{ margin:8px 0 0; padding:0; background:none; border:0; }
+  .feedback-box summary{
+    cursor:pointer; font-size:0.6875rem; color:var(--ink-soft);
+    opacity:.65; padding:2px 0; list-style:none; display:inline-block;
+  }
+  .feedback-box summary::-webkit-details-marker{ display:none; }
+  .feedback-box summary::before{ content:"\2295\00a0\00a0"; opacity:.8; }
+  .feedback-box summary:hover{ opacity:1; text-decoration:underline; }
+  .feedback-box[open]{
+    background:var(--panel); border:1px solid var(--line);
+    border-radius:10px; padding:10px 14px; margin-top:10px;
+  }
+  .feedback-box[open] summary{
+    margin-bottom:8px; font-weight:700; font-size:0.75rem;
+    color:var(--teal-dark-ink); opacity:1;
+  }
+  .feedback-hint{ font-size:0.6875rem; color:var(--ink-soft); margin:6px 0 8px; }
+  .feedback-btn{ padding:8px 12px; font-size:0.8125rem; }
+  .le-note{ font-size:0.8125rem; margin-top:4px; }
   .whypath-box{
     margin:10px 0 14px; padding:9px 12px; background:var(--panel); border:1px solid var(--line);
     border-radius:9px; font-size:0.7188rem; line-height:1.5; color:var(--ink-soft); cursor:pointer;
@@ -2412,13 +2433,13 @@
     var issue = (o.engineeringIssueCategory || "Insurance listed incorrectly in Athena") +
       " - " + (o.engineeringIssueDesc || "no description provided");
     issue += " (URL: " + url + ")";
-    return "Message Engineering on Slack - " + (o.taskId || " - ") + ": " + (o.patientName || " - ") +
-      " - " + issue + ". Could we please rerun? [Tag eng]";
+    return "Message Austin on Slack - " + (o.taskId || " - ") + ": " + (o.patientName || " - ") +
+      " - " + issue + ". Could we please rerun? [Tag Austin]";
   }
   function engineeringEscalationButtonHtml(){
     if (!state.needsEngineeringEscalation) return "";
-    return '<button type="button" class="escalate-btn" id="escalateBtn" aria-label="Copy engineering escalation note">' +
-      '<span class="escalate-label" id="escalateLabel">🛠 Escalate to Engineering - tap to copy note</span>' +
+    return '<button type="button" class="escalate-btn" id="escalateBtn" aria-label="Copy escalation note for Austin">' +
+      '<span class="escalate-label" id="escalateLabel">🛠 Escalate to Austin - tap to copy note</span>' +
       '</button>';
   }
   function wireEngineeringEscalationButton(){
@@ -2579,7 +2600,7 @@
     L.push("PATIENT: " + f(o.patientName));
     L.push("TASK ID: " + f(o.taskId));
     if (isInsuranceIneligible()) L.push("ERROR / ESCALATION NOTE: " + buildInsuranceErrorNote());
-    if (state.needsEngineeringEscalation) L.push("ENGINEERING ESCALATION: " + buildEngineeringEscalationNote());
+    if (state.needsEngineeringEscalation) L.push("ESCALATION (AUSTIN): " + buildEngineeringEscalationNote());
     L.push("");
     L.push("PATIENT TYPE: " + f(o.status));
     L.push("PROVIDER: " + f(o.provider));
@@ -2893,7 +2914,7 @@
   function feedbackBoxHtml(node){
     if (!node || node.kind === "auto") return "";
     return '<details class="feedback-box">' +
-      '<summary>Something wrong with this question? Flag it</summary>' +
+      '<summary>Flag a problem with this question</summary>' +
       '<textarea id="feedbackInput" class="text-input textarea-input" rows="3" ' +
         'placeholder="What is wrong, or what should it have asked?"></textarea>' +
       '<div class="feedback-hint">Captures this question and the full path that led here. ' +
