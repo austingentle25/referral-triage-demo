@@ -720,8 +720,12 @@
     { name:"Chris Lichtenwalter, MD", specialty:"General, Interventional", locations:["Camelback"], notes:"Chandler physician, will have Camelback availability" },
     { name:"Danielle Strum", specialty:"", locations:[] },
     { name:"Diana Thayer", specialty:"", locations:[] },
-    { name:"Jody Eckhardt, DNP", specialty:"General", locations:["Camelback"] },
-    { name:"Lorraine Homes", specialty:"General", locations:["Camelback"] },
+    { name:"Jody Eckhardt, DNP", specialty:"General", locations:["Camelback"], inactive:true },
+    { name:"Lorraine Homes", specialty:"General", locations:["Camelback"], inactive:true },
+    // Eckhardt and Homes above are inactive: the practice's own locations sheet
+    // ("Biltmore Locations - Providers") lists every active provider including
+    // non-physician staff, and neither appears on it. They keep their specialty
+    // and location so a referral naming them is still recognisable.
     // Seen on the practice's own public directory 2023-2025 but not yet confirmed
     // in Athena. Specialty and locations are unknown, so the tool asks for the
     // specialty the first time one is used rather than guessing.
@@ -824,6 +828,10 @@
     var groups = DEPT_OPTIONS.map(function(deptOpt){
       var shortName = deptShortName(deptOpt);
       var matching = PROVIDER_DATA.filter(function(p){
+        // Inactive providers are excluded here, not only tagged. They keep their
+        // locations for reference, so without this they would still be offered
+        // under the site they used to cover.
+        if (p.inactive) return false;
         return p.locations.some(function(loc){ return locMatches(loc, shortName); });
       });
       return {
