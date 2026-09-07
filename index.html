@@ -1186,6 +1186,14 @@
     p1_check_entry: { kind:"auto", part:1,
       run:function(s){
         if (s.out.status === "Established") { s.part1Result="PROVIDER_PICKED"; return "p2_entry"; }
+        // A new patient who already has an upcoming appointment was booked with
+        // this provider by someone who judged the fit, so the diagnosis is taken
+        // as matching rather than re-litigated here.
+        if (s.hasUpcomingAppt === true){
+          s.providerTreatsDx = true; s.part1Result="PROVIDER_PICKED";
+          s.crumbs.push({ short:"New patient - provider treats the diagnosis? (auto)", answer:"Assumed yes - upcoming appointment already booked" });
+          return "p2_entry";
+        }
         s._afterDiag = "p1_check_treats_auto";
         return s.out.diagnosisText ? "p1_check_treats_auto" : "p1_diag_input";
       }
@@ -2479,61 +2487,46 @@
     if (!st) return "";
     return (st === "Established") ? "Established Patient Referral" : "New Patient Referral";
   }
-  // The action note is the internal note's fuller sibling: same composition and
-  // same order, but every slot is stated rather than omitted. The internal note
-  // is what goes into Athena and stays terse; this one is the complete record,
-  // so "nothing outstanding" is said explicitly instead of inferred from silence.
+  // The disposition vocabulary is fixed by the note spec. The tool's internal
+  // action strings carry extra operational detail, so they are mapped rather than
+  // printed. An empty result means the segment is omitted entirely, which the spec
+  // requires for self-pay, ineligible insurance, awaiting phone and pending auth -
+  // in each case another segment already carries the reason.
+  function specDisposition(){
+    var o = state.out;
+    var a = (o.actionNote || "");
+    var low = a.toLowerCase();
+    if (state.manualReview) return "Additional Scheduling Information Required";
+    if (!a) return "";
+    if (low.indexOf("ineligible insurance") !== -1) return "";
+    if ((o.contractedGrid || "").toLowerCase().indexOf("self-pay") !== -1) return "";
+    if (low.indexOf("non-valerie scheduling") !== -1) return "Non-Valerie Scheduling";
+    if (low.indexOf("non-camelback referral") !== -1) return "Non Camelback Referral";
+    if (low.indexOf("referring provider not in database") !== -1) return "Referring Provider Missing from Database";
+    if (low.indexOf("ready to schedule") !== -1) return "Ready for Scheduling";
+    if (low.indexOf("ineligible provider") !== -1) return "Insurance Not Accepted by Clinic/Receiving Provider";
+    return "Additional Scheduling Information Required";
+  }
+
+  // Action Note: short, provider-free, routing reason only, slash-separated.
+  // It is display guidance for the reviewer - nothing here writes to Athena.
   function buildActionNote(){
     var o = state.out;
     if (!o.status) return "";
-
     var rawDate = o.referralDate;
     if (!rawDate){
       var td = new Date();
       rawDate = String(td.getMonth()+1).padStart(2,"0") + "/" + String(td.getDate()).padStart(2,"0") + "/" + td.getFullYear();
     }
-    var dateStr = rawDate.replace(/\//g, ".");
-
-    var providerShort = o.provider || "";
-    if (providerShort === "FIND LOCATION FIRST" || providerShort === "MANUAL REVIEW") providerShort = "";
-    if (!providerShort) providerShort = "Provider not determined";
-
-    var actionShort = shortActionNote(o.actionNote);
-    var disposition = (actionShort && actionShort !== "-") ? actionShort
-      : (state.manualReview ? "Manual review required" : "No routing exception");
-
-    var urgency = "Not urgent";
-    if (o.urgent === "YES"){
-      urgency = (o.urgentReason === "diagnosis")
-        ? "Urgent for " + (cleanDiagnosisLabel(o.diagnosisText) || "diagnosis")
-        : "Urgent per provider";
+    var label = specDisposition();
+    if (!label){
+      if (o.phoneDisposition) label = "Awaiting Patient Phone Number";
+      else if ((o.contractedGrid || "").toLowerCase().indexOf("self-pay") !== -1) label = "Self Pay";
+      else if (o.contractedGrid === "No") label = "Insurance Network Review Required";
+      else if ((o.authObjNote || "").toLowerCase().indexOf("pending") !== -1) label = "Referral Authorization Pending";
+      else label = "Additional Scheduling Information Required";
     }
-
-    var path = (o.insurancePath || "").toLowerCase();
-    var ins;
-    if (o.contractedGrid === "No") ins = "Ineligible insurance - plan not contracted";
-    else if (path.indexOf("self-pay") !== -1) ins = "Self-pay";
-    else if (path.indexOf("va - case policy") !== -1 || path.indexOf("va community care") !== -1) ins = "VA";
-    else if (path.indexOf("tribal") !== -1) ins = "Tribal Health";
-    else if (path.indexOf("do not check") !== -1) ins = "Insurance not checked - non-Camelback referral";
-    else if (o.contractedGrid === "Yes") ins = "Contracted";
-    else ins = "Insurance not established";
-
-    var missing = [];
-    if (o.phoneDisposition) missing.push(o.phoneDisposition);
-    if ((o.addressNote || "").indexOf("Please Obtain") !== -1) missing.push("Awaiting patient address");
-    if (o.careTeamMismatch === "yes") missing.push("Referring provider address mismatch");
-    var missingText = missing.length ? missing.join("; ") : "Nothing outstanding";
-
-    var auths;
-    if ((o.outboundExport || "").indexOf("yes") === 0) auths = "Referral authorization requested";
-    else if ((o.authObjNote || "").toLowerCase().indexOf("pending") !== -1) auths = "Auth pending";
-    else if ((o.authObjNote || "").toLowerCase().indexOf("not required") !== -1) auths = "No authorization required";
-    else if (o.authObjNote) auths = toTitleCase(o.authObjNote);
-    else auths = "No authorization recorded";
-
-    return ["Reviewed By Valerie Health (" + dateStr + ")", providerShort, disposition,
-            urgency, ins, missingText, auths].join(" - ");
+    return "Reviewed By Valerie Health (" + rawDate.replace(/\//g, ".") + ") / " + label;
   }
 
   function buildInternalNote(){
@@ -2562,7 +2555,7 @@
     // values are internal, so say so plainly rather than emitting an empty segment.
     var providerShort = o.provider || "";
     if (providerShort === "FIND LOCATION FIRST" || providerShort === "MANUAL REVIEW") providerShort = "";
-    if (!providerShort) providerShort = "Provider not determined";
+    if (!providerShort) providerShort = "N/A";
     // Drop the action segment when there is none (manual review) instead of
     // leaving a dangling "- -" in a note staff paste into Athena.
     var actionShort = shortActionNote(o.actionNote);
@@ -2573,8 +2566,8 @@
     // three or four rather than seven.
     var segs = ["Reviewed By Valerie Health (" + dateStr + ")", providerShort];
 
-    if (actionShort && actionShort !== "-") segs.push(actionShort);
-    else if (state.manualReview) segs.push("Manual review required");
+    var disp = specDisposition();
+    if (disp) segs.push(disp);
 
     if (o.careTeamMismatch === "yes" && o.careTeamReferring) segs.push(o.careTeamReferring.replace(/\.$/, ""));
 
@@ -2803,9 +2796,9 @@
     var o = state.out;
     var L = [];
     L.push("NOTES");
-    L.push("INTERNAL NOTE: " + ft(buildInternalNote()));
-    L.push("ACTION NOTE: " + buildActionNote());
-    if (o.patientNote) L.push("PATIENT NOTE: " + ft(o.patientNote));
+    L.push("INTERNAL NOTE (referral document internal-note history): " + buildInternalNote());
+    L.push("ACTION NOTE (referral admin document): " + buildActionNote());
+    L.push("PATIENT NOTE (patient chart): " + buildInternalNote());
     if (o.locationChartNote) L.push("LOCATION CHART NOTE: " + toTitleCase(o.locationChartNote));
     L.push("");
     L.push("PATIENT: " + f(o.patientName));
@@ -2872,10 +2865,10 @@
 
     var items = [];
 
-    items.push({ sec:"Notes" });
-    items.push({ label:"Internal note", value:ft(buildInternalNote()) });
-    items.push({ label:"Action note", value:buildActionNote() });
-    if (o.patientNote) items.push({ label:"Patient note", value:ft(o.patientNote) });
+    items.push({ sec:"Notes - copy each into the destination named; the checklist only displays them" });
+    items.push({ label:"Internal note - referral document internal-note history (Quickview)", value:buildInternalNote() });
+    items.push({ label:"Action note - referral admin document", value:buildActionNote() });
+    items.push({ label:"Patient note - patient chart", value:buildInternalNote() });
     if (o.locationChartNote) items.push({ label:"Location chart note", value:toTitleCase(o.locationChartNote) });
 
     items.push({ sec:"Patient" });
