@@ -2496,17 +2496,47 @@
   var logImportResult = null;
   var LOG_FORMAT_VERSION = 1;
 
+  // A transferred log identifies its rows by Task ID, so the patient name does
+  // not travel with it. The name is replaced rather than dropped: it is the
+  // answer to the first step of the path, and Reopen replays that path, so
+  // removing it outright would leave imported rows unable to reopen.
+  //
+  // There is no date-of-birth field in the tool - a DOB only ever appears
+  // because it was typed into the name box, which this covers.
+  var EXPORT_REDACTION = "(not exported)";
+
+  function redactEntryForExport(e){
+    var c = {};
+    for (var k in e){ if (Object.prototype.hasOwnProperty.call(e, k)) c[k] = e[k]; }
+    var name = String(e.patientName || "").trim();
+    function scrub(t){
+      t = String(t || "");
+      // Keep whatever whitespace followed the value, or the crumb separator
+      // loses its space and the path reads "(not exported)-> Task ID".
+      t = t.replace(/(Patient name:\s*)([^\u2192\n]*)/g, function(m, p1, p2){
+        return p1 + EXPORT_REDACTION + (/\s$/.test(p2) ? p2.match(/\s+$/)[0] : "");
+      });
+      t = t.replace(/(Patient:\s*)([^|\n]*)/g, function(m, p1, p2){
+        return p1 + EXPORT_REDACTION + (/\s$/.test(p2) ? p2.match(/\s+$/)[0] : "");
+      });
+      // Whatever was typed as the name, wherever else it landed. split/join so a
+      // name containing regex characters is still matched literally.
+      if (name && name !== "(no name entered)") t = t.split(name).join(EXPORT_REDACTION);
+      return t;
+    }
+    c.patientName = EXPORT_REDACTION;
+    c.why = scrub(e.why);
+    c.output = scrub(e.output);
+    c.at = (e.at instanceof Date) ? e.at.toISOString() : String(e.at || "");
+    return c;
+  }
+
   function exportLogText(){
     return JSON.stringify({
       format: LOG_FORMAT,
       version: LOG_FORMAT_VERSION,
       exportedAt: new Date().toISOString(),
-      entries: sessionLog.map(function(e){
-        var c = {};
-        for (var k in e){ if (Object.prototype.hasOwnProperty.call(e, k)) c[k] = e[k]; }
-        c.at = (e.at instanceof Date) ? e.at.toISOString() : String(e.at || "");
-        return c;
-      })
+      entries: sessionLog.map(redactEntryForExport)
     }, null, 2);
   }
 
@@ -3422,6 +3452,14 @@
     if (label) label.textContent = pct + "% through";
   }
 
+  // A transferred row has no patient name, so it leads with its Task ID rather
+  // than with the placeholder that stands in for the name.
+  function logEntryTitle(e){
+    if (e.patientName && e.patientName !== EXPORT_REDACTION) return e.patientName;
+    if (e.taskId) return e.taskId;
+    return e.patientName || "(no name entered)";
+  }
+
   function logEntryHtml(e){
     var cls = e.outcome === "Manual review" ? " is-review"
       : (e.outcome === "Exited early" ? " is-exited"
@@ -3436,7 +3474,7 @@
     return '<details class="log-entry' + cls + '" data-run="' + escapeHtml(e.runId) + '">' +
       '<summary>' +
         '<div class="log-top">' +
-          '<span class="log-name">' + e.seq + '. ' + escapeHtml(e.patientName) + (e.urgent ? " ⚡" : "") + '</span>' +
+          '<span class="log-name">' + e.seq + '. ' + escapeHtml(logEntryTitle(e)) + (e.urgent ? " ⚡" : "") + '</span>' +
           '<span class="log-outcome">' + escapeHtml(e.outcome) + '</span>' +
         '</div>' +
         '<div class="log-meta">' + escapeHtml(meta.join(" · ")) + '</div>' +
@@ -3678,20 +3716,21 @@
         'or when you exit one part-way through.</p>' +
         '<p style="font-size:12px;color:var(--ink-soft);">This log lives in the page only. Refreshing or ' +
         'closing the tab clears it, so no patient name is ever saved to this computer. ' +
-        'To carry a list across a new version, copy it out of the old page first and paste it in below.</p>' +
+        'To carry a list across a new version, copy it out of the old page first and paste it in below - ' +
+        'the transfer identifies each determination by Task ID, not by patient.</p>' +
         '<div class="btnrow-continue"><button class="continue-btn" id="logBackBtn">Back to task</button></div>' +
         '<div class="log-actions" style="margin-top:12px;">' +
           '<button type="button" id="logImportToggle">Paste a log in</button>' +
         '</div>' +
         '<div class="log-transfer" id="logTransfer" hidden>' +
-          '<div class="log-transfer-hint">Paste a log exported from another version. Entries already here with the same run are replaced; everything else is added and the list is renumbered by time.</div>' +
+          '<div class="log-transfer-hint">Paste a log exported from another version. Entries already here with the same run are replaced; everything else is added and the list is renumbered by time. Rows come back under their Task ID rather than a patient name.</div>' +
           '<textarea id="logImportBox" rows="5" placeholder="Paste the exported log JSON here"></textarea>' +
           '<div class="log-transfer-row">' +
             '<button type="button" id="logImportBtn">Add these to my log</button>' +
             '<span class="log-transfer-msg" id="logImportMsg"></span>' +
           '</div>' +
         '</div>' +
-        '<div class="log-phi-note">A pasted log carries patient names and dates of birth. Keep it inside Valerie Health systems.</div>' +
+        '<div class="log-phi-note">A transferred log identifies each determination by Task ID - patient names are not included. Anything typed into a reviewer note travels as written.</div>' +
         '</div>';
     } else {
       var complete = sessionLog.filter(function(e){ return e.outcome === "Complete"; }).length;
@@ -3722,7 +3761,7 @@
             '<span class="log-transfer-msg" id="logImportMsg"></span>' +
           '</div>' +
         '</div>' +
-        '<div class="log-phi-note">Both the copy and the paste carry patient names and dates of birth. Keep them inside Valerie Health systems.</div>' +
+        '<div class="log-phi-note">A transferred log identifies each determination by Task ID - patient names are not included. Anything typed into a reviewer note travels as written.</div>' +
         '</div>' +
         sessionLog.slice().reverse().map(logEntryHtml).join("");
     }
