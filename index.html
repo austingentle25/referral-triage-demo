@@ -892,7 +892,7 @@
   // Clean display names for the searchable diagnosis picker. Each of these is written
   // to contain the underlying keyword(s) so specialtiesForDiagnosis() auto-tags it correctly.
   var CANONICAL_DIAGNOSES = [
-    "Chest Pain / Angina","Coronary Artery Disease (CAD)","Atherosclerotic Heart Disease of Native Coronary Artery","Hyperlipidemia / Dyslipidemia","Hypertension",
+    "Chest Pain (R07.9)","Angina Pectoris (I20.9)","Coronary Artery Disease (CAD)","Atherosclerotic Heart Disease of Native Coronary Artery","Hyperlipidemia / Dyslipidemia","Hypertension",
     "Syncope / Fainting","Dizziness / Lightheadedness","Shortness of Breath (SOB)","Palpitations","Heart Murmur",
     "Family History of Heart Disease","Bradycardia","Tachycardia","Nausea","Cardiac Clearance (Pre-Op)",
     "Abnormal EKG/ECG","Abnormal Stress Test","Abnormal Echocardiogram","Fatigue","Edema / Swelling",
@@ -2443,6 +2443,17 @@
       " | Ran once: " + (o.chkOnce || " - ") +
       " | Chart note added: " + (o.chkNote || " - ");
   }
+  // SMS outreach eligibility. Only meaningful once a referral is actually routed
+  // to the scheduling bucket: providers flagged in-clinic-only are scheduled
+  // without any outreach, so they are explicitly NOT SMS eligible even though the
+  // referral is otherwise ready. Anything held or stopped never reaches outreach,
+  // so the field reads "Not relevant" rather than implying a decision was made.
+  function buildSmsEligibility(){
+    var o = state.out;
+    if (state.manualReview) return "NR";
+    if (o.bucket !== "biltmorecardsched") return "NR";
+    return providerIsInClinicOnly(o.provider) ? "No - in-clinic scheduling only" : "Yes";
+  }
   function computeSchedulingStatus(){
     if (state.manualReview) return "Review";
     var o = state.out;
@@ -2573,6 +2584,7 @@
     L.push("BUCKET: " + f(o.bucket));
     L.push("ACTION / CHART NOTE: " + ft(o.actionNote));
     L.push("SCHEDULING STATUS: " + computeSchedulingStatus());
+    L.push("SMS ELIGIBLE: " + buildSmsEligibility());
     L.push("");
     L.push("URGENT: " + f(o.urgent));
     if (o.urgent === "YES") L.push("URGENT REASON: " + ft(buildUrgentReasonText()));
@@ -2640,6 +2652,7 @@
     items.push({ label:"Action / chart note", value:ft(o.actionNote) });
     var schedStatus = computeSchedulingStatus();
     items.push({ label:"Status", value:schedStatus, cls: schedStatus === "Closed" ? "status-closed" : "status-review" });
+    items.push({ label:"SMS eligible", value:buildSmsEligibility() });
 
     items.push({ sec:"Document" });
     items.push({ label:"Urgent", value:f(o.urgent), cls: o.urgent === "YES" ? "urgent-yes" : "" });
