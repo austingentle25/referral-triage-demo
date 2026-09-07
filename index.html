@@ -593,9 +593,10 @@
     </div>
     <div class="header-btns">
       <span class="live-timer" id="liveTimer">0:00</span>
+      <button class="pausebtn" id="pauseBtn">⏸ Pause</button>
       <a class="notionlink" href="https://app.notion.com/p/TPR-Pilot-Updated-Notion-3cfa27dc8d918006a439cadf0376b44d" target="_blank" rel="noopener noreferrer" title="Open the TPR Pilot Notion page">Notion</a>
       <button class="themebtn" id="themeBtn" aria-label="Toggle dark mode" title="Toggle dark mode">◐</button>
-      <button class="pausebtn" id="pauseBtn">⏸ Pause</button>
+      <button class="logbtn" id="feedbackBtn">Feedback (0)</button>
       <button class="logbtn" id="logBtn">Log (0)</button>
       <button class="startover" id="headerReset">Start over</button>
     </div>
@@ -1005,6 +1006,17 @@
   // network, so closing or refreshing the tab clears it and no patient name ever
   // reaches a persistent store.
   var sessionLog = [];
+
+  // ---- feedback log ----
+  // Staff can flag a problem from any question. Each report captures the question
+  // itself plus the exact answer path that led to it, which is what makes a report
+  // reproducible: "this question is wrong" is unactionable, "this question is wrong
+  // after these fourteen answers" is a test case. Reports survive across
+  // determinations in the sitting so several can be gathered and copied out at once.
+  // The patient NAME is deliberately not captured - the Task ID identifies the case,
+  // and the report gets pasted into email or chat where a name should not travel.
+  var feedbackLog = [];
+  var feedbackSeq = 0;
   var viewMode = "flow";
   var runCounter = 0;
 
@@ -2869,6 +2881,150 @@
     '</details>';
   }
 
+  // The path is the useful half of a feedback report, but its first crumb is the
+  // patient's name. Reports get pasted into email and chat, so the name is dropped
+  // here rather than relying on whoever copies it to notice.
+  function buildWhyPathRedacted(){
+    var parts = state.crumbs.filter(function(c){
+      return !c.divider && String(c.short || "").toLowerCase().indexOf("patient name") === -1;
+    }).map(function(c){ return c.short + ": " + c.answer; });
+    return parts.length ? parts.join(" \u2192 ") : "";
+  }
+  function feedbackBoxHtml(node){
+    if (!node || node.kind === "auto") return "";
+    return '<details class="feedback-box">' +
+      '<summary>Something wrong with this question? Flag it</summary>' +
+      '<textarea id="feedbackInput" class="text-input textarea-input" rows="3" ' +
+        'placeholder="What is wrong, or what should it have asked?"></textarea>' +
+      '<div class="feedback-hint">Captures this question and the full path that led here. ' +
+        'No patient name is included.</div>' +
+      '<button type="button" class="continue-btn feedback-btn" id="feedbackSubmit">Add to feedback</button>' +
+      '</details>';
+  }
+  function wireFeedbackBox(node){
+    var btn = document.getElementById("feedbackSubmit");
+    if (!btn) return;
+    btn.addEventListener("click", function(){
+      var input = document.getElementById("feedbackInput");
+      var note = (input && input.value || "").trim();
+      if (!note){ if (input) input.focus(); return; }
+      feedbackSeq++;
+      feedbackLog.push({
+        n: feedbackSeq,
+        runId: state.runId,
+        taskId: state.out.taskId || "(no task ID yet)",
+        nodeId: state.node,
+        short: node.short || "(unlabelled)",
+        text: node.text || "",
+        part: PART_LABELS[node.part] || ("Part " + node.part),
+        path: buildWhyPathRedacted(),
+        note: note,
+        at: new Date()
+      });
+      updateFeedbackButton();
+      btn.textContent = "Added \u2713";
+      if (input) input.value = "";
+      setTimeout(function(){
+        var b = document.getElementById("feedbackSubmit");
+        if (b) b.textContent = "Add to feedback";
+      }, 1400);
+    });
+  }
+  function updateFeedbackButton(){
+    var b = document.getElementById("feedbackBtn");
+    if (!b) return;
+    b.textContent = "Feedback (" + feedbackLog.length + ")";
+    b.classList.toggle("has-entries", feedbackLog.length > 0);
+  }
+
+  // Grouped by task so a reviewer can see every report against one referral
+  // together, then read across referrals for a question that keeps recurring.
+  function buildFeedbackReport(){
+    if (!feedbackLog.length) return "";
+    var byTask = {}, order = [];
+    feedbackLog.forEach(function(f){
+      if (!byTask[f.taskId]){ byTask[f.taskId] = []; order.push(f.taskId); }
+      byTask[f.taskId].push(f);
+    });
+    var counts = {};
+    feedbackLog.forEach(function(f){ counts[f.short] = (counts[f.short] || 0) + 1; });
+    var repeats = Object.keys(counts).filter(function(k){ return counts[k] > 1; })
+      .sort(function(a,b){ return counts[b] - counts[a]; });
+
+    var L = [];
+    L.push("TPR REFERRAL TRIAGE - FEEDBACK REPORT");
+    L.push("Generated " + new Date().toLocaleString());
+    L.push(feedbackLog.length + " report" + (feedbackLog.length === 1 ? "" : "s") +
+           " across " + order.length + " task" + (order.length === 1 ? "" : "s"));
+    if (repeats.length){
+      L.push("");
+      L.push("QUESTIONS FLAGGED MORE THAN ONCE:");
+      repeats.forEach(function(k){ L.push("  " + counts[k] + "x  " + k); });
+    }
+    order.forEach(function(t){
+      L.push("");
+      L.push("=".repeat(64));
+      L.push("TASK: " + t);
+      L.push("=".repeat(64));
+      byTask[t].forEach(function(f){
+        L.push("");
+        L.push("[" + f.n + "] " + f.part + "  -  " + f.short + "   (node " + f.nodeId + ")");
+        if (f.text) L.push("Screen text: " + f.text);
+        L.push("Reported:    " + f.note);
+        L.push("Logged at:   " + f.at.toLocaleTimeString());
+        L.push("Path to here:");
+        L.push("  " + (f.path || "(no answers yet)"));
+      });
+    });
+    return L.join("\n");
+  }
+
+  function renderFeedback(){
+    stageBadge.textContent = "Feedback";
+    var html;
+    if (!feedbackLog.length){
+      html = '<div class="card"><h2>Feedback</h2>' +
+        '<p>Nothing flagged yet. On any question, open <b>"Something wrong with this question? Flag it"</b> ' +
+        'and describe the problem - the question and the full path that led to it are captured with it.</p>' +
+        '<p style="font-size:0.75rem;color:var(--ink-soft);">Reports live in this page only and are cleared ' +
+        'when the tab closes. Copy them out before you finish.</p>' +
+        '<div class="btnrow-continue"><button class="continue-btn" id="fbBackBtn">Back to task</button></div>' +
+        '</div>';
+    } else {
+      var tasks = {};
+      feedbackLog.forEach(function(f){ tasks[f.taskId] = 1; });
+      html = '<div class="card"><h2>Feedback</h2>' +
+        '<p style="color:var(--ink-soft);">' + feedbackLog.length + ' report' +
+        (feedbackLog.length === 1 ? "" : "s") + ' across ' + Object.keys(tasks).length +
+        ' task' + (Object.keys(tasks).length === 1 ? "" : "s") + '.</p>' +
+        '<div class="output-box" id="fbCopyBox" tabindex="0" role="button" aria-label="Copy feedback report">' +
+          '<div class="ob-label">Copy the full report</div>' +
+          '<div class="ob-value">' + escapeHtml(buildFeedbackReport().slice(0, 400)) + '...</div>' +
+        '</div>' +
+        feedbackLog.slice().reverse().map(function(f){
+          return '<div class="log-entry">' +
+            '<div class="le-top"><b>' + escapeHtml(f.taskId) + '</b> - ' + escapeHtml(f.part) + '</div>' +
+            '<div class="le-mid">' + escapeHtml(f.short) + '</div>' +
+            '<div class="le-note">' + escapeHtml(f.note) + '</div>' +
+            '</div>';
+        }).join("") +
+        '<div class="btnrow-continue"><button class="continue-btn" id="fbBackBtn">Back to task</button></div>' +
+        '</div>';
+    }
+    stage.innerHTML = html;
+    document.getElementById("fbBackBtn").addEventListener("click", function(){ viewMode = "flow"; render(); });
+    var box = document.getElementById("fbCopyBox");
+    if (box){
+      var go = function(){ doCopy(buildFeedbackReport(), function(){
+        var v = box.querySelector(".ob-label"); if (!v) return;
+        var o = v.textContent; v.textContent = "Copied \u2713"; box.classList.add("copied");
+        setTimeout(function(){ var v2 = box.querySelector(".ob-label"); if (v2) v2.textContent = o; box.classList.remove("copied"); }, 1200);
+      }); };
+      box.addEventListener("click", go);
+      box.addEventListener("keydown", function(e){ if (e.key === "Enter" || e.key === " "){ e.preventDefault(); go(); } });
+    }
+  }
+
   function renderLog(){
     stageBadge.textContent = "Session log";
     var html;
@@ -2962,6 +3118,8 @@
     updateLiveTimer();
     updateLogButton();
 
+    updateFeedbackButton();
+    if (viewMode === "feedback"){ renderFeedback(); return; }
     if (viewMode === "log"){ renderLog(); return; }
     if (state.node === "__STOP__"){ renderStop(); return; }
     if (state.node === "__DONE__"){ renderDone(); return; }
@@ -2999,7 +3157,7 @@
           (node.selfPayToggle ? '<button type="button" class="edge-case-toggle" id="selfPayToggleBtn">Is this self-pay? <b>(Yes)</b></button>' : '') +
         '</div>' : '') +
       '</div>' +
-      whyPathBoxHtml();
+      whyPathBoxHtml() + feedbackBoxHtml(node);
     stage.innerHTML = html;
     var edgeCaseBtn = document.getElementById("edgeCaseToggleBtn");
     if (edgeCaseBtn){
@@ -3033,6 +3191,7 @@
     if (thirdBtn) thirdBtn.addEventListener("click", function(){ answer(node, "third", node.thirdLabel); });
     wireBackButton();
     wireWhyPathBox();
+    wireFeedbackBox(node);
     wireRelevantProvidersList(node);
   }
 
@@ -3086,7 +3245,7 @@
         '</div>' +
         resumeBoxHtml(node) +
       '</div>' +
-      whyPathBoxHtml();
+      whyPathBoxHtml() + feedbackBoxHtml(node);
     stage.innerHTML = html;
 
     var input = document.getElementById("textField");
@@ -3125,6 +3284,7 @@
     input.addEventListener("keydown", function(e){ if (e.key === "Enter") doSubmit(); });
     wireBackButton();
     wireWhyPathBox();
+    wireFeedbackBox(node);
     wireResumeBox();
   }
 
@@ -3156,7 +3316,7 @@
           '<button class="continue-btn" id="submitBtn">Continue</button>' +
         '</div>' +
       '</div>' +
-      whyPathBoxHtml();
+      whyPathBoxHtml() + feedbackBoxHtml(node);
     stage.innerHTML = html;
 
     var searchInput = document.getElementById("providerSearch");
@@ -3218,6 +3378,7 @@
     });
     wireBackButton();
     wireWhyPathBox();
+    wireFeedbackBox(node);
   }
 
   function renderSelectNode(node){
@@ -3263,7 +3424,7 @@
           '<button class="continue-btn" id="submitBtn">Continue</button>' +
         '</div>' +
       '</div>' +
-      whyPathBoxHtml();
+      whyPathBoxHtml() + feedbackBoxHtml(node);
     stage.innerHTML = html;
 
     var sel = document.getElementById("selectField");
@@ -3295,6 +3456,7 @@
     if (other) other.addEventListener("keydown", function(e){ if (e.key === "Enter") doSubmit(); });
     wireBackButton();
     wireWhyPathBox();
+    wireFeedbackBox(node);
   }
 
   function renderDiagnosisNode(node){
@@ -3316,7 +3478,7 @@
           '<button class="continue-btn" id="submitBtn">Continue</button>' +
         '</div>' +
       '</div>' +
-      whyPathBoxHtml();
+      whyPathBoxHtml() + feedbackBoxHtml(node);
     stage.innerHTML = html;
 
     var searchInput = document.getElementById("dxSearch");
@@ -3393,6 +3555,7 @@
     document.getElementById("submitBtn").addEventListener("click", doSubmit);
     wireBackButton();
     wireWhyPathBox();
+    wireFeedbackBox(node);
   }
 
   function renderStop(){
@@ -3447,6 +3610,7 @@
   stageBadge = document.getElementById("stageBadge");
   document.getElementById("headerReset").addEventListener("click", reset);
   document.getElementById("pauseBtn").addEventListener("click", togglePause);
+  document.getElementById("feedbackBtn").addEventListener("click", function(){ viewMode = (viewMode === "feedback") ? "flow" : "feedback"; render(); });
 
   // ---- theme toggle. Nothing is persisted, by design: this tool stores no state,
   // so the choice lasts for the tab and the system preference is the default. ----
