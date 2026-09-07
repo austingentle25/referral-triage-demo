@@ -1118,7 +1118,7 @@
     return { runId:"run-" + runCounter + "-" + Date.now(), runSeq:runCounter,
              node:"p_patient_name", crumbs:[], out:{}, stepTimings:[], manualReview:false, manualReviewReason:null,
              manualReviewPart:0, lastPart:0, pendingBanner:null, part1Result:null, part1Reason:null,
-             providerTreatsDx:false, hasUpcomingAppt:false, isCamelbackReferral:null, needsEngineeringEscalation:false, isLoliBahu:false, pendingEdgeCase:false, pendingSelfPay:false,
+             providerTreatsDx:false, hasUpcomingAppt:false, awaitingInfo:false, isCamelbackReferral:null, needsEngineeringEscalation:false, isLoliBahu:false, pendingEdgeCase:false, pendingSelfPay:false,
              _afterDiag:null, _afterDiag2:null, _afterDiag3:null };
   }
 
@@ -1589,7 +1589,7 @@
         var loliBahu = providerIsInClinicOnly(s.out.provider);
         var cataldo = providerIsNonValerie(s.out.provider);
         if (loliBahu){
-          setOut("bucket","biltmorecardsched"); setOut("actionNote","Ready to schedule - do not manually outreach");
+          if (!s.awaitingInfo){ setOut("bucket","biltmorecardsched"); setOut("actionNote","Ready to schedule - do not manually outreach"); }
           s.isLoliBahu = true;
           s.crumbs.push({ short:"Provider is Loli/Bahu? (auto)", answer:"Yes" });
           return "p4_valerie_athena_check";
@@ -1662,10 +1662,14 @@
       noLabel:"Not yet - still to do",
       yes:function(s){
         setOut("insuranceVerifyFlag","Awaiting Info - payor called to confirm eligibility");
+        setOut("bucket","biltmorecardreferral");
+        s.awaitingInfo = true;
         return "p4_q2";
       },
       no:function(s){
         setOut("insuranceVerifyFlag","Awaiting Info - payor still to be called");
+        setOut("bucket","biltmorecardreferral");
+        s.awaitingInfo = true;
         return "p4_q2";
       }
     },
@@ -1775,7 +1779,7 @@
       text:"Any other block - no phone, referring provider not in database, something else?",
       short:"Any other scheduling block?",
       yes:function(s){ return "p4_q4a"; },
-      no:function(s){ setOut("bucket","biltmorecardsched"); setOut("actionNote", s.isLoliBahu ? "Ready to schedule - do not manually outreach" : "Ready to schedule"); return "p5_referral_date"; }
+      no:function(s){ if (!s.awaitingInfo){ setOut("bucket","biltmorecardsched"); setOut("actionNote", s.isLoliBahu ? "Ready to schedule - do not manually outreach" : "Ready to schedule"); } return "p5_referral_date"; }
     },
     p4_q4a: { kind:"yesno3", source:"Athena - referring provider database", part:4,
       text:"Is it because the referring provider isn't in the database, or because they're missing an address?",
@@ -1842,7 +1846,7 @@
       run:function(s){
         if (s.hasUpcomingAppt === false){
           if (s.isCamelbackReferral !== true){
-            s.crumbs.push({ short:"Urgent - appt within 1 week? (auto)", answer:"No - already confirmed no upcoming appointment (non-Camelback, bucket unchanged)" });
+            s.crumbs.push({ short:"Urgent appointment check (auto)", answer:"Skipped - no upcoming appointment, non-Camelback, bucket unchanged" });
             return "p5_careteam1";
           }
           var prevBucket = s.out.bucket;
@@ -1850,8 +1854,8 @@
           // Never resurrect a case already ruled ineligible. The bucket is what
           // actually drives routing, so overwriting it here would send a rejected
           // referral to scheduling with the reason surviving only as prose.
-          if (prevBucket === "sscardio" || /ineligible/i.test(prevNote || "")){
-            s.crumbs.push({ short:"Urgent - appt within 1 week? (auto)", answer:"No - case already ineligible, routing left unchanged" });
+          if (s.awaitingInfo || prevBucket === "sscardio" || /ineligible/i.test(prevNote || "")){
+            s.crumbs.push({ short:"Urgent appointment check (auto)", answer:"Skipped - case already ineligible, routing unchanged" });
             return "p5_careteam1";
           }
           setOut("bucket","biltmorecardsched");
@@ -1860,7 +1864,7 @@
           } else {
             setOut("actionNote","Ready to schedule (no appointment within a week)");
           }
-          s.crumbs.push({ short:"Urgent - appt within 1 week? (auto)", answer:"No - already confirmed no upcoming appointment" });
+          s.crumbs.push({ short:"Urgent appointment check (auto)", answer:"Skipped - already confirmed no upcoming appointment" });
           return "p5_careteam1";
         }
         return "p5_urgent_appt_check_ask";
@@ -1877,7 +1881,7 @@
         var prevNote = s.out.actionNote;
         // Same guard as the auto gate: an already-ineligible case must keep its
         // routing rather than being flipped into the scheduling bucket.
-        if (prevBucket === "sscardio" || /ineligible/i.test(prevNote || "")) return "p5_careteam1";
+        if (s.awaitingInfo || prevBucket === "sscardio" || /ineligible/i.test(prevNote || "")) return "p5_careteam1";
         setOut("bucket","biltmorecardsched");
         if (prevBucket && prevBucket !== "biltmorecardsched"){
           setOut("actionNote","Ready to schedule (no appointment within a week) (previously: " + (prevNote || prevBucket) + ")");
@@ -1889,15 +1893,17 @@
     },
     p5_careteam1: { kind:"yesno", source:"Athena Quickview - Care Team + Valerie Task Details", part:5,
       warning:"A provider can be listed as both Referring Provider and PCP at the same time - adding one doesn't mean removing the other. Never delete an existing Care Team entry that's already there.",
-      text:"Check Care Team in Quickview - does the referring provider's address there match what's recorded on Valerie for this task? Mark this complete.",
-      short:"Referring provider on Care Team, address matches?",
+      text:"In Quickview \u2192 Care Team, is the referring provider listed with the same address as the referral?",
+      short:"Referring provider listed with matching address?",
       yes:function(s){ setOut("careTeamReferring","already listed"); return "p5_pcp_existing"; },
       no:function(s){ return "p5_careteam1a"; }
     },
     p5_careteam1a: { kind:"yesno3", source:"Athena Quickview - Care Team + Valerie Task Details", part:5,
       definition:"An address mismatch is recorded as a chart note only - it does not change the bucket. A Camelback patient who is otherwise ready to schedule still goes to biltmorecardsched. Only a referring provider missing from Athena's database moves the referral to sscardio.",
-      text:"Check whether they're missing from Care Team entirely (not just an address mismatch against what's on Valerie), then mark this complete.",
-      short:"Missing from Care Team entirely?",
+      text:"Which of these is the case?",
+      short:"Referring provider status on Care Team",
+      yesLabel:"Not on the Care Team \u2014 add them",
+      noLabel:"On the Care Team, but the address is wrong",
       thirdLabel:"Not in Athena's database at all",
       yes:function(s){ setOut("careTeamReferring","add them; address must match referring location"); return "p5_pcp_existing"; },
       no:function(s){ return "p5_ct_name"; },
@@ -1940,14 +1946,14 @@
     },
     p5_pcp_existing: { kind:"yesno", source:"Athena Quickview - Care Team", part:5,
       warning:"A provider can be listed as both PCP and Referring Provider at the same time. If a PCP is already listed, do not delete or override it - leave the existing entry alone.",
-      text:"Check Care Team for an existing PCP on this patient, then mark this complete.",
+      text:"Check Care Team for an existing PCP on this patient.",
       short:"PCP already listed?",
       yes:function(s){ setOut("pcpNote","do not override existing PCP"); return "p5_registration"; },
       no:function(s){ return "p5_pcp_specialty"; }
     },
     p5_pcp_specialty: { kind:"yesno", source:"Referral document - referring provider's specialty", part:5,
       warning:"A provider can be listed as both Referring Provider and PCP at the same time - adding the referring provider as PCP doesn't remove them as Referring Provider, or vice versa.",
-      text:"Check the referral for whether the referring provider is Family Medicine, Internal Medicine, or a Nurse Practitioner (FM / IM / FNP), then mark this complete.",
+      text:"Check the referral for whether the referring provider is Family Medicine, Internal Medicine, or a Nurse Practitioner (FM / IM / FNP).",
       short:"Referring provider is FM/IM/FNP?",
       yes:function(s){ setOut("pcpNote","add referring provider as PCP"); return "p5_registration"; },
       no:function(s){ setOut("pcpNote","referring provider is not FM/IM/FNP - no PCP action"); return "p5_registration"; }
@@ -1962,7 +1968,7 @@
       third:function(s){ setOut("addressNote","on file but doesn't match insurance subscriber address - update it from the referral"); return "p5_email"; }
     },
     p5_email: { kind:"yesno", source:"Athena Full Registration", part:5,
-      text:"Check Full Registration for an email on file, then mark this complete.",
+      text:"Check Full Registration for an email on file.",
       short:"Email on file?",
       yes:function(s){ setOut("emailNote","on file"); return "p5_phone"; },
       no:function(s){ setOut("emailNote","check No Email"); return "p5_phone"; }
@@ -1982,7 +1988,7 @@
       }
     },
     p5_emergency: { kind:"yesno", source:"Referral document", part:5,
-      text:"Check the referral fax for an emergency contact, then mark this complete.",
+      text:"Check the referral fax for an emergency contact.",
       short:"Emergency contact on fax?",
       yes:function(s){ setOut("emergencyNote","add it"); return "p5_insurance1"; },
       no:function(s){ setOut("emergencyNote","none on fax"); return "p5_insurance1"; }
@@ -2281,7 +2287,11 @@
     recordStepTime(node);
     state.out[node.field] = value;
     if (node.afterSubmit) node.afterSubmit(state);
-    state.crumbs.push({ short: node.short, answer: state.out[node.field] });
+    // An optional field left blank contributes nothing; recording it as an empty
+    // answer just leaves "Mismatch detail:" trailing in the path.
+    if (!(node.optional && !String(state.out[node.field] || "").trim())){
+      state.crumbs.push({ short: node.short, answer: state.out[node.field] });
+    }
     var next = (typeof node.next === "function") ? node.next(state) : node.next;
     gotoResolve(next);
   }
@@ -2620,6 +2630,7 @@
     var a = (o.actionNote || "");
     var low = a.toLowerCase();
     if (state.manualReview) return "Additional Scheduling Information Required";
+    if (state.awaitingInfo) return "Eligibility Pending";
     if (!a) return "";
     // The spec omits the disposition for these four: another segment already
     // states the reason, and a referral awaiting details is not "ready".
