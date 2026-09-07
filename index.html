@@ -1779,8 +1779,22 @@
     p5_email: { kind:"yesno", source:"Athena Full Registration", part:5,
       text:"Check Full Registration for an email on file, then mark this complete.",
       short:"Email on file?",
-      yes:function(s){ setOut("emailNote","on file"); return "p5_emergency"; },
-      no:function(s){ setOut("emailNote","check No Email"); return "p5_emergency"; }
+      yes:function(s){ setOut("emailNote","on file"); return "p5_phone"; },
+      no:function(s){ setOut("emailNote","check No Email"); return "p5_phone"; }
+    },
+    // Notion lists a missing phone number as a disposition in its own right:
+    // without a number the patient cannot be contacted to schedule, so it has to
+    // reach the chart note rather than being noticed later.
+    p5_phone: { kind:"yesno", source:"Athena Full Registration", part:5,
+      definition:"The number must be present and match the referral. A missing number is recorded as its own disposition, Awaiting Patient Phone Number.",
+      text:"Check Full Registration - is a patient phone number on file and matching the referral?",
+      short:"Phone on file & matches referral?",
+      yes:function(s){ setOut("phoneNote","on file, matches referral"); return "p5_emergency"; },
+      no:function(s){
+        setOut("phoneNote","missing - obtain from the referring office");
+        setOut("phoneDisposition","Awaiting Patient Phone Number");
+        return "p5_emergency";
+      }
     },
     p5_emergency: { kind:"yesno", source:"Referral document", part:5,
       text:"Check the referral fax for an emergency contact, then mark this complete.",
@@ -2431,6 +2445,9 @@
     var segs = ["Reviewed By Valerie Health (" + dateStr + ")", providerShort];
     if (actionShort && actionShort !== "-") segs.push(actionShort);
     else if (state.manualReview) segs.push("Manual review required");
+    // A missing phone is its own disposition and sits alongside the routing one,
+    // because a referral can be both ready to schedule and uncontactable.
+    if (o.phoneDisposition) segs.push(o.phoneDisposition);
     return segs.join(" - ") + urgencyText;
   }
   // Action notes read as "Summary - detail clause", where the trailing clause
@@ -2514,6 +2531,7 @@
     var o = state.out;
     if (state.manualReview) return "NR";
     if (o.bucket !== "biltmorecardsched") return "NR";
+    if (o.phoneDisposition) return "No - no phone number on file";
     return providerIsInClinicOnly(o.provider) ? "No - in-clinic scheduling only" : "Yes";
   }
   function computeSchedulingStatus(){
@@ -2662,7 +2680,7 @@
     L.push("- PCP: " + ft(o.pcpNote));
     L.push("");
     L.push("REGISTRATION WRITES:");
-    L.push("- Address: " + ft(o.addressNote) + " | Email: " + ft(o.emailNote));
+    L.push("- Address: " + ft(o.addressNote) + " | Email: " + ft(o.emailNote) + " | Phone: " + ft(o.phoneNote));
     L.push("- Calls YES, Texts YES, phones match fax, Privacy notice YES, hear-about-us: Physician Referral (if blank)");
     L.push("- Emergency contact: " + ft(o.emergencyNote));
     L.push("");
@@ -2733,6 +2751,7 @@
     items.push({ sec:"Registration" });
     items.push({ label:"Address", value:ft(o.addressNote) });
     items.push({ label:"Email", value:ft(o.emailNote) });
+    items.push({ label:"Phone", value:ft(o.phoneNote), cls: o.phoneDisposition ? "urgent-yes" : "" });
     items.push({ label:"Emergency contact", value:ft(o.emergencyNote) });
 
     items.push({ sec:"Insurance" });
