@@ -1544,22 +1544,44 @@
       yesLabel:"Primary - needs a rerun",
       noLabel:"Secondary only - can add manually",
       thirdLabel:"Not sure",
-      yes:function(s){ return "p4_valerie_athena_desc"; },
+      yes:function(s){ return "p4_ins_mismatch_type"; },
       no:function(s){
         setOut("insuranceVerifyFlag","secondary added manually - no rerun needed");
         s.pendingBanner = "Secondary insurance can be added by hand - no escalation needed. Continuing below.";
         return "p4_q2";
       },
-      third:function(s){ return "p4_valerie_athena_desc"; }
+      third:function(s){ return "p4_ins_mismatch_type"; }
+    },
+    // The mismatch types staff hit repeatedly are named rather than retyped, so
+    // the escalation reads the same way every time and can be counted later.
+    p4_ins_mismatch_type: { kind:"select", source:"Athena Quickview - Insurance + Valerie Task Details", part:4, field:"insMismatchType", context:"Insurance Check",
+      text:"What kind of mismatch is it?",
+      short:"Insurance mismatch type",
+      placeholder:"Select the mismatch type…",
+      otherLabel:"Type the mismatch",
+      options:[
+        "Self-pay on Valerie, insurance listed in Athena",
+        "Insurance on Valerie, self-pay in Athena",
+        "Different plan name",
+        "Different subscriber ID",
+        "Different group number",
+        "Different responsible payor",
+        "Policy terminated in Athena, active on Valerie"
+      ],
+      otherAllowed:true,
+      next:"p4_valerie_athena_desc"
     },
     p4_valerie_athena_desc: { kind:"text", source:"Athena Quickview - Insurance + Valerie Task Details", part:4, field:"engineeringIssueDesc", context:"Insurance Check",
-      text:"What's different between what Valerie shows and what's in Athena?",
-      short:"How Valerie and Athena differ on insurance",
-      placeholder:"Describe the mismatch",
+      optional:true,
+      text:"Anything else Engineering needs? Leave blank if the type above says it.",
+      short:"Mismatch detail",
+      placeholder:"Leave blank if nothing to add",
       afterSubmit:function(s){
         s.needsEngineeringEscalation = true;
-        setOut("engineeringIssueCategory","Valerie and Athena don't match on insurance");
-        s.pendingBanner = "Flagged to Austin to rerun the insurance. Assuming it's resolved - continuing into the normal workflow below.";
+        setOut("engineeringIssueCategory", s.out.insMismatchType
+          ? ("Insurance mismatch - " + s.out.insMismatchType)
+          : "Valerie and Athena don't match on insurance");
+        s.pendingBanner = "Flagged to Engineering to rerun the insurance. Assuming it's resolved - continuing into the normal workflow below.";
       },
       next:"p4_q2"
     },
@@ -2624,15 +2646,15 @@
     var o = state.out;
     var url = o.taskId ? "https://tpr.valeriehealth.com/tasks/" + o.taskId : " - ";
     var issue = (o.engineeringIssueCategory || "Insurance listed incorrectly in Athena") +
-      " - " + (o.engineeringIssueDesc || "no description provided");
+      (o.engineeringIssueDesc ? " - " + o.engineeringIssueDesc : "");
     issue += " (URL: " + url + ")";
-    return "Message Austin on Slack - " + (o.taskId || " - ") + ": " + (o.patientName || " - ") +
-      " - " + issue + ". Could we please rerun? [Tag Austin]";
+    return "Message the Engineering team on Slack - " + (o.taskId || " - ") + ": " + (o.patientName || " - ") +
+      " - " + issue + ". Could we please rerun? [Tag eng]";
   }
   function engineeringEscalationButtonHtml(){
     if (!state.needsEngineeringEscalation) return "";
-    return '<button type="button" class="escalate-btn" id="escalateBtn" aria-label="Copy escalation note for Austin">' +
-      '<span class="escalate-label" id="escalateLabel">🛠 Escalate to Austin - tap to copy note</span>' +
+    return '<button type="button" class="escalate-btn" id="escalateBtn" aria-label="Copy escalation note for Engineering">' +
+      '<span class="escalate-label" id="escalateLabel">🛠 Escalate to Engineering - tap to copy note</span>' +
       '</button>';
   }
   function wireEngineeringEscalationButton(){
@@ -2808,7 +2830,7 @@
     L.push("PATIENT: " + f(o.patientName));
     L.push("TASK ID: " + f(o.taskId));
     if (isInsuranceIneligible()) L.push("ERROR / ESCALATION NOTE: " + buildInsuranceErrorNote());
-    if (state.needsEngineeringEscalation) L.push("ESCALATION (AUSTIN): " + buildEngineeringEscalationNote());
+    if (state.needsEngineeringEscalation) L.push("ESCALATION (ENGINEERING): " + buildEngineeringEscalationNote());
     L.push("");
     L.push("PATIENT TYPE: " + f(o.status));
     L.push("PROVIDER: " + f(o.provider));
@@ -3675,8 +3697,9 @@
   function renderSelectNode(node){
     var isProvider = node.field === "provider";
     if (isProvider) return renderProviderSelectNode(node);
-    var placeholderLabel = "Select a department…";
-    var otherLabel = "Type the department";
+    // Every non-provider select used to claim it was picking a department.
+    var placeholderLabel = node.placeholder || "Select a department…";
+    var otherLabel = node.otherLabel || "Type the department";
     var optionsHtml = '<option value="" disabled selected>' + placeholderLabel + '</option>';
     var groups = node.dynamicGroups ? node.dynamicGroups(state) : node.groups;
     if (groups){
