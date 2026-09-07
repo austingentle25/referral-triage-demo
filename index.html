@@ -1604,7 +1604,8 @@
       }
     },
     p4_valerie_athena_check: { kind:"yesno", source:"Athena Quickview - Insurance + Valerie Task Details", part:4, context:"Insurance Check", checkpoint:true,
-      definition:"All four must match, not just the payer: plan name, subscriber ID, group number, and responsible payor. Any one of them differing counts as a mismatch.",
+      warning:"Check the patient chart before raising a Missing Information request for insurance. A request went out on Task-847 for insurance that was already active in the chart.",
+      definition:"All four must match, not just the payer: plan name, subscriber ID, group number, and responsible payor. Any one of them differing counts as a mismatch. Missing Information is only raised when the detail is absent from BOTH the patient chart AND the referral. If either one has it, it is not missing - take it from whichever source has it.",
       text:"Does Valerie and Athena match on insurance?",
       short:"Valerie/Athena insurance match?",
       yes:function(s){ return "p4_q2"; },
@@ -1960,12 +1961,23 @@
     },
     p5_registration: { kind:"yesno3", source:"Athena Full Registration", part:5,
       text:"Check the insurance box for Match Demographics alerts. If the address already matches in Athena, clear the alerts and answer Yes.",
-      definition:"Athena flags a demographic difference on the insurance itself. Clearing every Match Demographics alert is the check - you do not need to compare the addresses by eye.",
+      definition:"Athena flags a demographic difference on the insurance itself. Clearing every Match Demographics alert is the check - you do not need to compare the addresses by eye. Missing Information is only raised when the detail is absent from BOTH the patient chart AND the referral. If either one has it, it is not missing - take it from whichever source has it.",
       short:"Address on file & matches insurance?",
       thirdLabel:"On file but doesn't match insurance",
       yes:function(s){ setOut("addressNote","on file, matches insurance subscriber address"); return "p5_email"; },
-      no:function(s){ setOut("addressNote","Please Obtain, Zip: 85026"); return "p5_email"; },
+      no:function(s){ setOut("addressNote","not in the chart or on the referral - Please Obtain, Zip: 85026"); return "p5_email"; },
       third:function(s){ setOut("addressNote","on file but doesn't match insurance subscriber address - update it from the referral"); return "p5_email"; }
+    },
+    // Task-74: documents reached the chart unlabelled. The tool derives the label,
+    // but nothing confirmed it was actually applied, so it is a checkpoint now.
+    p5_doc_label: { kind:"yesno", source:"Athena - the referral document", part:5,
+      definition:"The label is New Patient Referral when there is no appointment before the referral date or none within three years, otherwise Established Patient Referral. The output card states which one applies.",
+      text:"Is the referral document labelled in Athena?",
+      short:"Document labelled in Athena?",
+      yesLabel:"Yes - labelled",
+      noLabel:"No - needs labelling",
+      yes:function(s){ setOut("docLabelApplied","yes"); return "p5_emergency"; },
+      no:function(s){ setOut("docLabelApplied","no - apply the label shown on the output card"); return "p5_emergency"; }
     },
     p5_email: { kind:"yesno", source:"Athena Full Registration", part:5,
       text:"Check Full Registration for an email on file.",
@@ -1977,14 +1989,16 @@
     // without a number the patient cannot be contacted to schedule, so it has to
     // reach the chart note rather than being noticed later.
     p5_phone: { kind:"yesno", source:"Athena Full Registration", part:5,
-      definition:"The number must be present and match the referral. A missing number is recorded as its own disposition, Awaiting Patient Phone Number.",
-      text:"Check Full Registration - is a patient phone number on file and matching the referral?",
-      short:"Phone on file & matches referral?",
-      yes:function(s){ setOut("phoneNote","on file, matches referral"); return "p5_emergency"; },
+      definition:"Missing Information is only raised when the detail is absent from BOTH the patient chart AND the referral. If either one has it, it is not missing - take it from whichever source has it.",
+      text:"Is a phone number available in either place - on file in Athena, or on the referral?",
+      short:"Phone available in chart or referral?",
+      yesLabel:"Yes - in at least one",
+      noLabel:"No - missing from both",
+      yes:function(s){ setOut("phoneNote","available - on file or taken from the referral"); return "p5_doc_label"; },
       no:function(s){
-        setOut("phoneNote","missing - obtain from the referring office");
+        setOut("phoneNote","missing from both chart and referral - request from the referring office");
         setOut("phoneDisposition","Awaiting Patient Phone Number");
-        return "p5_emergency";
+        return "p5_doc_label";
       }
     },
     p5_emergency: { kind:"yesno", source:"Referral document", part:5,
@@ -2667,6 +2681,24 @@
     return "Reviewed By Valerie Health (" + rawDate.replace(/\//g, ".") + ") - " + label;
   }
 
+  // Requested by the practice: the patient-facing note is slash-separated and
+  // carries the receiving provider and the disposition only - not the urgency,
+  // insurance or missing-information detail that the internal note collects.
+  function buildPatientNote(){
+    var o = state.out;
+    if (!o.status) return "";
+    var rawDate = o.referralDate;
+    if (!rawDate){
+      var td = new Date();
+      rawDate = String(td.getMonth()+1).padStart(2,"0") + "/" + String(td.getDate()).padStart(2,"0") + "/" + td.getFullYear();
+    }
+    var provider = o.provider || "";
+    if (provider === "FIND LOCATION FIRST" || provider === "MANUAL REVIEW") provider = "";
+    if (!provider) provider = "N/A";
+    var disp = specDisposition() || (state.manualReview ? "Additional Scheduling Information Required" : "Ready for Scheduling");
+    return ["Reviewed By Valerie Health (" + rawDate.replace(/\//g, ".") + ")", provider, disp].join(" / ");
+  }
+
   function buildInternalNote(){
     var o = state.out;
     if (!o.status) return "";
@@ -2937,7 +2969,7 @@
     L.push("NOTES");
     L.push("INTERNAL NOTE (referral document internal-note history): " + buildInternalNote());
     L.push("ACTION NOTE (referral admin document): " + buildActionNote());
-    L.push("PATIENT NOTE (patient chart): " + buildInternalNote());
+    L.push("PATIENT NOTE (patient chart): " + buildPatientNote());
     if (o.reviewerNote) L.push("REVIEWER NOTE (not written to Athena): " + o.reviewerNote);
     if (o.locationChartNote) L.push("LOCATION CHART NOTE: " + toTitleCase(o.locationChartNote));
     L.push("");
@@ -3008,7 +3040,7 @@
     items.push({ sec:"Notes - copy each into the destination named; the checklist only displays them" });
     items.push({ label:"Internal note - referral document internal-note history (Quickview)", value:buildInternalNote() });
     items.push({ label:"Action note - referral admin document", value:buildActionNote() });
-    items.push({ label:"Patient note - patient chart", value:buildInternalNote() });
+    items.push({ label:"Patient note - patient chart", value:buildPatientNote() });
     if (o.reviewerNote) items.push({ label:"Reviewer note - not written to Athena", value:o.reviewerNote });
     if (o.locationChartNote) items.push({ label:"Location chart note", value:toTitleCase(o.locationChartNote) });
 
