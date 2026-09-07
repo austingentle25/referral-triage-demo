@@ -8,59 +8,73 @@ The relay exists for one reason: a GitHub token must never reach the browser.
 Anything the page holds can be read out of it with dev tools, so the page talks
 to the relay and the relay talks to GitHub.
 
-**Everything below needs your own accounts. I cannot run any of it, and I have
-not verified the live deployment — only the Worker's logic offline.**
+Everything that does not need your credentials is done — see below. **Two steps
+remain and only you can do them: creating the GitHub token, and logging into
+Cloudflare. I have not verified the live deployment**, only the Worker's logic
+offline and the issue format against real GitHub.
 
 ---
 
-## Decide first: where the issues should go
+## Already done
 
-`wrangler.toml` ships with `GITHUB_REPO = "REPLACE_ME/REPLACE_ME"` deliberately.
-Choose before you deploy.
-
-**Issues on a public repository are readable by anyone on the internet, with no
-GitHub account needed.** `austingentle25/referral-triage-demo` is public.
-
-What a report carries:
-
-| Field | Risk |
+| | |
 |---|---|
-| `note` | **Free text, typed by staff working a real referral.** Unbounded. Nothing stops someone writing a patient's name into it. |
-| `path` | The decision path, with the patient-name step removed. Still carries diagnosis, provider, insurance answers and the Task ID. |
-| `taskId` | Internal task identifier |
-| `short`, `part`, `text`, `nodeId` | Internal workflow structure |
+| Issue repo | **`austingentle25/referral-sync-feedback`** — created, private |
+| `wrangler.toml` | Points at it. `ALLOWED_ORIGIN` set to the live tool |
+| Issue format | Proved against real GitHub — [issue #1](https://github.com/austingentle25/referral-sync-feedback/issues/1) |
+| Worker logic | 41 offline checks pass |
+| Redaction | Applied in the page and again in the Worker |
 
-The patient name is stripped, but that is the only automatic protection, and it
-cannot protect a name typed into the note itself.
+The issues go to a **private** repo, not the tool's public one. Feedback is free
+text typed while working a real referral; issues on a public repo are readable
+by anyone on the internet with no account. Delete the proof issue whenever you
+like — it exists to show what an issue looks like.
 
-**Recommendation: point this at a private repo** — `austingentle25/tpr-ops-docs`
-already exists and is private, or make a new private one for the issues. The
-relay works the same either way; only the token's scope changes. Choosing the
-public repo means accepting that clinical triage detail and anything staff type
-is published, permanently and to everyone.
+## What is redacted before anything is sent
+
+The page scrubs first, then the Worker scrubs again on arrival, because a rule
+enforced only in the page protects nobody against a client that skips it.
+
+| Removed | Where |
+|---|---|
+| The patient name for that determination, whole and by each part of it (so "Capes" is caught as well as "Steven H Capes") | Page only — the Worker cannot know the name |
+| Dates in any common form — a date of birth typed into the note | Page and Worker |
+| Runs of 7+ digits — MRN, account numbers | Page and Worker |
+| Formatted phone numbers | Page and Worker |
+| The patient-name step of the path | Already dropped before this |
+
+What survives is the complaint itself, the step, the node id, the Task ID and
+the decision path. A note reading *"Steven Capes has DOB 05/13/1948, phone
+602-555-0100, MRN 1234567890 - this question is unclear"* arrives as
+*"[removed] [removed] has DOB [removed], phone [removed], MRN [removed] - this
+question is unclear"*.
+
+The Task ID is kept deliberately: it is what makes a report actionable, and it
+is an internal task reference rather than patient identity.
 
 ---
 
-## Steps, in order
+## What is left, and only you can do it
+
+Two steps need your own credentials. I cannot create a token or authorise a
+Cloudflare account on your behalf, and there is no Node on this machine, so
+wrangler could not be installed or run here either.
 
 ### 1. Create a fine-grained personal access token
 
 <https://github.com/settings/personal-access-tokens/new>
 
 - **Resource owner:** your account
-- **Repository access:** *Only select repositories* → the one repo you chose above
+- **Repository access:** *Only select repositories* → **`referral-sync-feedback`**
 - **Permissions:** Repository permissions → **Issues: Read and write**. Nothing else.
 - **Expiration:** as short as you will tolerate re-issuing. 90 days is reasonable.
 
-Do not use a classic token. A classic token cannot be scoped to a single repo,
-so a leak would expose everything you own.
+Do not use a classic token — it cannot be scoped to one repo, so a leak would
+expose everything you own.
 
-Copy the token when it is shown — GitHub will not show it again.
+Copy the token when it is shown. GitHub will not show it again.
 
 ### 2. Install and log into Wrangler
-
-There is no Node on the machine this was built on, so this is the first thing
-you will need that I could not run.
 
 ```bash
 npm install -g wrangler
@@ -72,20 +86,7 @@ wrangler login
 
 That opens a browser to authorise Cloudflare. A free Workers plan is enough.
 
-### 3. Point the Worker at your repo
-
-Edit `worker/wrangler.toml`:
-
-```toml
-GITHUB_REPO = "austingentle25/tpr-ops-docs"   # or whichever you chose
-ALLOWED_ORIGIN = "https://austingentle25.github.io"
-```
-
-`ALLOWED_ORIGIN` is already correct for the current deployment. It must be the
-exact origin with no trailing slash and no path — requests from anywhere else
-are refused.
-
-### 4. Store the token as a secret
+### 3. Store the token as a secret
 
 ```bash
 cd worker && wrangler secret put GITHUB_TOKEN
@@ -97,7 +98,7 @@ written to any file in this repo.
 **Do not** put it in `wrangler.toml` under `[vars]`. That file is committed, so
 the token would be public the moment you pushed.
 
-### 5. Deploy
+### 4. Deploy
 
 ```bash
 cd worker && wrangler deploy
@@ -106,7 +107,7 @@ cd worker && wrangler deploy
 Wrangler prints the URL, of the form
 `https://referral-sync-feedback.<your-subdomain>.workers.dev`.
 
-### 6. Plug the URL into the tool
+### 5. Plug the URL into the tool
 
 In `index.html`, find:
 
@@ -114,19 +115,19 @@ In `index.html`, find:
 var FEEDBACK_RELAY_URL = "";
 ```
 
-Set it to the URL from step 5, then commit and push. GitHub Pages redeploys in
+Set it to the URL from step 4, then commit and push. GitHub Pages redeploys in
 about a minute.
 
 While that constant is empty the tool behaves exactly as it did before — reports
 are kept in the page and copied out by hand — so there is no broken state
 between now and the deploy.
 
-### 7. Check it end to end
+### 6. Check it end to end
 
 Open the live tool, flag a problem on any question, and confirm:
 
 - the button reads **Sent ✓**
-- an issue appears on the repo you chose
+- an issue appears in `referral-sync-feedback`
 - the feedback view shows **issue #N** against that report
 
 Then break it on purpose: set `FEEDBACK_RELAY_URL` to a wrong URL locally and
@@ -142,13 +143,13 @@ silently, and that is the path that proves it.
 cd worker && /System/Library/Frameworks/JavaScriptCore.framework/Versions/A/Helpers/jsc test/harness.js
 ```
 
-36 checks, no install needed. It stubs `fetch`, `Response` and `Headers`, and
+41 checks, no install needed. It stubs `fetch`, `Response` and `Headers`, and
 covers the method and origin gates, missing configuration, empty and
 whitespace-only notes, unparseable and oversized bodies, the length caps, the
 issue formatting, markdown-fence escaping, control-character stripping, and
 that the token never appears in a response or an issue body.
 
-It cannot tell you anything about the live deployment. Only step 7 can.
+It cannot tell you anything about the live deployment. Only step 6 can.
 
 Once wrangler is installed you can also run it locally:
 

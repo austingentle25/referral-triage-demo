@@ -1156,6 +1156,42 @@
 
   var feedbackLog = [];
 
+  // What leaves the page for the issue tracker is scrubbed first. The note is
+  // free text typed while working a real referral, so it is the one field that
+  // can carry anything; the structured fields are scrubbed too rather than
+  // trusted. The same patterns are applied again in the Worker, because a
+  // client-side rule protects nobody against a client that skips it.
+  //
+  // Deliberately not scrubbed: the answers recorded in the path. The referral
+  // date belongs there and is not patient identity, and the patient-name step
+  // is already dropped by buildWhyPathRedacted.
+  var RELAY_REDACTION = "[removed]";
+
+  function scrubForRelay(text, patientName){
+    var t = String(text || "");
+    // The name typed into this determination, wherever it was repeated.
+    var name = String(patientName || "").trim();
+    if (name && name !== "(no name entered)"){
+      t = t.split(name).join(RELAY_REDACTION);
+      // ...and each part of it, so "Capes" alone is caught as well as the whole.
+      name.split(/[\s,()]+/).forEach(function(w){
+        if (w.length >= 4 && !/^\d+$/.test(w)) t = t.split(w).join(RELAY_REDACTION);
+      });
+    }
+    return scrubPatterns(t);
+  }
+
+  // Dates and long digit runs: a date of birth, a phone number, an MRN. Kept in
+  // step with the Worker's copy of the same rules.
+  function scrubPatterns(t){
+    t = String(t || "");
+    t = t.replace(/\b\d{1,2}[\/.-]\d{1,2}[\/.-]\d{2,4}\b/g, RELAY_REDACTION);
+    t = t.replace(/\b\d{4}-\d{1,2}-\d{1,2}\b/g, RELAY_REDACTION);
+    t = t.replace(/\b\d{7,}\b/g, RELAY_REDACTION);
+    t = t.replace(/\b\d{3}[\s.-]\d{3}[\s.-]\d{4}\b/g, RELAY_REDACTION);
+    return t;
+  }
+
   // Sends one item and records what happened on the item itself, so the feedback
   // view can say per report whether it reached GitHub. Never throws: a relay that
   // is down must not cost the reviewer the note they just wrote.
@@ -1166,9 +1202,13 @@
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        note: item.note, short: item.short, part: item.part,
-        nodeId: item.nodeId, taskId: item.taskId,
-        text: item.text, path: item.path,
+        note: scrubForRelay(item.note, item.patientName),
+        short: item.short,
+        part: item.part,
+        nodeId: item.nodeId,
+        taskId: item.taskId,
+        text: item.text,
+        path: scrubForRelay(item.path, item.patientName),
         at: (item.at instanceof Date) ? item.at.toISOString() : String(item.at || "")
       })
     }).then(function(res){
@@ -3626,6 +3666,8 @@
         n: feedbackSeq,
         runId: state.runId,
         taskId: state.out.taskId || "(no task ID yet)",
+        // Held only so it can be scrubbed out of what is sent. Never transmitted.
+        patientName: state.out.patientName || "",
         nodeId: state.node,
         short: node.short || "(unlabelled)",
         // A multi-field screen's own text says nothing about which question was

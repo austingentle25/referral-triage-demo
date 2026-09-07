@@ -213,6 +213,18 @@ const GOOD = JSON.stringify({
   const nl = JSON.parse(lastCall.opts.body);
   check("newlines inside a note survive", nl.body.indexOf("first line\nsecond line") !== -1);
 
+  /* redaction on arrival - the page scrubs too, this is the second pass */
+  out = await post(JSON.stringify({
+    note: "patient DOB 05/13/1948, call 602-555-0100 or MRN 1234567890",
+    path: "Referral date: 06/18/2026",
+  }));
+  const red = JSON.parse(lastCall.opts.body);
+  check("date of birth is removed", red.body.indexOf("05/13/1948") === -1, red.body.slice(0, 200));
+  check("phone number is removed", red.body.indexOf("602-555-0100") === -1);
+  check("long digit run is removed", red.body.indexOf("1234567890") === -1);
+  check("surrounding words survive", red.body.indexOf("patient DOB") !== -1);
+  check("a date in the path is removed too", red.body.indexOf("06/18/2026") === -1);
+
   /* upstream failures */
   nextReply = { status: 401, body: { message: "Bad credentials" } };
   out = await post(GOOD);

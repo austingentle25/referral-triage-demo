@@ -44,6 +44,25 @@ function clean(v, max) {
     .slice(0, max);
 }
 
+/**
+ * Second pass at the same redaction the page applies before sending. The page
+ * can be bypassed - anyone who has read its source can post here directly - so
+ * the rules are enforced again on arrival rather than trusted.
+ *
+ * Dates and long digit runs: a date of birth, a phone number, an MRN. The
+ * Worker cannot know the patient's name, so that part is the page's job and
+ * this is what remains enforceable here.
+ */
+const REDACTION = "[removed]";
+
+function redact(t) {
+  return String(t || "")
+    .replace(/\b\d{1,2}[\/.-]\d{1,2}[\/.-]\d{2,4}\b/g, REDACTION)
+    .replace(/\b\d{4}-\d{1,2}-\d{1,2}\b/g, REDACTION)
+    .replace(/\b\d{7,}\b/g, REDACTION)
+    .replace(/\b\d{3}[\s.-]\d{3}[\s.-]\d{4}\b/g, REDACTION);
+}
+
 /** Fenced so a submission cannot break out of the block and inject markdown. */
 function fence(text) {
   let ticks = "```";
@@ -120,13 +139,13 @@ export default {
     }
 
     const item = {
-      note: clean(payload.note, MAX_NOTE),
+      note: redact(clean(payload.note, MAX_NOTE)),
       short: clean(payload.short, MAX_FIELD),
       part: clean(payload.part, MAX_FIELD),
       nodeId: clean(payload.nodeId, MAX_FIELD),
       taskId: clean(payload.taskId, MAX_FIELD),
       text: clean(payload.text, MAX_PATH),
-      path: clean(payload.path, MAX_PATH),
+      path: redact(clean(payload.path, MAX_PATH)),
       at: clean(payload.at, MAX_FIELD),
     };
 
@@ -178,4 +197,4 @@ export default {
 };
 
 // Exported for the offline test harness only; the Worker itself uses `fetch`.
-export const __test = { clean, fence, buildIssue };
+export const __test = { clean, fence, buildIssue, redact };
