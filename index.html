@@ -2378,11 +2378,17 @@
     return parsed.length ? parsed : null;
   }
 
-  function resumeFromWhyPathText(text){
+  function resumeFromWhyPathText(text, adopt){
     var parsed = parseWhyPathText(text);
     if (!parsed) return { ok:false, error:"Couldn't read that - paste the full \"Why this path\" text." };
 
     state = freshState();
+    // Reopening an existing determination keeps that run's identity so it is
+    // updated in the log rather than logged again alongside itself.
+    if (adopt && adopt.runId){
+      state.runId = adopt.runId;
+      if (typeof adopt.seq === "number") state.runSeq = adopt.seq;
+    }
     historyStack = [];
     isPaused = false; pauseStartedAt = null; pausedMsForCurrentStep = 0;
 
@@ -3857,7 +3863,7 @@
         if (act === "reopen"){
           // Replays the stored path, so a determination left waiting on missing
           // information can be picked up where it was rather than redone.
-          var res = resumeFromWhyPathText(entry.why);
+          var res = resumeFromWhyPathText(entry.why, { runId:entry.runId, seq:entry.seq });
           if (!res.ok){
             btn.textContent = "Could not reopen - copy the path instead";
             setTimeout(function(){ btn.textContent = "Reopen this determination"; }, 2600);
