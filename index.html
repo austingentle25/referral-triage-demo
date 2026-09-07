@@ -974,6 +974,9 @@
 
   var state, stage, stageBadge;
   var historyStack = [];
+  // The clock does not run on this step: staff often open the tool before they
+  // have the referral in front of them.
+  var TIMER_STARTS_AFTER = "p_patient_name";
   var stepStartTime = null;
   var isPaused = false;
   var pauseStartedAt = null;
@@ -1012,6 +1015,12 @@
   function updateLiveTimer(){
     var el = document.getElementById("liveTimer");
     if (!el) return;
+    // Waiting to start reads as 0:00, not a dash: the clock has not begun rather
+    // than being unavailable. A dash still marks the finished screens.
+    if (state.node === TIMER_STARTS_AFTER && !stepStartTime){
+      el.textContent = "0:00";
+      return;
+    }
     if (!stepStartTime || state.node === "__STOP__" || state.node === "__DONE__"){
       el.textContent = " - ";
       return;
@@ -2049,9 +2058,12 @@
   }
 
   function recordStepTime(node){
+    // The untimed opening step contributes nothing, so it is not logged at all
+    // rather than logged as 0s, which would read as a real measurement.
+    if (!stepStartTime) return;
     var now = Date.now();
     var pausedTotal = pausedMsForCurrentStep + ((isPaused && pauseStartedAt) ? (now - pauseStartedAt) : 0);
-    var ms = stepStartTime ? Math.max(0, now - stepStartTime - pausedTotal) : 0;
+    var ms = Math.max(0, now - stepStartTime - pausedTotal);
     state.stepTimings.push({ short: node.short, ms: ms });
   }
 
@@ -3162,7 +3174,9 @@
 
     var node = NODES[state.node];
     if (!node) return;
-    if (node.kind !== "auto"){ stepStartTime = Date.now(); pausedMsForCurrentStep = 0; updateLiveTimer(); }
+    if (node.kind === "auto"){ /* no clock on silent steps */ }
+    else if (state.node === TIMER_STARTS_AFTER){ stepStartTime = null; pausedMsForCurrentStep = 0; updateLiveTimer(); }
+    else { stepStartTime = Date.now(); pausedMsForCurrentStep = 0; updateLiveTimer(); }
     if (node.kind === "text") renderTextNode(node);
     else if (node.kind === "select") renderSelectNode(node);
     else if (node.kind === "diagnosis") renderDiagnosisNode(node);
