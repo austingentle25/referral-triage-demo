@@ -3576,7 +3576,11 @@
         taskId: state.out.taskId || "(no task ID yet)",
         nodeId: state.node,
         short: node.short || "(unlabelled)",
-        text: node.text || "",
+        // A multi-field screen's own text says nothing about which question was
+        // meant, so the fields on screen are recorded with it.
+        text: (node.text || "") + (node.kind === "form" && node.fields
+          ? "\n  Questions on this screen: " + node.fields.map(function(f){ return f.label; }).join(" | ")
+          : ""),
         part: node.partLabel || PART_LABELS[node.part] || ("Part " + node.part),
         path: buildWhyPathRedacted(),
         note: note,
@@ -3990,17 +3994,30 @@
           '<button class="continue" id="btnFormGo"' + (ready ? "" : " disabled") + '>Continue</button>' +
         '</div>' +
         '<div class="form-warn" id="formWarn"></div>' +
-        (ready ? '' : '<div class="form-hint">Answer every field to continue.</div>') +
+        '<div class="form-hint" id="formHint"' + (ready ? ' hidden' : '') + '>Answer every field to continue.</div>' +
       '</div>' +
       whyPathBoxHtml() + feedbackBoxHtml(node) + engFlagBoxHtml(node);
     stage.innerHTML = html;
 
+    function refreshFormReady(){
+      var go = document.getElementById("btnFormGo");
+      var ready = formComplete(node);
+      if (go) go.disabled = !ready;
+      var hint = document.getElementById("formHint");
+      if (hint) hint.hidden = ready;
+    }
     var opts = stage.querySelectorAll(".form-opt");
     for (var a = 0; a < opts.length; a++){
       opts[a].addEventListener("click", function(){
         var f = node.fields[parseInt(this.getAttribute("data-fi"), 10)];
         formDraft[f.short] = this.getAttribute("data-val");
-        renderFormNode(node);
+        // Repaint just this group. Redrawing the card would take the feedback
+        // box - and whatever the reviewer had typed into it - with it.
+        var group = this.parentElement;
+        var sibs = group.querySelectorAll(".form-opt");
+        for (var q = 0; q < sibs.length; q++) sibs[q].classList.remove("on");
+        this.classList.add("on");
+        refreshFormReady();
       });
     }
     var texts = stage.querySelectorAll(".form-text");
@@ -4016,8 +4033,7 @@
         el.addEventListener("input", function(){
           if (f.dateMask) el.value = formatDateMask(el.value);
           formDraft[f.short] = el.value;
-          var go = document.getElementById("btnFormGo");
-          if (go) go.disabled = !formComplete(node);
+          refreshFormReady();
           var w = document.getElementById("formWarn");
           if (w) w.style.display = "none";
         });
@@ -4042,6 +4058,8 @@
       submitForm(node);
     });
     wireBackButton();
+    wireFeedbackBox(node);
+    wireEngFlagBox(node);
   }
 
   function renderQuestionNode(node){
