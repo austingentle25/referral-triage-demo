@@ -442,6 +442,8 @@
   .time-overall-label{ font-size:0.9375rem; font-weight:700; color:var(--ink); }
   .time-overall-val{ font-size:1.375rem; font-weight:700; font-variant-numeric:tabular-nums; color:var(--teal-dark-ink); }
   .time-overall-sub{ font-size:0.6875rem; color:var(--ink-soft); margin:6px 0 10px; }
+  .reviewer-note-card{ margin-top:12px; }
+  .reviewer-note-card h3{ font-size:0.9375rem; margin:4px 0 8px; }
   .feedback-box{ margin:8px 0 0; padding:0; background:none; border:0; }
   .feedback-box summary{
     cursor:pointer; font-size:0.6875rem; color:var(--ink-soft);
@@ -2365,6 +2367,7 @@
       urgent: o.urgent === "YES", outcome: outcome,
       schedulingStatus: computeSchedulingStatus(),
       ms: (state.stepTimings || []).reduce(function(sum, t){ return sum + t.ms; }, 0),
+      reviewerNote: o.reviewerNote || "",
       output: buildOutputText(), why: buildWhyPath()
     };
     for (var i = 0; i < sessionLog.length; i++){
@@ -2891,6 +2894,7 @@
     L.push("INTERNAL NOTE (referral document internal-note history): " + buildInternalNote());
     L.push("ACTION NOTE (referral admin document): " + buildActionNote());
     L.push("PATIENT NOTE (patient chart): " + buildInternalNote());
+    if (o.reviewerNote) L.push("REVIEWER NOTE (not written to Athena): " + o.reviewerNote);
     if (o.locationChartNote) L.push("LOCATION CHART NOTE: " + toTitleCase(o.locationChartNote));
     L.push("");
     L.push("PATIENT: " + f(o.patientName));
@@ -2961,6 +2965,7 @@
     items.push({ label:"Internal note - referral document internal-note history (Quickview)", value:buildInternalNote() });
     items.push({ label:"Action note - referral admin document", value:buildActionNote() });
     items.push({ label:"Patient note - patient chart", value:buildInternalNote() });
+    if (o.reviewerNote) items.push({ label:"Reviewer note - not written to Athena", value:o.reviewerNote });
     if (o.locationChartNote) items.push({ label:"Location chart note", value:toTitleCase(o.locationChartNote) });
 
     items.push({ sec:"Patient" });
@@ -3987,6 +3992,7 @@
         '<button class="again" id="startOverBtn2">Start over</button>' +
       '</div>' +
       '</div>' +
+      reviewerNoteHtml() +
       outputSectionHtml() +
       timeBreakdownHtml() +
       feedbackBoxHtml(OUTPUT_CARD_NODE) + engFlagBoxHtml(OUTPUT_CARD_NODE);
@@ -3997,8 +4003,36 @@
     wireEngineeringEscalationButton();
     wireBackButton();
     wireOutputSection();
+    wireReviewerNote();
     wireFeedbackBox(OUTPUT_CARD_NODE);
     wireEngFlagBox(OUTPUT_CARD_NODE);
+  }
+
+  // A free-text note for whoever finishes the determination: context that does not
+  // belong in any of the three Athena notes, but should travel with the record and
+  // survive into the session log so it is still there when the run is reopened.
+  function reviewerNoteHtml(){
+    var v = state.out.reviewerNote || "";
+    return '<div class="card reviewer-note-card">' +
+      '<span class="step-label">Reviewer note</span>' +
+      '<h3>Anything worth recording about this determination?</h3>' +
+      '<textarea id="reviewerNoteInput" class="text-input textarea-input" rows="3" ' +
+        'placeholder="Optional - kept with this determination in the session log">' + escapeHtml(v) + '</textarea>' +
+      '<div class="feedback-hint">Saved with this determination and shown on the output card. ' +
+        'It is not one of the Athena notes - nothing here is pasted into the chart unless you copy it.</div>' +
+      '<button type="button" class="continue-btn feedback-btn" id="reviewerNoteBtn">' +
+        (v ? "Update note" : "Save note") + '</button>' +
+      '</div>';
+  }
+  function wireReviewerNote(){
+    var btn = document.getElementById("reviewerNoteBtn");
+    if (!btn) return;
+    btn.addEventListener("click", function(){
+      var input = document.getElementById("reviewerNoteInput");
+      setOut("reviewerNote", (input && input.value || "").trim());
+      logCurrentRun();
+      render();
+    });
   }
 
   function renderDone(){
@@ -4013,6 +4047,7 @@
         '<button class="again" id="startOverBtn2">Start over</button>' +
       '</div>' +
       '</div>' +
+      reviewerNoteHtml() +
       outputSectionHtml() +
       timeBreakdownHtml() +
       feedbackBoxHtml(OUTPUT_CARD_NODE) + engFlagBoxHtml(OUTPUT_CARD_NODE);
@@ -4022,6 +4057,7 @@
     wireEngineeringEscalationButton();
     wireBackButton();
     wireOutputSection();
+    wireReviewerNote();
     wireFeedbackBox(OUTPUT_CARD_NODE);
     wireEngFlagBox(OUTPUT_CARD_NODE);
   }
