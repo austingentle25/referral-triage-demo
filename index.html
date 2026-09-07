@@ -421,6 +421,18 @@
   select.text-input{ background:var(--k39b); appearance:auto; }
   .field-warn{ color:var(--review); font-size:0.75rem; margin-top:6px; display:none; }
 
+  .form-fields{ display:flex; flex-direction:column; gap:18px; margin:14px 0 4px; }
+  .form-field{ border-left:2px solid var(--line); padding-left:14px; }
+  .form-q{ font-weight:600; margin-bottom:8px; line-height:1.4; }
+  .form-opts{ display:flex; flex-wrap:wrap; gap:8px; }
+  .form-opt{ padding:8px 14px; font-size:0.875rem; border:1px solid var(--line);
+    background:var(--panel); color:var(--ink); border-radius:6px; cursor:pointer;
+    font-family:inherit; text-align:left; }
+  .form-opt:hover{ border-color:var(--teal); }
+  .form-opt.on{ background:var(--teal); border-color:var(--teal); color:var(--k14f); font-weight:600; }
+  .form-text{ width:100%; }
+  .form-hint{ font-size:0.75rem; color:var(--k03f); margin-top:8px; }
+  .form-warn{ display:none; font-size:0.8125rem; color:var(--review); margin-top:8px; font-weight:600; }
   .btnrow-continue{ display:flex; gap:10px; margin-top:16px; }
   .continue-btn{
     flex:1; display:block; padding:15px; background:var(--teal-dark); border:none;
@@ -1835,9 +1847,18 @@
     },
 
     // ---- PART 5 - WRITES & OBJECTS ----
-    p5_referral_date: { kind:"text", source:"Referral document", part:5, field:"referralDate",
-      text:"What's the referral date?", short:"Referral date",
-      placeholder:"MM/DD/YYYY", dateMask:true, defaultToday:true,
+    p5_referral_date: { kind:"form", source:"Referral document", part:5,
+      text:"With the referral fax open, fill in both.",
+      short:"Referral fax sweep",
+      fields:[
+        { kind:"text", field:"referralDate", short:"Referral date",
+          label:"What's the referral date?",
+          placeholder:"MM/DD/YYYY", dateMask:true, defaultToday:true },
+        { kind:"yesno", short:"Emergency contact on fax?",
+          label:"Is there an emergency contact on the fax?",
+          yes:function(s){ setOut("emergencyNote","add it"); },
+          no:function(s){ setOut("emergencyNote","none on fax"); } }
+      ],
       next:"p5_urgent"
     },
     p5_urgent: { kind:"auto", part:5,
@@ -1971,14 +1992,33 @@
       yes:function(s){ setOut("pcpNote","add referring provider as PCP"); return "p5_registration"; },
       no:function(s){ setOut("pcpNote","referring provider is not FM/IM/FNP - no PCP action"); return "p5_registration"; }
     },
-    p5_registration: { kind:"yesno3", source:"Athena Full Registration", part:5,
-      text:"Check the insurance box for Match Demographics alerts. If the address already matches in Athena, clear the alerts and answer Yes.",
-      definition:"Athena flags a demographic difference on the insurance itself. Clearing every Match Demographics alert is the check - you do not need to compare the addresses by eye. Missing Information is only raised when the detail is absent from BOTH the patient chart AND the referral. If either one has it, it is not missing - take it from whichever source has it.",
-      short:"Address on file & matches insurance?",
-      thirdLabel:"On file but doesn't match insurance",
-      yes:function(s){ setOut("addressNote","on file, matches insurance subscriber address"); return "p5_email"; },
-      no:function(s){ setOut("addressNote","not in the chart or on the referral - Please Obtain, Zip: 85026"); return "p5_email"; },
-      third:function(s){ setOut("addressNote","on file but doesn't match insurance subscriber address - update it from the referral"); return "p5_email"; }
+    p5_registration: { kind:"form", source:"Athena Full Registration", part:5,
+      text:"In Full Registration, fill in all three.",
+      short:"Full Registration sweep",
+      fields:[
+        { kind:"yesno3", short:"Address on file & matches insurance?",
+          label:"Check the insurance box for Match Demographics alerts. If the address already matches in Athena, clear the alerts and answer Yes.",
+          definition:"Athena flags a demographic difference on the insurance itself. Clearing every Match Demographics alert is the check - you do not need to compare the addresses by eye. Missing Information is only raised when the detail is absent from BOTH the patient chart AND the referral. If either one has it, it is not missing - take it from whichever source has it.",
+          thirdLabel:"On file but doesn't match insurance",
+          yes:function(s){ setOut("addressNote","on file, matches insurance subscriber address"); },
+          no:function(s){ setOut("addressNote","not in the chart or on the referral - Please Obtain, Zip: 85026"); },
+          third:function(s){ setOut("addressNote","on file but doesn't match insurance subscriber address - update it from the referral"); } },
+        { kind:"yesno", short:"Email on file?",
+          label:"Check Full Registration for an email on file.",
+          yes:function(s){ setOut("emailNote","on file"); },
+          no:function(s){ setOut("emailNote","check No Email"); } },
+        { kind:"yesno", short:"Phone available in chart or referral?",
+          label:"Is a phone number available in either place - on file in Athena, or on the referral?",
+          definition:"Missing Information is only raised when the detail is absent from BOTH the patient chart AND the referral. If either one has it, it is not missing - take it from whichever source has it.",
+          yesLabel:"Yes - in at least one",
+          noLabel:"No - missing from both",
+          yes:function(s){ setOut("phoneNote","available - on file or taken from the referral"); },
+          no:function(s){
+            setOut("phoneNote","missing from both chart and referral - request from the referring office");
+            setOut("phoneDisposition","Awaiting Patient Phone Number");
+          } }
+      ],
+      next:"p5_doc_label"
     },
     // Task-74: documents reached the chart unlabelled. The tool derives the label,
     // but nothing confirmed it was actually applied, so it is a checkpoint now.
@@ -1988,37 +2028,12 @@
       short:"Document labelled in Athena?",
       yesLabel:"Yes - labelled",
       noLabel:"No - needs labelling",
-      yes:function(s){ setOut("docLabelApplied","yes"); return "p5_emergency"; },
-      no:function(s){ setOut("docLabelApplied","no - apply the label shown on the output card"); return "p5_emergency"; }
-    },
-    p5_email: { kind:"yesno", source:"Athena Full Registration", part:5,
-      text:"Check Full Registration for an email on file.",
-      short:"Email on file?",
-      yes:function(s){ setOut("emailNote","on file"); return "p5_phone"; },
-      no:function(s){ setOut("emailNote","check No Email"); return "p5_phone"; }
+      yes:function(s){ setOut("docLabelApplied","yes"); return "p5_insurance1"; },
+      no:function(s){ setOut("docLabelApplied","no - apply the label shown on the output card"); return "p5_insurance1"; }
     },
     // Notion lists a missing phone number as a disposition in its own right:
     // without a number the patient cannot be contacted to schedule, so it has to
     // reach the chart note rather than being noticed later.
-    p5_phone: { kind:"yesno", source:"Athena Full Registration", part:5,
-      definition:"Missing Information is only raised when the detail is absent from BOTH the patient chart AND the referral. If either one has it, it is not missing - take it from whichever source has it.",
-      text:"Is a phone number available in either place - on file in Athena, or on the referral?",
-      short:"Phone available in chart or referral?",
-      yesLabel:"Yes - in at least one",
-      noLabel:"No - missing from both",
-      yes:function(s){ setOut("phoneNote","available - on file or taken from the referral"); return "p5_doc_label"; },
-      no:function(s){
-        setOut("phoneNote","missing from both chart and referral - request from the referring office");
-        setOut("phoneDisposition","Awaiting Patient Phone Number");
-        return "p5_doc_label";
-      }
-    },
-    p5_emergency: { kind:"yesno", source:"Referral document", part:5,
-      text:"Check the referral fax for an emergency contact.",
-      short:"Emergency contact on fax?",
-      yes:function(s){ setOut("emergencyNote","add it"); return "p5_insurance1"; },
-      no:function(s){ setOut("emergencyNote","none on fax"); return "p5_insurance1"; }
-    },
     p5_insurance1: { kind:"auto", part:5,
       run:function(s){
         if (s.isCamelbackReferral === true) return "p5_va_gate";
@@ -2380,6 +2395,22 @@
         setOut("insurancePath","self-pay - no insurance to bill, proceed accordingly");
         state.crumbs.push({ short: node.short, answer: step.answer });
         gotoResolve("p4_diag_entry");
+        continue;
+      }
+
+      if (node.kind === "form"){
+        // The form wrote one crumb per field, so resume reads that many steps
+        // back off the path before moving to the next node.
+        if (i + node.fields.length > parsed.length) return { ok:false, error:"Stopped at step " + (i+1) + " - the path ends inside a multi-field step." };
+        historyStack.push(JSON.parse(JSON.stringify(state)));
+        recordStepTime(node);
+        for (var fi = 0; fi < node.fields.length; fi++){
+          var ff = node.fields[fi], fstep = parsed[i + fi];
+          if (fstep.short !== ff.short) return { ok:false, error:"Stopped at step " + (i+fi+1) + " - expected \"" + ff.short + "\" but the path has \"" + fstep.short + "\"." };
+          if (!applyFormField(ff, fstep.answer)) return { ok:false, error:"Stopped at step " + (i+fi+1) + " - couldn't match answer \"" + fstep.answer + "\" to \"" + ff.short + "\"." };
+        }
+        i += node.fields.length - 1;
+        gotoResolve((typeof node.next === "function") ? node.next(state) : node.next);
         continue;
       }
 
@@ -3644,10 +3675,157 @@
     if (node.kind === "auto"){ /* no clock on silent steps */ }
     else if (state.node === TIMER_STARTS_AFTER){ stepStartTime = null; pausedMsForCurrentStep = 0; updateLiveTimer(); }
     else { stepStartTime = Date.now(); pausedMsForCurrentStep = 0; updateLiveTimer(); }
-    if (node.kind === "text") renderTextNode(node);
+    if (node.kind === "form") renderFormNode(node);
+    else if (node.kind === "text") renderTextNode(node);
     else if (node.kind === "select") renderSelectNode(node);
     else if (node.kind === "diagnosis") renderDiagnosisNode(node);
     else renderQuestionNode(node);
+  }
+
+  // A "form" node puts several questions from the SAME place in Athena on one
+  // screen, so the reviewer looks there once instead of once per question. Only
+  // collectors belong here - questions whose answer feeds the notes rather than
+  // deciding what comes next. A field that branches the path must stay its own
+  // node, or the branch would be taken before the reviewer had finished the page.
+  //
+  // Each field keeps the short label it had as a standalone question, and the
+  // form pushes one crumb per field, so the "Why this path" text keeps exactly
+  // the shape the log, the feedback reports and resume already expect.
+  var formDraft = {};
+
+  function formFieldAnswered(f){
+    if (f.kind === "text") return f.optional || String(formDraft[f.short] || "").trim() !== "";
+    return formDraft[f.short] !== undefined;
+  }
+  function formComplete(node){
+    for (var i = 0; i < node.fields.length; i++){ if (!formFieldAnswered(node.fields[i])) return false; }
+    return true;
+  }
+
+  // Applies one field's answer. Shared by the on-screen form and by resume, so
+  // there is one definition of what an answer means rather than two.
+  function applyFormField(f, label){
+    if (f.kind === "text"){
+      state.out[f.field] = label;
+      if (f.afterSubmit) f.afterSubmit(state);
+      if (!(f.optional && !String(label).trim())) state.crumbs.push({ short:f.short, answer:label });
+      return true;
+    }
+    var kind = null;
+    if (label === (f.yesLabel || "Yes")) kind = "yes";
+    else if (label === (f.noLabel || "No")) kind = "no";
+    else if (f.kind === "yesno3" && label === f.thirdLabel) kind = "third";
+    if (!kind) return false;
+    if (f[kind]) f[kind](state);
+    state.crumbs.push({ short:f.short, answer:label });
+    return true;
+  }
+
+  function submitForm(node){
+    historyStack.push(JSON.parse(JSON.stringify(state)));
+    recordStepTime(node);
+    for (var i = 0; i < node.fields.length; i++){
+      var f = node.fields[i];
+      applyFormField(f, f.kind === "text" ? String(formDraft[f.short] || "") : formDraft[f.short]);
+    }
+    formDraft = {};
+    var next = (typeof node.next === "function") ? node.next(state) : node.next;
+    gotoResolve(next);
+  }
+
+  function renderFormNode(node){
+    var blocks = "";
+    for (var i = 0; i < node.fields.length; i++){
+      var f = node.fields[i];
+      var chosen = formDraft[f.short];
+      var control;
+      if (f.kind === "text"){
+        control = '<input type="text" class="text-input form-text" data-fi="' + i + '"' +
+          ' placeholder="' + escapeHtml(f.placeholder || "") + '"' +
+          ' value="' + escapeHtml(chosen === undefined ? "" : chosen) + '" autocomplete="off">';
+      } else {
+        var opts = [ f.yesLabel || "Yes", f.noLabel || "No" ];
+        if (f.kind === "yesno3") opts.push(f.thirdLabel);
+        control = '<div class="form-opts">';
+        for (var k = 0; k < opts.length; k++){
+          control += '<button type="button" class="form-opt' + (chosen === opts[k] ? " on" : "") +
+            '" data-fi="' + i + '" data-val="' + escapeHtml(opts[k]) + '">' + escapeHtml(opts[k]) + '</button>';
+        }
+        control += '</div>';
+      }
+      blocks += '<div class="form-field">' +
+        '<div class="form-q">' + escapeHtml(f.label) + '</div>' +
+        (f.warning ? '<div class="warning-label">' + escapeHtml(f.warning) + '</div>' : '') +
+        (f.definition ? '<div class="definition-label">' + escapeHtml(f.definition) + '</div>' : '') +
+        control +
+      '</div>';
+    }
+    var ready = formComplete(node);
+    var html = bannerHtml() + contextBadgeHtml(node) + checkpointHtml(node) +
+      '<div class="card question">' +
+        '<span class="step-label">Fill in</span>' +
+        '<h2>' + escapeHtml(node.text) + '</h2>' +
+        sourceLabelHtml(node) +
+        warningLabelHtml(node) +
+        definitionLabelHtml(node) +
+        '<div class="form-fields">' + blocks + '</div>' +
+        '<div class="btnrow-continue">' +
+          backButtonHtml() +
+          '<button class="continue" id="btnFormGo"' + (ready ? "" : " disabled") + '>Continue</button>' +
+        '</div>' +
+        '<div class="form-warn" id="formWarn"></div>' +
+        (ready ? '' : '<div class="form-hint">Answer every field to continue.</div>') +
+      '</div>' +
+      whyPathBoxHtml() + feedbackBoxHtml(node) + engFlagBoxHtml(node);
+    stage.innerHTML = html;
+
+    var opts = stage.querySelectorAll(".form-opt");
+    for (var a = 0; a < opts.length; a++){
+      opts[a].addEventListener("click", function(){
+        var f = node.fields[parseInt(this.getAttribute("data-fi"), 10)];
+        formDraft[f.short] = this.getAttribute("data-val");
+        renderFormNode(node);
+      });
+    }
+    var texts = stage.querySelectorAll(".form-text");
+    for (var b = 0; b < texts.length; b++){
+      (function(el){
+        var f = node.fields[parseInt(el.getAttribute("data-fi"), 10)];
+        if (f.defaultToday && formDraft[f.short] === undefined){
+          var today = new Date();
+          el.value = String(today.getMonth() + 1).padStart(2, "0") + "/" +
+                     String(today.getDate()).padStart(2, "0") + "/" + today.getFullYear();
+          formDraft[f.short] = el.value;
+        }
+        el.addEventListener("input", function(){
+          if (f.dateMask) el.value = formatDateMask(el.value);
+          formDraft[f.short] = el.value;
+          var go = document.getElementById("btnFormGo");
+          if (go) go.disabled = !formComplete(node);
+          var w = document.getElementById("formWarn");
+          if (w) w.style.display = "none";
+        });
+      })(texts[b]);
+    }
+    var go = document.getElementById("btnFormGo");
+    if (go) go.addEventListener("click", function(){
+      if (!formComplete(node)) return;
+      // The mask only shapes digits, so "99/99/9999" would otherwise reach the
+      // chart note verbatim - the same check the single-field date step makes.
+      for (var d = 0; d < node.fields.length; d++){
+        var df = node.fields[d];
+        if (df.kind === "text" && df.dateMask){
+          var dv = String(formDraft[df.short] || "").trim();
+          if (dv && !isRealDate(dv)){
+            var warn = document.getElementById("formWarn");
+            if (warn){ warn.textContent = "Enter a real date as MM/DD/YYYY."; warn.style.display = "block"; }
+            return;
+          }
+        }
+      }
+      submitForm(node);
+    });
+    wireBackButton();
   }
 
   function renderQuestionNode(node){
