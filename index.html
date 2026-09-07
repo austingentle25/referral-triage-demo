@@ -1645,7 +1645,29 @@
         "Policy terminated in Athena, active on Valerie"
       ],
       otherAllowed:true,
-      next:"p4_valerie_athena_desc"
+      next:function(s){
+        return s.out.insMismatchType === "Self-pay on Valerie, insurance listed in Athena"
+          ? "p4_ins_awaiting_info" : "p4_valerie_athena_desc";
+      }
+    },
+    // Self-pay on one side and a live policy on the other is not an Engineering
+    // rerun - the payor has to be called. The referral waits on that answer and
+    // keeps its bucket rather than being held, so the rest of the workflow still
+    // runs and the case is not re-triaged from scratch afterwards.
+    p4_ins_awaiting_info: { kind:"yesno", source:"Athena - Insurance + the payor directly", part:4, context:"Insurance Check",
+      definition:"Awaiting Info is the holding state while the payor is contacted. The referral stays in its current bucket - this is not a reason to move it.",
+      text:"Set the referral to Awaiting Info, then call the insurance company to confirm whether the payor is eligible. Mark this complete when done.",
+      short:"Awaiting Info - payor called?",
+      yesLabel:"Done - payor called",
+      noLabel:"Not yet - still to do",
+      yes:function(s){
+        setOut("insuranceVerifyFlag","Awaiting Info - payor called to confirm eligibility");
+        return "p4_q2";
+      },
+      no:function(s){
+        setOut("insuranceVerifyFlag","Awaiting Info - payor still to be called");
+        return "p4_q2";
+      }
     },
     p4_valerie_athena_desc: { kind:"text", source:"Athena Quickview - Insurance + Valerie Task Details", part:4, field:"engineeringIssueDesc", context:"Insurance Check",
       optional:true,
@@ -2684,6 +2706,7 @@
     else if (path.indexOf("self-pay") !== -1) ins = "Self-pay";
     else if (path.indexOf("va - case policy") !== -1 || path.indexOf("va community care") !== -1) ins = "VA";
     else if (path.indexOf("tribal") !== -1) ins = "Tribal Health";
+    if (!ins && (o.insuranceVerifyFlag || "").indexOf("Awaiting Info") === 0) ins = "Awaiting Info - payor eligibility";
     if (ins) segs.push(ins);
 
     var missing = [];
