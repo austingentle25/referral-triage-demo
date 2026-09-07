@@ -1517,7 +1517,25 @@
       text:"Does Valerie and Athena match on insurance?",
       short:"Valerie/Athena insurance match?",
       yes:function(s){ return "p4_q2"; },
-      no:function(s){ return "p4_valerie_athena_desc"; }
+      no:function(s){ return "p4_ins_which"; }
+    },
+    // Ops update: a primary that needs rerunning is Engineering's to redo; a
+    // secondary that merely needs adding can be done here. Anything uncertain
+    // goes to Engineering, which is the stated default.
+    p4_ins_which: { kind:"yesno3", source:"Athena Quickview - Insurance", part:4, context:"Insurance Check",
+      definition:"Only a secondary insurance may be added by hand. A primary that needs rerunning must be rerun by Engineering, and when in doubt treat it as a primary.",
+      text:"Which insurance needs fixing?",
+      short:"Primary or secondary insurance?",
+      yesLabel:"Primary - needs a rerun",
+      noLabel:"Secondary only - can add manually",
+      thirdLabel:"Not sure",
+      yes:function(s){ return "p4_valerie_athena_desc"; },
+      no:function(s){
+        setOut("insuranceVerifyFlag","secondary added manually - no rerun needed");
+        s.pendingBanner = "Secondary insurance can be added by hand - no escalation needed. Continuing below.";
+        return "p4_q2";
+      },
+      third:function(s){ return "p4_valerie_athena_desc"; }
     },
     p4_valerie_athena_desc: { kind:"text", source:"Athena Quickview - Insurance + Valerie Task Details", part:4, field:"engineeringIssueDesc", context:"Insurance Check",
       text:"What's different between what Valerie shows and what's in Athena?",
@@ -1526,7 +1544,7 @@
       afterSubmit:function(s){
         s.needsEngineeringEscalation = true;
         setOut("engineeringIssueCategory","Valerie and Athena don't match on insurance");
-        s.pendingBanner = "Flagged to Engineering. Assuming it's resolved - continuing into the normal workflow below.";
+        s.pendingBanner = "Flagged to Austin to rerun the insurance. Assuming it's resolved - continuing into the normal workflow below.";
       },
       next:"p4_q2"
     },
@@ -1741,11 +1759,12 @@
       no:function(s){ return "p5_careteam1a"; }
     },
     p5_careteam1a: { kind:"yesno3", source:"Athena Quickview - Care Team + Valerie Task Details", part:5,
+      definition:"An address mismatch is recorded as a chart note only - it does not change the bucket. A Camelback patient who is otherwise ready to schedule still goes to biltmorecardsched. Only a referring provider missing from Athena's database moves the referral to sscardio.",
       text:"Check whether they're missing from Care Team entirely (not just an address mismatch against what's on Valerie), then mark this complete.",
       short:"Missing from Care Team entirely?",
       thirdLabel:"Not in Athena's database at all",
       yes:function(s){ setOut("careTeamReferring","add them; address must match referring location"); return "p5_pcp_existing"; },
-      no:function(s){ setOut("careTeamReferring","address mismatch or missing - note: Referring provider address does not match (or is missing) in the care team: Referring Provider, NPI, Referring Address."); return "p5_pcp_existing"; },
+      no:function(s){ setOut("careTeamReferring","Referring provider address does not match in the care team: Referring Provider, NPI, Referring Address."); return "p5_pcp_existing"; },
       third:function(s){
         setOut("careTeamReferring","referring provider not in Athena's database - chart note added, moved to sscardio");
         setOut("bucket","sscardio");
@@ -2429,9 +2448,9 @@
     if (o.urgent === "YES"){
       if (o.urgentReason === "diagnosis"){
         var dxLabel = (o.diagnosisText || "diagnosis").replace(/\s*\([^)]*\)\s*$/, "");
-        urgencyText = " - Urgent for " + dxLabel;
+        urgencyText = "Urgent for " + dxLabel;
       } else {
-        urgencyText = " - Urgent Per Provider";
+        urgencyText = "Urgent Per Provider";
       }
     }
     // A manual-review stop can end before a provider is settled; the placeholder
@@ -2442,13 +2461,37 @@
     // Drop the action segment when there is none (manual review) instead of
     // leaving a dangling "- -" in a note staff paste into Athena.
     var actionShort = shortActionNote(o.actionNote);
+    // Notion's template, in its stated order:
+    //   {date} - {provider} - {reason for sscardio} - {urgency} - {insurance}
+    //   - {missing} - {auths}
+    // Segments are omitted when they do not apply, which is why real notes run to
+    // three or four rather than seven.
     var segs = ["Reviewed By Valerie Health (" + dateStr + ")", providerShort];
+
     if (actionShort && actionShort !== "-") segs.push(actionShort);
     else if (state.manualReview) segs.push("Manual review required");
-    // A missing phone is its own disposition and sits alongside the routing one,
-    // because a referral can be both ready to schedule and uncontactable.
-    if (o.phoneDisposition) segs.push(o.phoneDisposition);
-    return segs.join(" - ") + urgencyText;
+
+    if (urgencyText) segs.push(urgencyText);
+
+    var ins = "";
+    var path = (o.insurancePath || "").toLowerCase();
+    if (o.contractedGrid === "No") ins = "Ineligible Insurance";
+    else if (path.indexOf("self-pay") !== -1) ins = "Self-pay";
+    else if (path.indexOf("va - case policy") !== -1 || path.indexOf("va community care") !== -1) ins = "VA";
+    else if (path.indexOf("tribal") !== -1) ins = "Tribal Health";
+    if (ins) segs.push(ins);
+
+    var missing = [];
+    if (o.phoneDisposition) missing.push(o.phoneDisposition);
+    if ((o.addressNote || "").indexOf("Please Obtain") !== -1) missing.push("Awaiting Patient Address");
+    if (missing.length) segs.push(missing.join("; "));
+
+    var auths = "";
+    if ((o.outboundExport || "").indexOf("yes") === 0) auths = "Referral Authorization Requested";
+    else if ((o.authObjNote || "").toLowerCase().indexOf("pending") !== -1) auths = "Auth Pending";
+    if (auths) segs.push(auths);
+
+    return segs.join(" - ");
   }
   // Action notes read as "Summary - detail clause", where the trailing clause
   // starts lowercase ("Ready to schedule - do not manually outreach"). Only that
@@ -2644,6 +2687,12 @@
   function buildOutputText(){
     var o = state.out;
     var L = [];
+    L.push("NOTES");
+    L.push("INTERNAL NOTE: " + ft(buildInternalNote()));
+    L.push("ACTION NOTE: " + ft(o.actionNote));
+    if (o.patientNote) L.push("PATIENT NOTE: " + ft(o.patientNote));
+    if (o.locationChartNote) L.push("LOCATION CHART NOTE: " + toTitleCase(o.locationChartNote));
+    L.push("");
     L.push("PATIENT: " + f(o.patientName));
     L.push("TASK ID: " + f(o.taskId));
     if (isInsuranceIneligible()) L.push("ERROR / ESCALATION NOTE: " + buildInsuranceErrorNote());
@@ -2657,12 +2706,10 @@
     var deptLine = "DEPARTMENT: " + f(deptNumberOnly(o.location));
     if (o.locationFlag) deptLine += " (Flag: " + o.locationFlag + ")";
     L.push(deptLine);
-    if (o.locationChartNote) L.push("  Chart note: " + toTitleCase(o.locationChartNote));
     L.push("AGREE: " + ft(o.agree));
     L.push("HOME CLINIC: Do Not Change");
     L.push("");
     L.push("BUCKET: " + f(o.bucket));
-    L.push("ACTION / CHART NOTE: " + ft(o.actionNote));
     L.push("SCHEDULING STATUS: " + computeSchedulingStatus());
     L.push("SMS ELIGIBLE: " + buildSmsEligibility());
     L.push("");
@@ -2670,8 +2717,6 @@
     if (o.urgent === "YES") L.push("URGENT REASON: " + ft(buildUrgentReasonText()));
     if (buildDocumentLabel()) L.push("DOCUMENT LABEL: " + buildDocumentLabel());
     L.push("DOCUMENT DATE: " + f(o.referralDate));
-    L.push("INTERNAL NOTE: " + ft(buildInternalNote()));
-    if (o.patientNote) L.push("PATIENT NOTE: " + ft(o.patientNote));
     if (buildTotalTimeNote()) L.push("TOTAL TIME NOTE: " + buildTotalTimeNote());
     L.push("");
     L.push("CARE TEAM:");
@@ -2711,6 +2756,13 @@
     if (o.insuranceVerifyFlag) insVal += " (Flag: " + o.insuranceVerifyFlag + ")";
 
     var items = [];
+
+    items.push({ sec:"Notes" });
+    items.push({ label:"Internal note", value:ft(buildInternalNote()) });
+    items.push({ label:"Action note", value:ft(o.actionNote) });
+    if (o.patientNote) items.push({ label:"Patient note", value:ft(o.patientNote) });
+    if (o.locationChartNote) items.push({ label:"Location chart note", value:toTitleCase(o.locationChartNote) });
+
     items.push({ sec:"Patient" });
     items.push({ label:"Patient name", value:f(o.patientName) });
     items.push({ label:"Task ID", value:f(o.taskId) });
@@ -2723,13 +2775,11 @@
     if (providerAthenaCode()) items.push({ label:"Athena provider code", value:providerAthenaCode() });
     items.push({ label:"Location", value:f(deptShortName(o.location)) });
     items.push({ label:"Department", value:f(deptNumberOnly(o.location)) });
-    if (o.locationChartNote) items.push({ label:"Location chart note", value:toTitleCase(o.locationChartNote) });
     items.push({ label:"Agree", value:ft(o.agree) });
     items.push({ label:"Home clinic", value:"Do Not Change" });
 
     items.push({ sec:"Scheduling" });
     items.push({ label:"Bucket", value:f(o.bucket) });
-    items.push({ label:"Action / chart note", value:ft(o.actionNote) });
     var schedStatus = computeSchedulingStatus();
     items.push({ label:"Status", value:schedStatus, cls: schedStatus === "Closed" ? "status-closed" : "status-review" });
     items.push({ label:"SMS eligible", value:buildSmsEligibility() });
@@ -2739,8 +2789,6 @@
     if (o.urgent === "YES") items.push({ label:"Urgent reason", value:ft(buildUrgentReasonText()), cls:"urgent-yes" });
     if (buildDocumentLabel()) items.push({ label:"Document label", value:buildDocumentLabel() });
     items.push({ label:"Document date", value:f(o.referralDate) });
-    items.push({ label:"Internal note", value:ft(buildInternalNote()) });
-    if (o.patientNote) items.push({ label:"Patient note", value:ft(o.patientNote) });
     if (buildTotalTimeNote()) items.push({ label:"Total time note", value:buildTotalTimeNote() });
 
     items.push({ sec:"Care team" });
