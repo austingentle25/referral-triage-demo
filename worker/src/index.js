@@ -108,15 +108,18 @@ function buildIssue(item) {
 }
 
 /**
- * Double-tap guard. Holds a hash of each accepted submission for 60 seconds and
- * refuses an exact repeat, so a second tap on Send does not open a second issue.
+ * Double-tap guard. Holds a fingerprint of each accepted submission for 60
+ * seconds and refuses an exact repeat, so a second tap on Send cannot open a
+ * second issue.
  *
- * Isolate-local on purpose: a burst from one person lands on one isolate, which
- * is the case this exists for. It is not a rate limiter and does not pretend to
- * be one - see DEPLOY.md.
+ * Backed by KV rather than module memory. Memory was tried first and does not
+ * work: consecutive requests land on different isolates, so the second tap
+ * never sees the first. It filed a duplicate issue on the live deployment
+ * before this was changed.
+ *
+ * Still not a rate limiter - it stops an identical repeat, nothing wider.
  */
-const RECENT = new Map();
-const DEDUPE_MS = 60 * 1000;
+const DEDUPE_TTL_S = 60;
 
 function fingerprint(item) {
   const s = [item.note, item.nodeId, item.taskId].join("|");
@@ -125,9 +128,13 @@ function fingerprint(item) {
   return h.toString(36) + ":" + s.length;
 }
 
-function seenRecently(key, now) {
-  for (const [k, t] of RECENT) if (now - t > DEDUPE_MS) RECENT.delete(k);
-  return RECENT.has(key);
+async function seenRecently(env, key) {
+  if (!env.RELAY_DEDUPE) return false; // unbound in dev - fail open, never closed
+  try {
+    return (await env.RELAY_DEDUPE.get(key)) !== null;
+  } catch (err) {
+    return false; // a KV outage must not stop feedback being sent
+  }
 }
 
 /**
@@ -136,12 +143,37 @@ function seenRecently(key, now) {
  * would be answered "already sent" with nothing on the other end - which is the
  * one failure this whole design is meant to prevent.
  */
-function rememberSent(key, now) {
-  RECENT.set(key, now);
+async function rememberSent(env, key) {
+  if (!env.RELAY_DEDUPE) return;
+  try {
+    await env.RELAY_DEDUPE.put(key, "1", { expirationTtl: DEDUPE_TTL_S });
+  } catch (err) {
+    /* the issue exists; failing to record that is not worth failing the request */
+  }
 }
+
+// The outbound call is bound once, here, rather than written as a bare `fetch`
+// inside the exported handler. A bare `fetch` in that position resolved to the
+// handler itself on the Workers runtime and threw "Callback returned incorrect
+// type; expected 'Promise'" - which the offline harness could never show,
+// because it stubs globalThis.fetch and so has nothing to shadow.
+const httpPost = globalThis.fetch.bind(globalThis);
 
 export default {
   async fetch(request, env) {
+    try {
+      return await handle(request, env);
+    } catch (err) {
+      // Nothing here reaches the page beyond a generic message: an exception
+      // string can carry request detail, and this runs with a token in scope.
+      console.log("RELAY_EXCEPTION " + (err && err.stack ? err.stack : String(err)));
+      return json(env, 500, { ok: false, error: "Relay error." });
+    }
+  },
+};
+
+async function handle(request, env) {
+  {
     if (request.method === "OPTIONS") {
       return new Response(null, { status: 204, headers: cors(env) });
     }
@@ -184,7 +216,7 @@ export default {
     }
 
     const fp = fingerprint(item);
-    if (seenRecently(fp, Date.now())) {
+    if (await seenRecently(env, fp)) {
       // Reported as success: the feedback is recorded, just not twice. Telling
       // the reviewer it failed would invite a third tap.
       return json(env, 200, { ok: true, duplicate: true, number: null, url: null });
@@ -194,7 +226,7 @@ export default {
 
     let res;
     try {
-      res = await fetch("https://api.github.com/repos/" + env.GITHUB_REPO + "/issues", {
+      res = await httpPost("https://api.github.com/repos/" + env.GITHUB_REPO + "/issues", {
         method: "POST",
         headers: {
           Authorization: "Bearer " + env.GITHUB_TOKEN,
@@ -218,7 +250,7 @@ export default {
       });
     }
 
-    rememberSent(fp, Date.now());
+    await rememberSent(env, fp);
 
     let created = {};
     try {
@@ -232,8 +264,8 @@ export default {
       number: created.number || null,
       url: created.html_url || null,
     });
-  },
-};
+  }
+}
 
 // Exported for the offline test harness only; the Worker itself uses `fetch`.
 export const __test = { clean, fence, buildIssue, redact };

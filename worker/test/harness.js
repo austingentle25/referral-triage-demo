@@ -65,16 +65,27 @@ globalThis.Headers = Headers;
 
 // `const` inside eval() stays in the eval scope, so the worker is attached to
 // globalThis instead. Same for the helpers the module exports for testing.
+// The Worker binds globalThis.fetch at module load, so the stub has to be in
+// place before this is evaluated - it is, above. Named function declarations
+// (handle) hoist within the eval scope, so no further rewriting is needed.
 const src = readFile("src/index.js")
   .replace(/^export default /m, "globalThis.WORKER = ")
   .replace(/^export const __test = /m, "globalThis.__test = ");
 (0, eval)(src);
 
 const ORIGIN = "https://austingentle25.github.io";
+// Minimal stand-in for a KV namespace, enough to exercise the dedupe guard.
+const kvStore = new Map();
+const KV = {
+  get: async function (k) { return kvStore.has(k) ? kvStore.get(k) : null; },
+  put: async function (k, v) { kvStore.set(k, v); },
+};
+
 const ENV = {
   GITHUB_TOKEN: "ghp_TESTONLY_notarealtoken",
   GITHUB_REPO: "someone/somerepo",
   ALLOWED_ORIGIN: ORIGIN,
+  RELAY_DEDUPE: KV,
 };
 
 /* ---------- assertions ---------- */

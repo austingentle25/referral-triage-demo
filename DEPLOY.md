@@ -15,20 +15,43 @@ offline and the issue format against real GitHub.
 
 ---
 
-## Already done
+## Status: deployed and working
 
 | | |
 |---|---|
-| Issue repo | **`austingentle25/referral-sync-feedback`** — created, private |
-| `wrangler.toml` | Points at it. `ALLOWED_ORIGIN` set to the live tool |
-| Issue format | Proved against real GitHub — [issue #1](https://github.com/austingentle25/referral-sync-feedback/issues/1) |
-| Worker logic | 59 offline checks pass |
-| Redaction | Applied in the page and again in the Worker |
+| Worker | `https://referral-sync-feedback.austingentle25.workers.dev` |
+| Issue repo | `austingentle25/referral-sync-feedback` — private |
+| Token | Set as a Worker secret; never in a file |
+| Dedupe | KV namespace `RELAY_DEDUPE`, 60-second window |
+| Tool | `FEEDBACK_RELAY_URL` wired and live |
 
-The issues go to a **private** repo, not the tool's public one. Feedback is free
-text typed while working a real referral; issues on a public repo are readable
-by anyone on the internet with no account. Delete the proof issue whenever you
-like — it exists to show what an issue looks like.
+Verified against the live deployment, not a stub: a real issue is created, an
+immediate repeat returns `duplicate: true` without opening a second one, a
+foreign origin is refused, GET is refused, and an empty note is rejected.
+
+### Two things that only showed up on the real platform
+
+**A bare `fetch` inside the exported handler resolved to the handler itself**
+and threw *"Callback returned incorrect type; expected 'Promise'"*. The offline
+harness could never catch this, because it stubs `globalThis.fetch` and so has
+nothing to shadow. The outbound call is now bound once at module load as
+`httpPost`.
+
+**The dedupe guard did not work in memory.** Consecutive requests land on
+different isolates, so the second tap never saw the first — it filed a duplicate
+issue on the live deployment before this was found. It is KV-backed now, which
+is shared across isolates, and verified live.
+
+Both are the reason step 7 exists. Neither was visible from 59 passing offline
+tests.
+
+## Re-deploying after a change
+
+```bash
+cd worker && wrangler deploy
+```
+
+The secret and the KV binding persist; only the code is replaced.
 
 ## What is redacted before anything is sent
 
@@ -91,40 +114,70 @@ expose everything you own.
 
 Copy the token when it is shown. GitHub will not show it again.
 
-### 2. Install and log into Wrangler
+### 2. Install Node, then Wrangler
+
+There is no Homebrew on this machine, so nvm is the shortest path and needs no
+admin password:
+
+```bash
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.7/install.sh | bash
+```
+
+Open a **new** terminal tab, or `source ~/.zshrc` in the current one - nvm is a
+shell function and only exists in a shell that has loaded it. Then:
+
+```bash
+nvm install --lts
+```
 
 ```bash
 npm install -g wrangler
 ```
 
+### 3. Log into Cloudflare
+
 ```bash
 wrangler login
 ```
 
-That opens a browser to authorise Cloudflare. A free Workers plan is enough.
+Opens a browser to authorise Wrangler. The free Workers plan is enough. No token
+to copy - Wrangler stores its own credentials.
 
-### 3. Store the token as a secret
+### 4. Register a workers.dev subdomain
 
-```bash
-cd worker && wrangler secret put GITHUB_TOKEN
-```
+**One-time, per account, and it must happen before the first deploy.** Wrangler
+tries to register one automatically and fails if the name is taken, which is
+what happens on a fresh account.
 
-Paste the token at the prompt. It is stored encrypted by Cloudflare and is never
-written to any file in this repo.
+Open <https://dash.cloudflare.com/> and go to **Compute (Workers) → Workers &
+Pages**. It will ask for a subdomain; pick something unique, e.g. your username.
+Workers are then published at `<worker-name>.<your-subdomain>.workers.dev`.
 
-**Do not** put it in `wrangler.toml` under `[vars]`. That file is committed, so
-the token would be public the moment you pushed.
+There is no `wrangler subdomain` command in Wrangler 4 - the dashboard is the
+only route.
 
-### 4. Deploy
+### 5. Deploy, then set the secret
+
+**In this order.** `wrangler secret put` attaches a secret to a Worker that
+already exists, so it fails with "Worker not found" if you run it first.
 
 ```bash
 cd worker && wrangler deploy
 ```
 
-Wrangler prints the URL, of the form
-`https://referral-sync-feedback.<your-subdomain>.workers.dev`.
+Note the URL it prints: `https://referral-sync-feedback.<subdomain>.workers.dev`.
 
-### 5. Plug the URL into the tool
+```bash
+cd worker && wrangler secret put GITHUB_TOKEN
+```
+
+Paste the token from step 1. It is stored encrypted by Cloudflare, never written
+to any file in this repo, and takes effect immediately - no second deploy.
+
+**Do not** put it in `wrangler.toml` under `[vars]`. That file is committed, so
+the token would be public the moment you pushed.
+
+### 6. Plug the URL into the tool
 
 In `index.html`, find:
 
@@ -132,14 +185,14 @@ In `index.html`, find:
 var FEEDBACK_RELAY_URL = "";
 ```
 
-Set it to the URL from step 4, then commit and push. GitHub Pages redeploys in
+Set it to the URL from step 5, then commit and push. GitHub Pages redeploys in
 about a minute.
 
-While that constant is empty the tool behaves exactly as it did before — reports
-are kept in the page and copied out by hand — so there is no broken state
+While that constant is empty the tool behaves exactly as it did before - reports
+are kept in the page and copied out by hand - so there is no broken state
 between now and the deploy.
 
-### 6. Check it end to end
+### 7. Check it end to end
 
 Open the live tool, flag a problem on any question, and confirm:
 
@@ -166,7 +219,7 @@ whitespace-only notes, unparseable and oversized bodies, the length caps, the
 issue formatting, markdown-fence escaping, control-character stripping, and
 that the token never appears in a response or an issue body.
 
-It cannot tell you anything about the live deployment. Only step 6 can.
+It cannot tell you anything about the live deployment. Only step 7 can.
 
 Once wrangler is installed you can also run it locally:
 

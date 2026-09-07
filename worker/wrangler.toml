@@ -15,3 +15,11 @@ ALLOWED_ORIGIN = "https://austingentle25.github.io"
 # GITHUB_TOKEN is deliberately absent. It is a secret, set once with
 #   wrangler secret put GITHUB_TOKEN
 # and must never appear in this file or any other committed file.
+
+# Deduplication store. Holds a fingerprint of each accepted submission for 60
+# seconds so a double-tap on Send cannot open two issues. Module memory cannot
+# do this: consecutive requests land on different isolates and miss each other,
+# which is exactly what happened when it was tried that way.
+[[kv_namespaces]]
+binding = "RELAY_DEDUPE"
+id = "fc2b56d823324d229e3568864d172069"

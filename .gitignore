@@ -1,2 +1,7 @@
 .DS_Store
 node_modules/
+
+# Wrangler's local cache. Holds the Cloudflare account id and is regenerated on
+# demand - it is machine state, not source, and this repo is public.
+worker/.wrangler/
+.wrangler/
