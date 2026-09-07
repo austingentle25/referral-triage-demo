@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>TPR OPS User Guide - Based on Updated Notion</title>
+<title>TPR Referral Sync - OPS User Guide</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,400;0,500;0,700;1,400&display=swap" rel="stylesheet">
@@ -622,7 +622,7 @@
 <header class="top">
   <div class="row">
     <div>
-      <h1>TPR OPS User Guide</h1>
+      <h1>TPR Referral Sync</h1>
       <div class="sub" id="headerSub"><em>- Based on Updated Notion</em> · Biltmore Cardiology</div>
     </div>
     <div class="header-btns">
@@ -706,7 +706,30 @@
     { name:"Danielle Strum", specialty:"", locations:[] },
     { name:"Diana Thayer", specialty:"", locations:[] },
     { name:"Jody Eckhardt, DNP", specialty:"General", locations:["Camelback"] },
-    { name:"Lorraine Homes", specialty:"General", locations:["Camelback"] }
+    { name:"Lorraine Homes", specialty:"General", locations:["Camelback"] },
+    // Seen on the practice's own public directory 2023-2025 but not yet confirmed
+    // in Athena. Specialty and locations are unknown, so the tool asks for the
+    // specialty the first time one is used rather than guessing.
+    { name:"Madhavagopal Cherukuri, MD", specialty:"", locations:[], unverified:true, npi:"1104860337" },
+    { name:"Merick Kirshner, MD", specialty:"", locations:[], unverified:true, npi:"1831183870" },
+    { name:"Kristen Jensen, NP", specialty:"", locations:[], unverified:true, npi:"1770834798" },
+    { name:"Stephanie Pinchera, NP", specialty:"", locations:[], unverified:true, npi:"1699962563" },
+    { name:"Amarnauth Singh, MD", specialty:"", locations:[], unverified:true, npi:"1639170764" },
+    { name:"Oday Al-Rabadi, MD", specialty:"", locations:[], unverified:true, npi:"1972779643" },
+    { name:"John Morgan, MD", specialty:"", locations:[], unverified:true, npi:"1407890353" },
+    { name:"Kevin Murphy, MD", specialty:"", locations:[], unverified:true, npi:"1881777613" },
+    { name:"Gregory Spayde, MD", specialty:"", locations:[], unverified:true, npi:"1083608913" },
+    { name:"Desiree Little, NP", specialty:"", locations:[], unverified:true, npi:"1326678319" },
+    { name:"Amilee Cooper, NP", specialty:"", locations:[], unverified:true, npi:"1699852053" },
+    { name:"Aye Thandar Win, MD", specialty:"", locations:[], unverified:true, npi:"1245251941" },
+    { name:"Basil Al-Khatib, MD", specialty:"", locations:[], unverified:true, npi:"1083977599" },
+    { name:"Demetrios Mavroidis, MD", specialty:"", locations:[], unverified:true, npi:"1184602914" },
+    { name:"Ethan Meyer, MD", specialty:"", locations:[], unverified:true, npi:"1932532322" },
+    { name:"Jacob Pfetsch, MD", specialty:"", locations:[], unverified:true, npi:"1639756356" },
+    { name:"Joshua Price, MD", specialty:"", locations:[], unverified:true, npi:"1386106391" },
+    { name:"Kristen Franco, NP", specialty:"", locations:[], unverified:true, npi:"1932399870" },
+    { name:"Sherry Caforio, NP", specialty:"", locations:[], unverified:true, npi:"1609363159" },
+    { name:"Sunshine Borawski, NP", specialty:"", locations:[], unverified:true, npi:"1831761444" },
   ];
 
   // Derives Athena's "AMG_LASTNAME_FIRSTINITIAL" provider code from a roster name.
@@ -793,9 +816,15 @@
       };
     }).filter(function(g){ return g.options.length > 0; });
 
-    var staff = PROVIDER_DATA.filter(function(p){ return !p.locations.length; });
+    var unverified = PROVIDER_DATA.filter(function(p){ return p.unverified; });
+    var staff = PROVIDER_DATA.filter(function(p){ return !p.locations.length && !p.unverified; });
     if (staff.length){
       groups.push({ label:"Other / Staff", options: staff.map(function(p){ return { value:p.name, label:PROVIDER_LOOKUP[p.name].display }; }) });
+    }
+    if (unverified.length){
+      groups.push({ label:"Not verified - confirm specialty before using", options: unverified.map(function(p){
+        return { value:p.name, label:PROVIDER_LOOKUP[p.name].display };
+      }) });
     }
     groups.push({ label:"Unknown", options:[ { value:"Unknown provider", label:"Unknown provider" } ] });
     return groups;
@@ -960,12 +989,21 @@
 
   // Returns true/false if we can determine it, or null if the diagnosis or
   // provider specialty data isn't enough to tell (caller should fall back to asking).
+  // A provider confirmed during this run counts as if the roster knew them, so a
+  // specialty supplied once carries through the rest of the determination.
+  function effectiveSpecialty(providerName){
+    var info = PROVIDER_LOOKUP[providerName];
+    if (info && info.specialty) return info.specialty;
+    if (state.out.provider === providerName && state.out.providerSpecialtyConfirmed) return state.out.providerSpecialtyConfirmed;
+    return "";
+  }
   function providerTreatsDiagnosis(providerName, dxText){
     var info = PROVIDER_LOOKUP[providerName];
-    if (!info || !info.specialty) return null;
+    var spec = effectiveSpecialty(providerName);
+    if (!info || !spec) return null;
     var dxSpecs = specialtiesForDiagnosis(dxText);
     if (!dxSpecs.length) return null;
-    var provSpecs = info.specialty.toLowerCase();
+    var provSpecs = spec.toLowerCase();
     return dxSpecs.some(function(sp){ return provSpecs.indexOf(sp.toLowerCase()) !== -1; });
   }
 
@@ -1202,6 +1240,31 @@
       text:"What's the diagnosis?", short:"Diagnosis",
       next:function(s){ return s._afterDiag; }
     },
+    // Notion A1.3a: a provider must be matched to the diagnosis. When the roster
+    // has no specialty - an unverified provider, or one added since - asking for
+    // the specialty is more useful than a yes/no, because it also drives the
+    // location and provider suggestions further down.
+    p_provider_specialty: { kind:"select", source:"Provider list / Athena provider record", part:1, field:"providerSpecialtyConfirmed",
+      text:"This provider has no specialty on file. Which specialty do they cover?",
+      short:"Confirmed provider specialty",
+      placeholder:"Select the specialty\u2026",
+      otherLabel:"Type the specialty",
+      definition:"Check the Athena provider record or the practice directory. Choosing \"Not sure\" hands the referral to the diagnosis-matched provider list instead.",
+      options:["General","Interventional","Structural","Electrophysiology",
+               "General, Interventional","General, Interventional, Structural","Not sure"],
+      afterSubmit:function(s){
+        if (s.out.providerSpecialtyConfirmed === "Not sure") setOut("providerSpecialtyConfirmed","");
+      },
+      next:function(s){
+        if (!s.out.providerSpecialtyConfirmed){
+          setOut("provider","FIND LOCATION FIRST");
+          s.part1Result="FIND_LOCATION";
+          s.pendingBanner = "Specialty unconfirmed - pick a provider who treats the diagnosis instead.";
+          return "p2_pick_provider_here";
+        }
+        return s._afterSpecialty || "p1_check_treats_auto";
+      }
+    },
     p1_check_treats_auto: { kind:"auto", part:1,
       run:function(s){
         var result = providerTreatsDiagnosis(s.out.provider, s.out.diagnosisText);
@@ -1217,6 +1280,7 @@
           s.crumbs.push({ short:"New patient - provider treats the diagnosis? (auto)", answer:"No" });
           return "p2_pick_provider_here";
         }
+        if (!effectiveSpecialty(s.out.provider)){ s._afterSpecialty = "p1_check_treats_auto"; return "p_provider_specialty"; }
         return "p1_check_treats";
       }
     },
@@ -1663,6 +1727,7 @@
           s.crumbs.push({ short:"Provider treats the diagnosis? (auto)", answer:"No" });
           return "p5_referral_date";
         }
+        if (!effectiveSpecialty(s.out.provider)){ s._afterSpecialty = "p4_treats_auto"; return "p_provider_specialty"; }
         return "p4_q3";
       }
     },
@@ -2485,7 +2550,8 @@
   function providerSpecialty(){
     var p = state.out.provider;
     if (!p || p === "FIND LOCATION FIRST" || p === "MANUAL REVIEW") return "";
-    return (PROVIDER_LOOKUP[p] && PROVIDER_LOOKUP[p].specialty) ? PROVIDER_LOOKUP[p].specialty : "";
+    var spec = effectiveSpecialty(p);
+    return spec ? (PROVIDER_LOOKUP[p] && PROVIDER_LOOKUP[p].specialty ? spec : spec + " (confirmed this run)") : "";
   }
   // The ICD code and the [Specialty] tag are internal: the code identifies the
   // entry, the tag lets an unlisted diagnosis still match a provider. Neither
@@ -3308,11 +3374,32 @@
             '<div class="le-note">' + escapeHtml(f.note) + '</div>' +
             '</div>';
         }).join("") +
-        '<div class="btnrow-continue"><button class="continue-btn" id="fbBackBtn">Back to task</button></div>' +
+        '<div class="btnrow-continue">' +
+          '<button class="continue-btn" id="fbBackBtn">Back to task</button>' +
+          '<button class="back-btn" id="fbClearBtn">Clear all feedback</button>' +
+        '</div>' +
         '</div>';
     }
     stage.innerHTML = html;
     document.getElementById("fbBackBtn").addEventListener("click", function(){ viewMode = "flow"; render(); });
+    var clr = document.getElementById("fbClearBtn");
+    if (clr){
+      clr.addEventListener("click", function(){
+        // Two taps: the reports only live in this tab, so clearing them is final.
+        if (clr.dataset.armed !== "1"){
+          clr.dataset.armed = "1";
+          clr.textContent = "Tap again to clear - this cannot be undone";
+          setTimeout(function(){
+            var b = document.getElementById("fbClearBtn");
+            if (b && b.dataset.armed === "1"){ b.dataset.armed = "0"; b.textContent = "Clear all feedback"; }
+          }, 4000);
+          return;
+        }
+        feedbackLog = []; feedbackSeq = 0;
+        updateFeedbackButton();
+        render();
+      });
+    }
     var box = document.getElementById("fbCopyBox");
     if (box){
       var go = function(){ doCopy(buildFeedbackReport(), function(){
@@ -3656,7 +3743,19 @@
       var q = searchInput.value.trim().toLowerCase();
       suggestionsEl.innerHTML = "";
       if (!q){ suggestionsEl.style.display = "none"; return; }
-      var matches = flat.filter(function(f){ return f.label.toLowerCase().indexOf(q) !== -1; }).slice(0, 10);
+      // Athena codes and the roster do not always agree on spelling - AMG_STURM_D
+      // against "Danielle Strum", for instance - so a search that finds nothing
+      // falls back to matching regardless of letter order within each word.
+      var matches = flat.filter(function(f){ return f.label.toLowerCase().indexOf(q) !== -1; });
+      if (!matches.length && q.length >= 4){
+        var sorted = q.split("").sort().join("");
+        matches = flat.filter(function(f){
+          return f.label.toLowerCase().split(/[^a-z]+/).some(function(w){
+            return w.length >= 4 && w.split("").sort().join("") === sorted;
+          });
+        });
+      }
+      matches = matches.slice(0, 10);
       if (!matches.length){
         suggestionsEl.innerHTML = '<div class="dx-suggestion dx-suggestion-empty">No matching provider - try a different search.</div>';
         suggestionsEl.style.display = "block";
