@@ -919,7 +919,7 @@
     "Family History of Heart Disease","Bradycardia","Tachycardia","Nausea","Cardiac Clearance (Pre-Op)",
     "Abnormal EKG/ECG","Abnormal Stress Test","Abnormal Echocardiogram","Fatigue","Edema / Swelling",
     "Chest Tightness","Exercise Intolerance","Elevated Troponin","Metabolic Syndrome","Statin Intolerance","Cardiomegaly",
-    "Heart Failure (CHF)","Cardiomyopathy","Atrial Fibrillation (AFib)","Blood Clot / DVT","Pulmonary Embolism",
+    "Heart Failure (CHF)","Cardiomyopathy","Atrial Fibrillation (AFib)","Paroxysmal Atrial Fibrillation (I48.0)","Persistent Atrial Fibrillation (I48.11)","Chronic Atrial Fibrillation (I48.20)","Permanent Atrial Fibrillation (I48.21)","Blood Clot / DVT","Pulmonary Embolism",
     "Stroke (I63.9)","Transient Ischemic Attack (G45.9)","Ischemic Heart Disease","Heart Attack (Myocardial Infarction)","NSTEMI","STEMI","Unstable Angina",
     "Aneurysm","Peripheral Artery Disease (PAD)","Claudication","Carotid Artery Disease","Post-MI Follow-Up",
     "Stent / Angioplasty Follow-Up","CABG / Bypass Follow-Up","Reduced Ejection Fraction","Diastolic Dysfunction",
@@ -1498,6 +1498,7 @@
       }
     },
     p4_valerie_athena_check: { kind:"yesno", source:"Athena Quickview - Insurance + Valerie Task Details", part:4, context:"Insurance Check", checkpoint:true,
+      definition:"All four must match, not just the payer: plan name, subscriber ID, group number, and responsible payor. Any one of them differing counts as a mismatch.",
       text:"Does Valerie and Athena match on insurance?",
       short:"Valerie/Athena insurance match?",
       yes:function(s){ return "p4_q2"; },
@@ -1752,7 +1753,8 @@
       no:function(s){ setOut("pcpNote","referring provider is not FM/IM/FNP - no PCP action"); return "p5_registration"; }
     },
     p5_registration: { kind:"yesno3", source:"Athena Full Registration", part:5,
-      text:"Check Full Registration - does the patient's address match the subscriber address on the insurance, then mark this complete.",
+      text:"Check the insurance box for Match Demographics alerts. If the address already matches in Athena, clear the alerts and answer Yes.",
+      definition:"Athena flags a demographic difference on the insurance itself. Clearing every Match Demographics alert is the check - you do not need to compare the addresses by eye.",
       short:"Address on file & matches insurance?",
       thirdLabel:"On file but doesn't match insurance",
       yes:function(s){ setOut("addressNote","on file, matches insurance subscriber address"); return "p5_email"; },
@@ -1796,6 +1798,15 @@
     // unknown on purpose - it is the one answer that rules nothing out.
     p5_va_gate: { kind:"auto", part:5,
       run:function(s){
+        // Contracting already settled this: a plan that is not contracted is
+        // ineligible and held, so VA / tribal / sync questions cannot change the
+        // outcome and only walk staff back through screens they have read.
+        if ((s.out.contractedGrid || "") === "No"){
+          setOut("insurancePath","not contracted - plan already ineligible, no further insurance detail needed");
+          setOut("referralObjNote","n/a"); setOut("authObjNote","n/a"); setOut("outboundExport","no");
+          s.crumbs.push({ short:"Further insurance detail needed? (auto)", answer:"No - plan already ineligible" });
+          return "__DONE__";
+        }
         if (s.out.edgeCaseInsuranceType === "VA (Veteran)"){
           setOut("insurancePath", buildVaInsuranceNote());
           s.crumbs.push({ short:"VA already confirmed via edge case? (auto)", answer:"Yes - skipping insurance questions" });
@@ -3313,9 +3324,17 @@
   // Typing filters; the answer is only ever set by clicking an actual match.
   function renderProviderSelectNode(node){
     var groups = node.dynamicGroups ? node.dynamicGroups(state) : node.groups;
+    // A provider appears in the grouped dropdown once per location they practise
+    // at, which is right for browsing but shows Cataldo three times when searching.
+    // The label already lists every location, so the search list is de-duplicated.
     var flat = [];
+    var seenProvider = {};
     (groups || []).forEach(function(g){
-      g.options.forEach(function(opt){ flat.push({ value:opt.value, label:opt.label, groupLabel:g.label }); });
+      g.options.forEach(function(opt){
+        if (seenProvider[opt.value]) return;
+        seenProvider[opt.value] = true;
+        flat.push({ value:opt.value, label:opt.label, groupLabel:g.label });
+      });
     });
     var selectedValue = null;
 
