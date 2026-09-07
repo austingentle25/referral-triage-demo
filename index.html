@@ -1,0 +1,3224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Referral Triage Guide</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,400;0,500;0,700;1,400&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#F3F6F5; --ink:#16241F; --ink-soft:#4B5D57;
+    --panel:#FFFFFF; --line:#D9E2DE;
+    --teal:#A6193B; --teal-dark:#7A1129;
+    --picked:#1B7A4D; --picked-bg:#E7F3EC;
+    --location:#A9660A; --location-bg:#FBF0DD;
+    --review:#B23B3B; --review-bg:#FBE9E9;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg); color:var(--ink);
+    font-family:Roboto,"Roboto Regular","Helvetica Neue",Helvetica,Arial,sans-serif;
+    line-height:1.45; -webkit-font-smoothing:antialiased; padding-bottom:48px;
+  }
+  .wrap{max-width:640px;margin:0 auto;padding:0 16px;}
+  header.top{
+    position:sticky;top:0;z-index:20; background:var(--teal-dark); color:#F3F6F5;
+    padding:14px 16px 12px;
+  }
+  header.top .row{
+    max-width:640px;margin:0 auto; display:flex;align-items:center;justify-content:space-between;gap:12px;
+  }
+  header.top h1{
+    font-family:Roboto,"Roboto Regular","Helvetica Neue",Helvetica,Arial,sans-serif; font-size:18px;
+    margin:0; font-weight:600; letter-spacing:0.2px;
+  }
+  header.top .sub{ font-size:12px; color:#E7B7C2; margin-top:2px; }
+  button.startover{
+    flex-shrink:0; background:transparent; border:1px solid #C46A82; color:#E7F3EF;
+    padding:7px 12px; border-radius:7px; font-size:13px; cursor:pointer;
+  }
+  button.startover:hover{background:#5C0E22;}
+  .header-btns{ display:flex; gap:8px; align-items:center; flex-shrink:0; }
+  .live-timer{
+    font-variant-numeric:tabular-nums; font-size:13px; font-weight:700; color:#E7C9C9;
+    min-width:34px; text-align:right; letter-spacing:.2px;
+  }
+  button.pausebtn{
+    flex-shrink:0; background:transparent; border:1px solid #C46A82; color:#E7F3EF;
+    padding:7px 12px; border-radius:7px; font-size:13px; cursor:pointer;
+  }
+  button.pausebtn:hover{ background:#5C0E22; }
+  button.pausebtn.is-paused{ background:#E0A32E; border-color:#E0A32E; color:#3A2A00; font-weight:700; }
+  #stage.is-paused > .card{ opacity:0.35; pointer-events:none; user-select:none; }
+  .paused-banner{
+    background:#E0A32E; color:#3A2A00; font-weight:700; font-size:13px;
+    padding:9px 12px; border-radius:9px; margin:0 0 12px; text-align:center;
+  }
+
+  .progress-wrap{
+    max-width:640px; margin:10px auto 0; display:flex; align-items:center; gap:10px;
+  }
+  .progress-track{
+    flex:1; height:6px; background:rgba(255,255,255,0.18); border-radius:999px; overflow:hidden;
+  }
+  .progress-fill{
+    height:100%; width:0%; background:#F0AFC0; border-radius:999px; transition:width .25s ease;
+  }
+  .progress-label{
+    font-size:11px; color:#E7B7C2; white-space:nowrap; flex-shrink:0;
+  }
+
+  .stage-badge{
+    display:inline-block; margin:14px 0 10px; font-size:12px; font-weight:700; letter-spacing:0.3px;
+    color:var(--teal-dark); background:#FBE7EB; border:1px solid #F0C6D0; padding:4px 10px; border-radius:999px;
+  }
+
+  .definition{
+    margin:0 0 12px; background:var(--panel); border:1px solid var(--line); border-left:4px solid var(--teal);
+    border-radius:10px; padding:12px 16px;
+  }
+  .definition summary{ cursor:pointer; }
+  .definition summary::-webkit-details-marker{ color:var(--teal-dark); }
+  .def-summary-row{ display:block; }
+  .def-title{ font-size:13px; font-weight:700; color:var(--teal-dark); }
+  .def-oneliner{ display:block; font-size:12.5px; color:var(--ink-soft); margin-top:2px; font-weight:400; }
+  .def-body{ margin-top:12px; padding-top:12px; border-top:1px solid var(--line); }
+  .definition p.rule{ margin:0 0 8px; font-size:14px; color:var(--ink); }
+  .definition p.rule b{font-weight:700;}
+  .definition ul{ margin:0 0 8px; padding-left:18px; font-size:13.5px; color:var(--ink-soft); }
+  .definition ul li{margin-bottom:3px;}
+  .definition dl{ margin:8px 0 0; font-size:13px; color:var(--ink-soft); border-top:1px solid var(--line); padding-top:8px; }
+  .definition dl div{display:flex;gap:6px;margin-bottom:4px;}
+  .definition dl dt{font-weight:700;color:var(--ink);flex:0 0 auto;}
+  .definition dl dd{margin:0;}
+  .definition .def-body details{ margin-top:8px; font-size:12.5px; color:var(--ink-soft); }
+  .definition .def-body summary{ cursor:pointer; font-weight:700; color:var(--teal-dark); }
+  .definition .def-body details ul{ margin-top:6px; }
+
+  .card{ background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:22px 18px; margin-bottom:14px; }
+
+  .banner{
+    background:#FBF0DD; border:1px solid #EED6A6; color:#7A4E09; font-size:13px;
+    padding:10px 14px; border-radius:10px; margin-bottom:14px;
+  }
+  .banner b{display:block;font-size:11px;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:3px;color:#8A5A0A;}
+
+  .context-badge{
+    display:inline-block; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.4px;
+    padding:5px 12px; border-radius:999px; margin-bottom:12px;
+    background:#FFF3D6; color:#8A5A0A; border:1px solid #F0DBA0;
+  }
+  .source-label{
+    font-size:12.5px; color:var(--ink-soft); margin:8px 0 14px;
+  }
+  .source-label b{ color:var(--ink); font-weight:700; }
+  .warning-label{
+    font-size:12.5px; color:#8A5A0A; background:#FFF3D6; border:1px solid #F0DBA0;
+    border-radius:8px; padding:8px 11px; margin:8px 0 14px; font-weight:600; line-height:1.4;
+  }
+  .resume-box{
+    margin-top:16px; padding-top:14px; border-top:1px solid var(--line);
+  }
+  .resume-box summary{ font-size:13px; color:var(--teal-dark); font-weight:600; cursor:pointer; }
+  .resume-box .textarea-input{ margin-top:10px; font-size:13px; }
+  .resume-btn{ margin-top:10px; }
+  .resume-error{
+    margin-top:8px; padding:8px 11px; background:var(--review-bg); color:var(--review);
+    border-radius:8px; font-size:12.5px; font-weight:600;
+  }
+  .definition-label{
+    font-size:12.5px; color:var(--teal-dark); background:#EAF3F1; border:1px solid #C9E0DB;
+    border-radius:8px; padding:8px 11px; margin:8px 0 14px; font-weight:500; line-height:1.4;
+  }
+  .toggle-row{ display:flex; gap:10px; margin-top:14px; }
+  .toggle-row .edge-case-toggle{ margin-top:0; flex:1; }
+  .edge-case-toggle{
+    display:block; width:100%; margin:14px 0 0; padding:11px 14px;
+    background:var(--panel); border:1px solid var(--line); border-radius:9px;
+    font-size:13.5px; color:var(--ink); cursor:pointer; text-align:center;
+    font-family:inherit; transition:background .15s, border-color .15s, color .15s;
+  }
+  .edge-case-toggle:hover{ background:#F2F2F2; }
+  .edge-case-toggle.active{
+    background:var(--teal-dark); border-color:var(--teal-dark); color:#fff; font-weight:700;
+  }
+  .checkpoint-card{
+    background:var(--teal-dark); border-radius:14px; padding:16px 18px; margin-bottom:14px; color:#fff;
+  }
+  .checkpoint-title{ font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.4px; opacity:0.85; margin-bottom:10px; }
+  .checkpoint-row{ display:flex; justify-content:space-between; gap:12px; padding:5px 0; font-size:14.5px; }
+  .cp-label{ opacity:0.8; }
+  .cp-val{ font-weight:700; text-align:right; }
+  .checkpoint-note{ margin-top:10px; padding-top:10px; border-top:1px solid rgba(255,255,255,0.25); font-size:13px; font-weight:600; }
+
+  .relevant-providers{
+    background:var(--panel); border:1px solid var(--line); border-radius:11px;
+    padding:12px 14px; margin:0 0 16px;
+  }
+  .relevant-providers-title{
+    font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.4px;
+    color:var(--teal-dark); margin-bottom:8px;
+  }
+  .relevant-provider-row{
+    display:flex; flex-direction:column; padding:9px 6px; border-top:1px solid var(--line); gap:1px;
+    width:100%; text-align:left; background:transparent; border-left:none; border-right:none; border-bottom:none;
+    cursor:pointer; border-radius:6px; transition:background .12s;
+  }
+  .relevant-provider-row:first-of-type{ border-top:none; }
+  .relevant-provider-row:hover{ background:#FBF0F2; }
+  .relevant-provider-row:active{ background:#F6DEE3; }
+  .rp-name{ font-size:13.5px; font-weight:700; color:var(--ink); }
+  .rp-meta{ font-size:12px; color:var(--ink-soft); }
+  .relevant-provider-row.rp-blocked{ opacity:0.6; }
+  .relevant-provider-row.rp-blocked .rp-meta{ color:var(--review); font-weight:600; }
+
+  .question h2, .output-card h2, .stop-card h2, .done-card h2{
+    font-family:Roboto,"Roboto Regular","Helvetica Neue",Helvetica,Arial,sans-serif; font-size:20px; line-height:1.35;
+    margin:0 0 4px; color:var(--ink); font-weight:600;
+  }
+  .question .step-label{ font-size:12px; color:var(--teal-dark); font-weight:700; margin-bottom:8px; display:block; }
+  .btnrow{ display:flex;gap:10px; margin-top:20px; }
+  .btn{
+    flex:1; padding:16px 10px; font-size:17px; font-weight:700; border-radius:11px; border:none;
+    cursor:pointer; -webkit-tap-highlight-color:transparent;
+  }
+  .btn.yes{background:var(--picked);color:#fff;}
+  .btn.yes:active{background:#155f3c;}
+  .btn.no{background:var(--review);color:#fff;}
+  .btn.no:active{background:#8f2f2f;}
+  .third-row{ margin-top:10px; text-align:center; }
+  .btn.third{
+    background:none; border:1px solid var(--location); color:var(--location);
+    padding:9px 16px; border-radius:9px; font-size:13.5px; font-weight:700; cursor:pointer;
+  }
+
+  .input-row{ margin-top:18px; }
+  .text-input{
+    width:100%; padding:13px 12px; font-size:16px; border:1px solid var(--line); border-radius:9px;
+    font-family:inherit; color:var(--ink);
+  }
+  .text-input:focus{ outline:2px solid var(--teal); border-color:var(--teal); }
+  .textarea-input{ font-family:inherit; resize:vertical; line-height:1.4; }
+
+  .prefixed-input{
+    display:flex; align-items:stretch; border:1px solid var(--line); border-radius:9px; overflow:hidden; background:#fff;
+  }
+  .prefixed-input:focus-within{ outline:2px solid var(--teal); border-color:var(--teal); }
+  .input-prefix{
+    display:flex; align-items:center; padding:0 0 0 12px; font-size:16px; font-weight:600;
+    color:var(--ink-soft); white-space:nowrap; user-select:none;
+  }
+  .prefixed-input .text-input{ border:none; outline:none; padding-left:4px; }
+  .prefixed-input .text-input:focus{ outline:none; border:none; }
+
+  .dx-picker{ position:relative; }
+  .dx-suggestions{
+    display:none; position:relative; margin-top:6px; border:1px solid var(--line); border-radius:9px;
+    background:#fff; max-height:280px; overflow-y:auto; box-shadow:0 4px 14px rgba(0,0,0,0.06);
+  }
+  .dx-suggestion{
+    padding:11px 12px; font-size:14.5px; color:var(--ink); cursor:pointer; border-bottom:1px solid var(--line);
+    display:flex; flex-direction:column;
+  }
+  .dx-suggestion:last-child{ border-bottom:none; }
+  .dx-suggestion:hover, .dx-suggestion:active{ background:#F2F8F5; }
+  .dx-suggestion-cat{ font-size:11px; color:var(--teal-dark); margin-top:2px; font-weight:600; }
+  .dx-suggestion-custom{ color:var(--ink-soft); font-style:italic; }
+  .dx-suggestion-general{ color:var(--teal-dark); font-style:italic; font-weight:600; }
+  .dx-chips{ display:flex; flex-wrap:wrap; gap:7px; margin-top:12px; }
+  .dx-chip{
+    display:inline-flex; align-items:center; gap:6px; background:var(--picked-bg); border:1px solid #BFE0CE;
+    color:var(--picked); font-size:13.5px; font-weight:600; padding:6px 6px 6px 12px; border-radius:999px;
+  }
+  .dx-chip-x{
+    background:none; border:none; color:var(--picked); font-size:16px; line-height:1; cursor:pointer;
+    padding:2px 6px; border-radius:999px;
+  }
+  .dx-chip-x:hover{ background:rgba(27,122,77,0.15); }
+  select.text-input{ background:#fff; appearance:auto; }
+  .field-warn{ color:var(--review); font-size:12px; margin-top:6px; display:none; }
+
+  .btnrow-continue{ display:flex; gap:10px; margin-top:16px; }
+  .continue-btn{
+    flex:1; display:block; padding:15px; background:var(--teal-dark); border:none;
+    border-radius:11px; color:#fff; font-size:15.5px; font-weight:700; cursor:pointer;
+  }
+  .continue-btn:active{background:#5C0E22;}
+  .back-btn{
+    flex:0 0 auto; padding:15px 20px; background:var(--panel); border:1px solid var(--line);
+    border-radius:11px; color:var(--ink); font-size:15px; font-weight:700; cursor:pointer;
+  }
+  .back-btn:active{ background:#F2F2F2; }
+
+  .whypath-box{
+    margin:10px 0 14px; padding:9px 12px; background:var(--panel); border:1px solid var(--line);
+    border-radius:9px; font-size:11.5px; line-height:1.5; color:var(--ink-soft); cursor:pointer;
+    transition:background .15s, border-color .15s;
+  }
+  .whypath-box:hover{ background:#FBF0F2; border-color:#F0C6D0; }
+  .whypath-box:active{ background:#F6DEE3; }
+  .whypath-box.copied{ background:var(--picked-bg); border-color:#BFE0CE; }
+  .whypath-label{
+    display:block; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.4px;
+    color:var(--teal-dark); margin-bottom:3px;
+  }
+  .whypath-box.copied .whypath-label{ color:var(--picked); }
+
+  .time-breakdown-card h3{ margin:4px 0 10px; font-size:15px; }
+  .time-total{ font-weight:400; color:var(--ink-soft); font-size:12.5px; }
+  .time-row{
+    display:flex; justify-content:space-between; gap:10px; padding:8px 0;
+    border-top:1px solid var(--line); font-size:13px;
+  }
+  .time-row:first-of-type{ border-top:none; }
+  .time-label{ color:var(--ink-soft); }
+  .time-val{ font-weight:700; color:var(--ink); white-space:nowrap; }
+
+  .escalate-btn{
+    display:block; width:100%; margin:0 0 14px; padding:14px 16px; background:#1E4E8C; border:none;
+    border-radius:11px; cursor:pointer; text-align:center; transition:background .15s;
+  }
+  .escalate-btn:hover{ background:#173D6E; }
+  .escalate-btn:active{ background:#122F55; }
+  .escalate-btn.copied{ background:var(--picked); }
+  .escalate-label{ color:#fff; font-weight:700; font-size:14px; }
+
+  .errornote-box{
+    margin:14px 0 0; padding:11px 14px; background:#fff; border:1px solid #EBBCBC;
+    border-radius:9px; font-size:13px; line-height:1.5; color:var(--ink); cursor:pointer;
+    font-weight:600; transition:background .15s, border-color .15s;
+  }
+  .errornote-box:hover{ background:#FBF0F2; }
+  .errornote-box:active{ background:#F6DEE3; }
+  .errornote-box.copied{ background:var(--picked-bg); border-color:#BFE0CE; }
+  .errornote-label{
+    display:block; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.4px;
+    color:var(--review); margin-bottom:4px;
+  }
+  .errornote-box.copied .errornote-label{ color:var(--picked); }
+
+  .again{
+    display:block;width:100%; margin-top:12px; padding:14px; background:var(--panel); border:1px solid var(--line);
+    border-radius:11px; color:var(--ink); font-size:15px; font-weight:700; cursor:pointer;
+  }
+  .btnrow-continue .again{ flex:1; width:auto; margin-top:0; }
+
+  .stop-card{ background:var(--review-bg); border:1px solid #EBBCBC; }
+  .done-card{ background:var(--picked-bg); border:1px solid #BFE0CE; }
+  .stop-card .tag, .done-card .tag{
+    display:inline-block; font-size:12px; font-weight:700; letter-spacing:0.3px; padding:4px 10px;
+    border-radius:999px; margin-bottom:10px; color:#fff;
+  }
+  .stop-card .tag{background:var(--review);}
+  .done-card .tag{background:var(--picked);}
+  .stop-card p, .done-card p{ font-size:14.5px; color:var(--ink-soft); margin:0 0 4px; }
+
+  .output-card{ background:var(--panel); border:1px solid var(--line); border-left:4px solid var(--teal-dark); }
+  .output-card h2{ font-size:15px; margin-bottom:2px; }
+  .output-hint{ font-size:12px; color:var(--ink-soft); margin:0 0 10px; }
+  .output-fields{ display:flex; flex-direction:column; gap:6px; }
+  .output-section{
+    font-size:11px; font-weight:700; color:var(--teal-dark); text-transform:uppercase; letter-spacing:.4px;
+    margin:12px 0 2px; padding-top:8px; border-top:1px solid var(--line);
+  }
+  .output-section:first-child{ margin-top:0; padding-top:0; border-top:none; }
+  .output-box{
+    border:1px solid var(--line); border-radius:8px; padding:9px 11px; cursor:pointer; background:#F7FAF9;
+    transition:background .15s, border-color .15s;
+  }
+  .output-box:hover{ background:#FBF0F2; border-color:#F0C6D0; }
+  .output-box:active{ background:#F6DEE3; }
+  .output-box.copied{ background:var(--picked-bg); border-color:#BFE0CE; }
+  .output-box.status-closed{ background:var(--picked-bg); border-color:#BFE0CE; }
+  .output-box.status-closed .ob-value{ color:var(--picked); font-weight:700; }
+  .output-box.status-review{ background:var(--location-bg); border-color:#EED6A6; }
+  .output-box.status-review .ob-value{ color:var(--location); font-weight:700; }
+  .output-box.urgent-yes{ background:var(--review-bg); border-color:#EBBCBC; }
+  .output-box.urgent-yes .ob-value{ color:var(--review); font-weight:700; }
+  .urgent-banner{
+    background:var(--review); color:#fff; font-weight:700; font-size:13px;
+    padding:9px 12px; border-radius:9px; margin:0 0 12px; text-align:center; letter-spacing:0.2px;
+  }
+  .ob-label{ font-size:10.5px; text-transform:uppercase; letter-spacing:.4px; color:var(--ink-soft); font-weight:700; }
+  .ob-value{ font-size:13.5px; color:var(--ink); margin-top:2px; word-break:break-word; white-space:pre-wrap; }
+  .output-raw{ margin-top:14px; font-size:12.5px; color:var(--ink-soft); }
+  .output-raw summary{ cursor:pointer; font-weight:700; color:var(--teal-dark); }
+  .output-card pre{
+    white-space:pre-wrap; word-break:break-word; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    font-size:12.5px; line-height:1.55; background:#F7FAF9; border:1px solid var(--line); border-radius:9px;
+    padding:12px; color:var(--ink); margin-top:8px;
+  }
+  .copy-btn{
+    margin-top:14px; background:var(--teal); color:#fff; border:none; padding:10px 16px; border-radius:9px;
+    font-size:13.5px; font-weight:700; cursor:pointer;
+  }
+  .copy-btn:active{background:var(--teal-dark);}
+
+  footer.note{ max-width:640px;margin:22px auto 0;padding:0 16px; font-size:12px;color:var(--ink-soft); }
+
+  /* ---- session log ---- */
+  button.logbtn{
+    flex-shrink:0; background:transparent; border:1px solid #C46A82; color:#E7F3EF;
+    padding:7px 12px; border-radius:7px; font-size:13px; cursor:pointer; font-family:inherit;
+  }
+  button.logbtn:hover{ background:#5C0E22; }
+  button.logbtn.has-entries{ background:#E7F3EC; border-color:#E7F3EC; color:#16241F; font-weight:700; }
+  .log-entry{
+    background:var(--panel); border:1px solid var(--line); border-left:4px solid var(--picked);
+    border-radius:10px; padding:10px 14px; margin:0 0 10px;
+  }
+  .log-entry.is-review{ border-left-color:var(--review); }
+  .log-entry.is-exited{ border-left-color:var(--location); }
+  .log-entry summary{ cursor:pointer; list-style:none; }
+  .log-entry summary::-webkit-details-marker{ display:none; }
+  .log-top{ display:flex; align-items:baseline; justify-content:space-between; gap:10px; }
+  .log-name{ font-weight:700; font-size:15px; word-break:break-word; }
+  .log-outcome{ flex-shrink:0; font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px;
+    background:var(--picked-bg); color:var(--picked); }
+  .log-entry.is-review .log-outcome{ background:var(--review-bg); color:var(--review); }
+  .log-entry.is-exited .log-outcome{ background:var(--location-bg); color:var(--location); }
+  .log-meta{ font-size:12px; color:var(--ink-soft); margin-top:3px; word-break:break-word; }
+  .log-body{ margin-top:10px; border-top:1px solid var(--line); padding-top:10px; }
+  .log-out{
+    white-space:pre-wrap; word-break:break-word; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    font-size:11px; line-height:1.45; background:var(--bg); border:1px solid var(--line);
+    border-radius:8px; padding:10px; max-height:260px; overflow:auto;
+  }
+  .log-actions{ display:flex; flex-wrap:wrap; gap:8px; margin-top:10px; }
+  .log-actions button{
+    font-family:inherit; font-size:12px; padding:6px 12px; border-radius:7px; cursor:pointer;
+    border:1px solid var(--line); background:var(--panel); color:var(--ink);
+  }
+  .log-actions button:hover{ background:var(--bg); }
+  .log-summary-bar{ font-size:12px; color:var(--ink-soft); margin:0 0 12px; }
+  .danger-btn{ border-color:#E2B3B3 !important; color:var(--review) !important; }
+
+  /* The header carries four controls once the log button is added, which is
+     enough to squeeze the title into a column on a phone. Below 560px the title
+     takes its own row and the buttons sit beneath it. */
+  header.top .row > div:first-child{ min-width:0; }
+  @media (max-width:560px){
+    header.top .row{ flex-wrap:wrap; }
+    header.top .row > div:first-child{ flex:1 1 100%; }
+    header.top h1{ font-size:17px; }
+    .header-btns{ width:100%; justify-content:flex-end; }
+    button.logbtn, button.pausebtn, button.startover{ padding:6px 10px; font-size:12px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="row">
+    <div>
+      <h1>Referral Triage Guide</h1>
+      <div class="sub" id="headerSub">Example Cardiology</div>
+    </div>
+    <div class="header-btns">
+      <span class="live-timer" id="liveTimer">0:00</span>
+      <button class="pausebtn" id="pauseBtn">⏸ Pause</button>
+      <button class="logbtn" id="logBtn">Log (0)</button>
+      <button class="startover" id="headerReset">Start over</button>
+    </div>
+  </div>
+  <div class="progress-wrap">
+    <div class="progress-track"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+    <div class="progress-label" id="progressLabel">0% through</div>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="stage-badge" id="stageBadge">Part 0 - Status</div>
+
+  <div class="paused-banner" id="pausedBanner" style="display:none;">⏸ Paused - timer stopped. Tap Resume in the header to continue.</div>
+  <div id="stage"></div>
+</div>
+
+<footer class="note">Click through every determination, then update Athena wherever necessary using the output card.</footer>
+
+<script>
+(function(){
+
+  var PART_LABELS = {
+    0:"Part 0 - Status", 1:"Part 1 - Provider", 2:"Part 2 - Location",
+    3:"Part 3 - Make them agree", 4:"Part 4 - Scheduling Eligibility", 5:"Part 5 - Writes & objects"
+  };
+
+  // Rough weight of each part in the overall flow (sums to 100), used to drive
+  // the progress bar. PART_INTERACTIVE is the max number of yes/no/text/select
+  // questions a path through that part could hit (used to interpolate within a part).
+  var PART_WEIGHTS = { 0:2, 1:25, 2:23, 3:7, 4:11, 5:32 };
+  var PART_INTERACTIVE = { 0:3, 1:15, 2:14, 3:4, 4:7, 5:20 };
+  var PART_START = (function(){
+    var start = {}, acc = 0;
+    [0,1,2,3,4,5].forEach(function(p){ start[p] = acc; acc += PART_WEIGHTS[p]; });
+    return start;
+  })();
+
+  var DEPT_OPTIONS = [
+    "Northgate (101)",
+    "Eastfield (102)", "Southport (103)", "Midtown (104)", "Lakeview (105)",
+    "Westbrook (106)", "North Ridge (107)", "HVI (108)",
+    "Parkway (109)", "Harborview (110)", "Fairview (111)", "Brookside Way (112)",
+    "Stonebridge (113)", "Highland (114)"
+  ];
+
+  var PROVIDER_DATA = [
+    { name:"Adam Reyes, MD", specialty:"General, Interventional, Structural", locations:["Northgate","Southport"], inClinicOnly:true, notes:"All scheduling must go to in-clinic" },
+    { name:"Alan Whitfield, MD", specialty:"General, Interventional, Structural", locations:["Northgate"] },
+    { name:"Bianca Osei, MD", specialty:"General", locations:["Lakeview","Eastfield","Fairview"] },
+    { name:"Caleb Nakamura, MD", specialty:"General, Interventional, Structural", locations:["HVI"] },
+    { name:"Dana Whitlock, MD", specialty:"General, Interventional, Structural", locations:["Eastfield","Fairview","Ridge"] },
+    { name:"Elena Marsh, MD", specialty:"General, Interventional", locations:["Brookside","Harborview"] },
+    { name:"Felix Barrow, MD", specialty:"General", locations:["Southport"] },
+    { name:"Grace Halloway, DO", specialty:"General, Interventional", locations:["Eastfield","Fairview","Ridge"] },
+    { name:"Henry Vance, DO", specialty:"General", locations:["Northgate","HVI"] },
+    { name:"Iris Calloway, MD", specialty:"General", locations:["Eastfield","Fairview","Ridge"] },
+    { name:"Jonah Pratt, MD", specialty:"General, Interventional", locations:["Northgate"] },
+    { name:"Karen Ellsworth, MD", specialty:"Electrophysiology", locations:["Northgate"], inClinicOnly:true, notes:"All scheduling must go to in-clinic" },
+    { name:"Liam Rutherford, MD", specialty:"General", locations:["HVI"] },
+    { name:"Maya Sinclair, MD", specialty:"General, Interventional", locations:["Northgate"] },
+    { name:"Noah Kingsley, MD", specialty:"General", locations:["Northgate"] },
+    { name:"Olivia Trent, MD", specialty:"General", locations:["Northgate"], notes:"Exception: also sees Pure hypercholesterolemia, unspecified" },
+    { name:"Priya Nakagawa, MD", specialty:"General", locations:["Eastfield","Ridge"] },
+    { name:"Quinn Ashford, MD", specialty:"Electrophysiology", locations:["Westbrook","Brookside","Northgate"], nonAutoScheduling:true, notes:"Not scheduled through the intake system - route to specialty-scheduling" },
+    { name:"Rosa Lindqvist, DO", specialty:"General, Interventional", locations:["Brookside","Harborview"] },
+    { name:"Sofia De Luca, MD", specialty:"General, Interventional", locations:["Harborview"] },
+    { name:"Theo Ramsey, MD", specialty:"General", locations:["Westbrook","Fairview","Harborview"] },
+    { name:"Uma Castellanos, DO", specialty:"General, Interventional, Structural", locations:["Northgate"] },
+    { name:"Victor Ellery, MD", specialty:"General", locations:["Lakeview","Midtown"] },
+    { name:"Wendy Archer", specialty:"", locations:[] },
+    { name:"Xavier Bloom, MD", specialty:"General, Interventional", locations:["Northgate"], notes:"Southbank physician, will have Northgate availability" },
+    { name:"Yara Nasser", specialty:"", locations:[] },
+    { name:"Zoe Hartley", specialty:"", locations:[] },
+    { name:"Nina Delacroix, DNP", specialty:"General", locations:["Northgate"] },
+    { name:"Owen Fairbanks", specialty:"General", locations:["Northgate"] }
+  ];
+
+  // Derives Athena's "PRV_LASTNAME_FIRSTINITIAL" provider code from a roster name.
+  // Examples: "Uma Castellanos, DO" -> PRV_CASTELLANOS_U,
+  // "Sofia De Luca, MD" -> PRV_DELUCA_S (multi-word last names lose the space).
+  function athenaProviderCode(fullName){
+    if (!fullName) return "";
+    var namePart = fullName.split(",")[0].trim();
+    var words = namePart.split(/\s+/).filter(Boolean);
+    if (words.length < 2) return "";
+    var first = words[0];
+    var last = words.slice(1).join("").toUpperCase();
+    return "PRV_" + last + "_" + first.charAt(0).toUpperCase();
+  }
+
+  var PROVIDER_LOOKUP = {};
+  var PROVIDER_OPTIONS = PROVIDER_DATA.map(function(p){
+    var code = athenaProviderCode(p.name);
+    var display = p.specialty ? (p.name + " - " + p.specialty + " (" + p.locations.join(", ") + ")") : p.name;
+    if (code) display = code + " - " + display;
+    PROVIDER_LOOKUP[p.name] = { specialty:p.specialty, locations:p.locations, display:display, notes:p.notes || "", athenaCode:code,
+      inClinicOnly:!!p.inClinicOnly, nonAutoScheduling:!!p.nonAutoScheduling };
+    return { value:p.name, label:display };
+  });
+  PROVIDER_LOOKUP["Unknown provider"] = { specialty:"", locations:[], display:"Unknown provider", notes:"", athenaCode:"" };
+
+  function deptShortName(str){
+    if (!str) return "";
+    return str.replace(/\s*\(\d+\)\s*$/, "").trim();
+  }
+  function deptNumberOnly(str){
+    if (!str) return "";
+    var m = str.match(/\((\d+)\)\s*$/);
+    return m ? m[1] : "";
+  }
+  function locMatches(a, b){
+    a = (a || "").toLowerCase().trim();
+    b = (b || "").toLowerCase().trim();
+    if (!a || !b) return false;
+    return a === b || a.indexOf(b) !== -1 || b.indexOf(a) !== -1;
+  }
+  function providerShortName(name){
+    return String(name || "").replace(/,\s*(MD|DO|DNP)\s*$/i, "").trim();
+  }
+  // Departments the chosen provider actually practices at, listed first so the
+  // picker is short and relevant instead of all fourteen sites. The remaining
+  // departments stay reachable in a second group on purpose: a referral can name
+  // a site the provider does not cover, and the downstream "provider practices at
+  // that dept?" check exists to catch exactly that and switch. Hiding them
+  // outright would make a real case unrecordable.
+  function deptGroupsForProvider(s){
+    var p = PROVIDER_LOOKUP[s.out.provider];
+    var locs = (p && p.locations) ? p.locations : [];
+    if (!locs.length) return null;
+    var mine = [], rest = [];
+    DEPT_OPTIONS.forEach(function(opt){
+      var shortName = deptShortName(opt);
+      var hit = locs.some(function(l){ return locMatches(l, shortName); });
+      (hit ? mine : rest).push({ value:opt, label:opt });
+    });
+    if (!mine.length) return null;
+    var groups = [{ label: providerShortName(s.out.provider) + " practices here", options: mine }];
+    if (rest.length) groups.push({ label:"Other Example Cardiology departments", options: rest });
+    return groups;
+  }
+  function canonicalDeptOption(shortName){
+    for (var i = 0; i < DEPT_OPTIONS.length; i++){
+      if (locMatches(deptShortName(DEPT_OPTIONS[i]), shortName)) return DEPT_OPTIONS[i];
+    }
+    return shortName;
+  }
+
+  // Provider dropdown grouped by location, Northgate first (matches DEPT_OPTIONS order).
+  // A provider practicing at multiple locations appears once under each matching group.
+  var PROVIDER_OPTION_GROUPS = (function(){
+    var groups = DEPT_OPTIONS.map(function(deptOpt){
+      var shortName = deptShortName(deptOpt);
+      var matching = PROVIDER_DATA.filter(function(p){
+        return p.locations.some(function(loc){ return locMatches(loc, shortName); });
+      });
+      return {
+        label: shortName,
+        options: matching.map(function(p){ return { value:p.name, label:PROVIDER_LOOKUP[p.name].display }; })
+      };
+    }).filter(function(g){ return g.options.length > 0; });
+
+    var staff = PROVIDER_DATA.filter(function(p){ return !p.locations.length; });
+    if (staff.length){
+      groups.push({ label:"Other / Staff", options: staff.map(function(p){ return { value:p.name, label:PROVIDER_LOOKUP[p.name].display }; }) });
+    }
+    groups.push({ label:"Unknown", options:[ { value:"Unknown provider", label:"Unknown provider" } ] });
+    return groups;
+  })();
+
+  // Diagnosis-to-specialty mapping, used to auto-derive whether a provider
+  // treats a given diagnosis (matched against the provider's specialty tags).
+  var DIAGNOSIS_CATEGORIES = [
+    { specialty:"General", keywords:[
+        "chest pain","angina","coronary artery disease","cad","atherosclerotic heart disease",
+        "atherosclerotic cardiovascular disease","ascvd","native coronary artery","hyperlipidemia","dyslipidemia",
+        "high cholesterol","elevated cholesterol","hypertension","high blood pressure","low blood pressure",
+        "elevated blood pressure","syncope","fainting","dizziness","lightheadedness","shortness of breath",
+        "sob","dyspnea","palpitations","murmur","heart murmur","family history","bradycardia","tachycardia",
+        "nausea","cardiac clearance","pre-op clearance","preoperative clearance","clearance for surgery",
+        "abnormal ekg","abnormal ecg","abnormal stress test","abnormal echo","abnormal echocardiogram",
+        "fatigue","edema","swelling","chest tightness","exercise intolerance","elevated troponin",
+        "cardiac risk assessment","metabolic syndrome","statin intolerance","sports physical",
+        "cardiomegaly","routine follow-up","cardiology follow-up","risk factor"
+      ] },
+    { specialty:"Interventional", keywords:[
+        "heart failure","chf","congestive heart failure","cardiomyopathy","atrial fibrillation","afib",
+        "a fib","a-fib","blood clot","dvt","deep vein thrombosis","pulmonary embolism",
+        "stroke","tia","transient ischemic attack","ischemic heart disease","heart attack",
+        "myocardial infarction","nstemi","stemi","unstable angina","aneurysm",
+        "peripheral artery disease","pad","peripheral vascular disease","claudication",
+        "carotid artery disease","carotid stenosis","cardiac catheterization","post-mi","post mi",
+        "stent","angioplasty","cabg","coronary artery bypass","bypass surgery",
+        "reduced ejection fraction","reduced ef","low ejection fraction","diastolic dysfunction",
+        "systolic dysfunction","pulmonary hypertension","cardiogenic shock","pericarditis","myocarditis",
+        "abdominal aortic aneurysm","aaa","thoracic aortic aneurysm","aortic dissection","renal artery stenosis",
+        "refractory angina","variant angina","prinzmetal angina","coronary artery spasm",
+        "dressler's syndrome","dresslers syndrome","postinfarction syndrome","coronary microvascular dysfunction",
+        "coronary artery aneurysm","coronary artery dissection","chronic total occlusion",
+        "raynaud's syndrome","raynauds syndrome","raynaud phenomenon","buerger's disease","buergers disease",
+        "thromboangiitis obliterans","arterial embolism","arterial thrombosis","atheroembolism","aortic ectasia",
+        "cor pulmonale","eisenmenger's syndrome","eisenmengers syndrome",
+        "chronic thromboembolic pulmonary hypertension","cteph"
+      ] },
+    { specialty:"Structural", keywords:[
+        "aortic stenosis","aortic regurgitation","mitral stenosis","mitral regurgitation",
+        "mitral valve prolapse","valve insufficiency","valve prolapse","tricuspid regurgitation",
+        "tricuspid stenosis","pulmonic stenosis","pulmonic regurgitation","bicuspid aortic valve",
+        "congenital heart disease","patent foramen ovale","pfo","atrial septal defect","asd",
+        "ventricular septal defect","vsd",
+        "patent ductus arteriosus","coarctation of the aorta","hypertrophic cardiomyopathy","hcm",
+        "hypertrophic obstructive cardiomyopathy","hocm","left atrial appendage","laa","watchman","mitraclip",
+        "tavr","tavi","valve replacement","valve repair","paravalvular leak","endocarditis",
+        "rheumatic heart disease","renal denervation",
+        "tetralogy of fallot","truncus arteriosus","ebstein's anomaly","ebsteins anomaly",
+        "hypoplastic left heart syndrome","takotsubo","stress cardiomyopathy","broken heart syndrome",
+        "pericardial effusion","cardiac tamponade","constrictive pericarditis","double outlet right ventricle"
+      ] },
+    { specialty:"Electrophysiology", keywords:[
+        "heart rhythm","arrhythmia","atrial flutter","atrial fibrillation","afib","a fib","a-fib",
+        "supraventricular tachycardia","svt","ventricular tachycardia","vt","ventricular fibrillation","vfib",
+        "premature ventricular contractions","pvc","premature atrial contractions","pac","long qt","long qt syndrome",
+        "wolff-parkinson-white","wpw","sick sinus syndrome","heart block","av block","pacemaker","icd",
+        "device implantation","device monitoring","device malfunction","lead issue","loop recorder",
+        "ablation","cardiac resynchronization","bundle branch block","brugada",
+        "torsades de pointes","torsades"
+      ] }
+  ];
+
+  function specialtiesForDiagnosis(dxText){
+    var text = (dxText || "").toLowerCase();
+    if (!text) return [];
+
+    // Record every keyword hit with its span, then discard any hit that sits
+    // entirely inside a longer hit. Without this, a generic keyword swallowed by
+    // a more specific phrase drags in the wrong specialty - "pulmonary
+    // hypertension" would match General via "hypertension", and "hypertrophic
+    // cardiomyopathy" would match Interventional via "cardiomyopathy".
+    // Containment is strict (longer only), so a term listed identically under
+    // two specialties (e.g. "atrial fibrillation") still matches both.
+    var hits = [];
+    DIAGNOSIS_CATEGORIES.forEach(function(cat){
+      cat.keywords.forEach(function(kw){
+        var esc = kw.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        var re = (kw.length <= 4) ? new RegExp("\\b" + esc + "\\b", "gi") : new RegExp(esc, "gi");
+        var m;
+        while ((m = re.exec(text)) !== null){
+          hits.push({ specialty:cat.specialty, start:m.index, end:m.index + m[0].length });
+          if (m.index === re.lastIndex) re.lastIndex++;
+        }
+      });
+    });
+
+    var matched = [];
+    hits.forEach(function(h){
+      var swallowed = hits.some(function(o){
+        return (o.end - o.start) > (h.end - h.start) && o.start <= h.start && o.end >= h.end;
+      });
+      if (swallowed) return;
+      if (matched.indexOf(h.specialty) === -1) matched.push(h.specialty);
+    });
+    // Explicit specialty tag (added when staff picks "not listed" and assigns a
+    // specialty manually, e.g. "Some rare condition [General]") overrides/supplements
+    // keyword matching so unrecognized diagnoses can still drive auto-matching.
+    DIAGNOSIS_CATEGORIES.forEach(function(cat){
+      var tag = "[" + cat.specialty.toLowerCase() + "]";
+      if (text.indexOf(tag) !== -1 && matched.indexOf(cat.specialty) === -1) matched.push(cat.specialty);
+    });
+    return matched;
+  }
+
+  // Builds a "Suggested" group (providers at the given location whose specialty
+  // matches the diagnosis) plus an "Other providers" fallback group, for pickers
+  // where we already know both the location and the diagnosis.
+  function suggestedProviderGroups(deptShort, dxText){
+    var dxSpecs = specialtiesForDiagnosis(dxText);
+    var suggested = [];
+    var others = [];
+    PROVIDER_DATA.forEach(function(p){
+      var entry = { value:p.name, label:PROVIDER_LOOKUP[p.name].display };
+      var atLocation = deptShort && p.locations.some(function(loc){ return locMatches(loc, deptShort); });
+      var treatsIt = dxSpecs.length && p.specialty && dxSpecs.some(function(sp){ return p.specialty.toLowerCase().indexOf(sp.toLowerCase()) !== -1; });
+      if (atLocation && treatsIt) suggested.push(entry);
+      else others.push(entry);
+    });
+    var groups = [];
+    if (suggested.length){
+      groups.push({ label:"Suggested - treats this diagnosis at " + (deptShort || "this location"), options:suggested });
+    }
+    groups.push({ label: suggested.length ? "Other providers" : "All providers", options:others });
+    groups.push({ label:"Unknown", options:[ { value:"Unknown provider", label:"Unknown provider" } ] });
+    return groups;
+  }
+  // Clean display names for the searchable diagnosis picker. Each of these is written
+  // to contain the underlying keyword(s) so specialtiesForDiagnosis() auto-tags it correctly.
+  var CANONICAL_DIAGNOSES = [
+    "Chest Pain / Angina","Coronary Artery Disease (CAD)","Atherosclerotic Heart Disease of Native Coronary Artery","Hyperlipidemia / Dyslipidemia","Hypertension",
+    "Syncope / Fainting","Dizziness / Lightheadedness","Shortness of Breath (SOB)","Palpitations","Heart Murmur",
+    "Family History of Heart Disease","Bradycardia","Tachycardia","Nausea","Cardiac Clearance (Pre-Op)",
+    "Abnormal EKG/ECG","Abnormal Stress Test","Abnormal Echocardiogram","Fatigue","Edema / Swelling",
+    "Chest Tightness","Exercise Intolerance","Elevated Troponin","Metabolic Syndrome","Statin Intolerance","Cardiomegaly",
+    "Heart Failure (CHF)","Cardiomyopathy","Atrial Fibrillation (AFib)","Blood Clot / DVT","Pulmonary Embolism",
+    "Stroke / TIA","Ischemic Heart Disease","Heart Attack (Myocardial Infarction)","NSTEMI","STEMI","Unstable Angina",
+    "Aneurysm","Peripheral Artery Disease (PAD)","Claudication","Carotid Artery Disease","Post-MI Follow-Up",
+    "Stent / Angioplasty Follow-Up","CABG / Bypass Follow-Up","Reduced Ejection Fraction","Diastolic Dysfunction",
+    "Pulmonary Hypertension","Cardiogenic Shock","Pericarditis","Myocarditis","Abdominal Aortic Aneurysm (AAA)",
+    "Aortic Dissection","Renal Artery Stenosis",
+    "Refractory Angina","Variant (Prinzmetal) Angina","Dressler's Syndrome","Coronary Microvascular Dysfunction",
+    "Coronary Artery Aneurysm","Coronary Artery Dissection","Chronic Total Occlusion",
+    "Raynaud's Syndrome","Buerger's Disease (Thromboangiitis Obliterans)","Arterial Embolism / Thrombosis",
+    "Aortic Ectasia","Cor Pulmonale","Eisenmenger's Syndrome","Chronic Thromboembolic Pulmonary Hypertension (CTEPH)",
+    "Aortic Stenosis","Aortic Regurgitation","Mitral Stenosis","Mitral Regurgitation","Mitral Valve Prolapse",
+    "Tricuspid Regurgitation","Pulmonic Stenosis","Bicuspid Aortic Valve","Congenital Heart Disease",
+    "Patent Foramen Ovale (PFO)","Atrial Septal Defect (ASD)","Ventricular Septal Defect (VSD)",
+    "Patent Ductus Arteriosus (PDA)","Coarctation of the Aorta","Hypertrophic Cardiomyopathy (HCM/HOCM)",
+    "Left Atrial Appendage (LAA) Closure","Watchman Procedure","MitraClip","TAVR / TAVI",
+    "Valve Replacement / Repair Follow-Up","Paravalvular Leak","Endocarditis","Rheumatic Heart Disease","Renal Denervation",
+    "Tetralogy of Fallot","Truncus Arteriosus","Double Outlet Right Ventricle","Ebstein's Anomaly","Hypoplastic Left Heart Syndrome (HLHS)",
+    "Takotsubo (Stress) Cardiomyopathy","Pericardial Effusion","Cardiac Tamponade","Constrictive Pericarditis",
+    "Heart Rhythm Disorder / Arrhythmia","Atrial Flutter","Supraventricular Tachycardia (SVT)",
+    "Ventricular Tachycardia (VT)","Ventricular Fibrillation (VFib)","Premature Ventricular Contractions (PVCs)",
+    "Premature Atrial Contractions (PACs)","Long QT Syndrome","Wolff-Parkinson-White (WPW)","Sick Sinus Syndrome",
+    "Heart Block / AV Block","Pacemaker Follow-Up","ICD Follow-Up","Device Monitoring","Loop Recorder",
+    "Ablation Follow-Up","Cardiac Resynchronization Therapy (CRT)","Bundle Branch Block","Brugada Syndrome",
+    "Torsades de Pointes"
+  ];
+
+  // Returns true/false if we can determine it, or null if the diagnosis or
+  // provider specialty data isn't enough to tell (caller should fall back to asking).
+  function providerTreatsDiagnosis(providerName, dxText){
+    var info = PROVIDER_LOOKUP[providerName];
+    if (!info || !info.specialty) return null;
+    var dxSpecs = specialtiesForDiagnosis(dxText);
+    if (!dxSpecs.length) return null;
+    var provSpecs = info.specialty.toLowerCase();
+    return dxSpecs.some(function(sp){ return provSpecs.indexOf(sp.toLowerCase()) !== -1; });
+  }
+
+  function anyProviderAtLocationTreats(deptShort, dxText){
+    var dxSpecs = specialtiesForDiagnosis(dxText);
+    if (!dxSpecs.length) return null;
+    return PROVIDER_DATA.some(function(p){
+      if (!p.specialty) return false;
+      var atLocation = p.locations.some(function(loc){ return locMatches(loc, deptShort); });
+      if (!atLocation) return false;
+      var provSpecs = p.specialty.toLowerCase();
+      return dxSpecs.some(function(sp){ return provSpecs.indexOf(sp.toLowerCase()) !== -1; });
+    });
+  }
+
+  var state, stage, stageBadge;
+  var historyStack = [];
+  var stepStartTime = null;
+  var isPaused = false;
+  var pauseStartedAt = null;
+  var pausedMsForCurrentStep = 0;
+
+  function togglePause(){
+    if (isPaused){
+      pausedMsForCurrentStep += (Date.now() - pauseStartedAt);
+      pauseStartedAt = null;
+      isPaused = false;
+    } else {
+      isPaused = true;
+      pauseStartedAt = Date.now();
+    }
+    updatePauseUI();
+    updateLiveTimer();
+  }
+  function updatePauseUI(){
+    var btn = document.getElementById("pauseBtn");
+    if (btn){
+      btn.textContent = isPaused ? "▶ Resume" : "⏸ Pause";
+      btn.classList.toggle("is-paused", isPaused);
+    }
+    var stageEl = document.getElementById("stage");
+    if (stageEl) stageEl.classList.toggle("is-paused", isPaused);
+    var banner = document.getElementById("pausedBanner");
+    if (banner) banner.style.display = isPaused ? "block" : "none";
+  }
+
+  function formatLiveTimer(ms){
+    var totalSec = Math.floor(ms / 1000);
+    var min = Math.floor(totalSec / 60);
+    var sec = totalSec % 60;
+    return min + ":" + (sec < 10 ? "0" : "") + sec;
+  }
+  function updateLiveTimer(){
+    var el = document.getElementById("liveTimer");
+    if (!el) return;
+    if (!stepStartTime || state.node === "__STOP__" || state.node === "__DONE__"){
+      el.textContent = " - ";
+      return;
+    }
+    var now = Date.now();
+    var pausedTotal = pausedMsForCurrentStep + ((isPaused && pauseStartedAt) ? (now - pauseStartedAt) : 0);
+    var ms = Math.max(0, now - stepStartTime - pausedTotal);
+    el.textContent = formatLiveTimer(ms);
+  }
+
+
+
+  // ---- session log ----
+  // Every determination finished or exited in this sitting is kept here so staff
+  // can see what they have already processed and re-copy any output card without
+  // redoing the run. Memory only: nothing is written to disk, localStorage or the
+  // network, so closing or refreshing the tab clears it and no patient name ever
+  // reaches a persistent store.
+  var sessionLog = [];
+  var viewMode = "flow";
+  var runCounter = 0;
+
+  function freshState(){
+    runCounter++;
+    return { runId:"run-" + runCounter + "-" + Date.now(), runSeq:runCounter,
+             node:"p_patient_name", crumbs:[], out:{}, stepTimings:[], manualReview:false, manualReviewReason:null,
+             manualReviewPart:0, lastPart:0, pendingBanner:null, part1Result:null, part1Reason:null,
+             providerTreatsDx:false, hasUpcomingAppt:false, isPrimarySiteReferral:null, needsEngineeringEscalation:false, isInClinicOnly:false, pendingEdgeCase:false, pendingSelfPay:false,
+             _afterDiag:null, _afterDiag2:null, _afterDiag3:null };
+  }
+
+  function setOut(k,v){ state.out[k]=v; }
+
+  function stopManual(reason, part){
+    state.manualReview = true;
+    state.manualReviewReason = reason;
+    state.manualReviewPart = part;
+    return "__STOP__";
+  }
+
+  function afterLocationPicked(s){
+    return s.part1Result === "PROVIDER_PICKED" ? "p3_entry" : "p2_pick_provider_here";
+  }
+
+  // =========================================================
+  // NODE GRAPH
+  // =========================================================
+  var NODES = {
+
+    // ---- PART 0 ----
+    p_patient_name: { kind:"text", source:"Referral fax / task queue", part:0, field:"patientName", showResumeBox:true,
+      text:"What's the patient's name?", short:"Patient name",
+      placeholder:"Patient name",
+      next:"p_task_id"
+    },
+    p_task_id: { kind:"text", source:"referrals.example.com/tasks/", part:0, field:"taskId", prefix:"Task-",
+      text:"What's the Task ID?", short:"Task ID",
+      placeholder:"12345",
+      next:"p0_status"
+    },
+    p0_status: { kind:"yesno", source:"Quickview → Scheduling → View Patient Appointments", part:0,
+      definition:"A qualifying appointment must be cardiology, with a Example Cardiology provider, at a Example Cardiology location, and the patient attended (not Canceled or No Show). Established = one of those within the last 3 years.",
+      text:"Have they completed a qualifying appointment in the last 3 years?",
+      short:"Established (3 yrs)?",
+      yes:function(s){ setOut("status","Established"); return "p1_q1"; },
+      no:function(s){ setOut("status","New"); return "p1_q1"; }
+    },
+
+    // ---- PART 1 - PROVIDER ----
+    p1_q1: { kind:"yesno", source:"Quickview → Scheduling → View Patient Appointments", part:1,
+      definition:"A qualifying appointment must be cardiology, with a Example Cardiology provider, at a Example Cardiology location, and the patient attended (not Canceled or No Show). Upcoming window = next 60 days.",
+      text:"Is there a qualifying appointment in the next 60 days?",
+      short:"Upcoming qualifying appt (60 days)?",
+      yes:function(s){ s.hasUpcomingAppt = true; return "p1_q1a"; },
+      no:function(s){ return "p1_q2"; }
+    },
+    p1_q1a: { kind:"yesno", source:"Quickview → Scheduling → View Patient Appointments", part:1,
+      definition:"A qualifying appointment must be cardiology, with a Example Cardiology provider, at a Example Cardiology location, and the patient attended (not Canceled or No Show).",
+      text:"Is that just one appointment - not several?",
+      short:"Only one upcoming appt?",
+      yes:function(s){ return "p1_name_unique"; },
+      no:function(s){ return "p1_q1b"; }
+    },
+    p1_name_unique: { kind:"select", source:"Quickview → Scheduling → View Patient Appointments", part:1, field:"provider", groups:PROVIDER_OPTION_GROUPS,
+      text:"Pick the upcoming provider.", short:"Upcoming provider name",
+      afterSubmit:function(s){ s.part1Result="PROVIDER_PICKED"; },
+      next:"p2_entry"
+    },
+    p1_q1b: { kind:"yesno", source:"Quickview → Scheduling → View Patient Appointments", part:1,
+      definition:"A qualifying appointment must be cardiology, with a Example Cardiology provider, at a Example Cardiology location, and the patient attended (not Canceled or No Show).",
+      text:"Are those upcoming appointments all with the same provider?",
+      short:"Upcoming appts, same provider?",
+      yes:function(s){ return "p1_name_same"; },
+      no:function(s){ return "p1_q1c"; }
+    },
+    p1_name_same: { kind:"select", source:"Quickview → Scheduling → View Patient Appointments", part:1, field:"provider", groups:PROVIDER_OPTION_GROUPS,
+      text:"Pick that provider.", short:"Same upcoming provider name",
+      afterSubmit:function(s){ s.part1Result="PROVIDER_PICKED"; },
+      next:"p2_entry"
+    },
+    p1_q1c: { kind:"yesno", source:"Quickview → Scheduling → View Patient Appointments", part:1,
+      definition:"Most recent = the last completed qualifying visit. Usual / most consistent provider = the provider seen most often among qualifying appointments in the last 3 years.",
+      text:"The upcoming appointments are with different providers. Do you know who the patient saw most recently, or who their usual provider is?",
+      short:"Know most-recent/usual provider?",
+      yes:function(s){ return "p1_name_recentusual"; },
+      no:function(s){ return "p1_name_manual"; }
+    },
+    p1_name_manual: { kind:"select", source:"Quickview → Scheduling → View Patient Appointments", part:1, field:"provider", groups:PROVIDER_OPTION_GROUPS,
+      definition:"Usual / most consistent provider = the provider seen most often among qualifying appointments in the last 3 years.",
+      warning:"This is only for determining the receiving provider on this referral - do not update the patient's Usual Provider field in Athena.",
+      text:"Can't tell automatically - please pick the usual provider for this patient.", short:"Manually selected usual provider",
+      next:"p1_check_entry"
+    },
+    p1_name_recentusual: { kind:"select", source:"Quickview → Scheduling → View Patient Appointments", part:1, field:"provider", groups:PROVIDER_OPTION_GROUPS,
+      definition:"Usual / most consistent provider = the provider seen most often among qualifying appointments in the last 3 years. Most recent = the last completed qualifying visit.",
+      warning:"This is only for determining the receiving provider on this referral - do not update the patient's Usual Provider field in Athena.",
+      text:"Pick the most-recent / usual provider.", short:"Most-recent/usual provider name",
+      next:"p1_check_entry"
+    },
+    p1_q2: { kind:"auto", part:1,
+      run:function(s){ return s.out.status==="Established" ? "p1_name_usual" : "p1_q3"; }
+    },
+    p1_name_usual: { kind:"select", source:"Quickview → Scheduling → View Patient Appointments", part:1, field:"provider", groups:PROVIDER_OPTION_GROUPS,
+      definition:"Usual / most consistent provider = the provider seen most often among qualifying appointments in the last 3 years.",
+      warning:"This is only for determining the receiving provider on this referral - do not update the patient's Usual Provider field in Athena.",
+      text:"Pick the usual / most consistent provider.", short:"Usual provider name",
+      next:"p1_check_entry"
+    },
+    p1_q3: { kind:"yesno", source:"Referral Document / Fax", part:1,
+      text:"Does the referral state a specific provider's name?",
+      short:"Referral names a provider?",
+      yes:function(s){ return "p1_name_referral"; },
+      no:function(s){ setOut("provider","FIND LOCATION FIRST"); s.part1Result="FIND_LOCATION";
+                       s.part1Reason="Part 1 did not pick a provider."; return "p2_entry_banner"; }
+    },
+    p1_name_referral: { kind:"select", source:"Referral document", part:1, field:"provider", groups:PROVIDER_OPTION_GROUPS,
+      text:"Pick the provider named on the referral.", short:"Referral-named provider",
+      next:"p1_check_entry"
+    },
+    p1_check_entry: { kind:"auto", part:1,
+      run:function(s){
+        if (s.out.status === "Established") { s.part1Result="PROVIDER_PICKED"; return "p2_entry"; }
+        s._afterDiag = "p1_check_treats_auto";
+        return s.out.diagnosisText ? "p1_check_treats_auto" : "p1_diag_input";
+      }
+    },
+    p1_diag_input: { kind:"diagnosis", source:"Referral document", part:1, field:"diagnosisText",
+      text:"What's the diagnosis?", short:"Diagnosis",
+      next:function(s){ return s._afterDiag; }
+    },
+    p1_check_treats_auto: { kind:"auto", part:1,
+      run:function(s){
+        var result = providerTreatsDiagnosis(s.out.provider, s.out.diagnosisText);
+        if (result === true){
+          s.providerTreatsDx = true; s.part1Result="PROVIDER_PICKED";
+          s.crumbs.push({ short:"New patient - provider treats the diagnosis? (auto)", answer:"Yes" });
+          return "p2_entry";
+        }
+        if (result === false){
+          setOut("provider","FIND LOCATION FIRST"); setOut("providerNote","dropped - does not treat diagnosis");
+          s.part1Result="FIND_LOCATION"; s.part1Reason="New patient, and this provider doesn't treat the diagnosis - provider dropped.";
+          s.pendingBanner = "New patient, and the referral-named provider doesn't treat the diagnosis - pick one who does.";
+          s.crumbs.push({ short:"New patient - provider treats the diagnosis? (auto)", answer:"No" });
+          return "p2_pick_provider_here";
+        }
+        return "p1_check_treats";
+      }
+    },
+    p1_check_treats: { kind:"yesno", source:"Provider list - specialty reference", part:1,
+      text:"This is a new patient - does this provider treat this diagnosis?",
+      short:"New patient - provider treats the diagnosis?",
+      yes:function(s){ s.providerTreatsDx = true; s.part1Result="PROVIDER_PICKED"; return "p2_entry"; },
+      no:function(s){ setOut("provider","FIND LOCATION FIRST"); setOut("providerNote","dropped - does not treat diagnosis");
+                        s.part1Result="FIND_LOCATION"; s.part1Reason="New patient, and this provider doesn't treat the diagnosis - provider dropped.";
+                        s.pendingBanner = "New patient, and the referral-named provider doesn't treat the diagnosis - pick one who does.";
+                        return "p2_pick_provider_here"; }
+    },
+
+    // ---- PART 2 - LOCATION ----
+    p2_entry: { kind:"auto", part:2,
+      run:function(s){ s.pendingBanner=null; return s.out.status==="Established" ? "p2_est1" : "p2_new1"; }
+    },
+    p2_entry_banner: { kind:"auto", part:2,
+      run:function(s){ s.pendingBanner = s.part1Reason || null; return s.out.status==="Established" ? "p2_est1" : "p2_new1"; }
+    },
+
+    p2_new1: { kind:"yesno", source:"Referral document", part:2,
+      text:"Is there a receiving location on the referral?",
+      short:"Receiving location on referral?",
+      yes:function(s){ return "p2_dept_referral"; },
+      no:function(s){ return "p2_new1_gate"; }
+    },
+    p2_new1_gate: { kind:"auto", part:2,
+      run:function(s){
+        if (s.part1Result !== "PROVIDER_PICKED") return "p2_diag_entry_pick";
+        s._afterDiag2 = "p2_new1_recheck";
+        return s.out.diagnosisText ? "p2_new1_recheck" : "p2_diag_input2";
+      }
+    },
+    p2_new1_recheck: { kind:"auto", part:2,
+      run:function(s){
+        var result = providerTreatsDiagnosis(s.out.provider, s.out.diagnosisText);
+        if (result === false){
+          setOut("provider","FIND LOCATION FIRST"); setOut("providerNote","dropped - does not treat diagnosis");
+          s.part1Result = "FIND_LOCATION";
+          s.pendingBanner = "Diagnosis doesn't match the already-picked provider - provider dropped, finding one who treats it.";
+          s.crumbs.push({ short:"Diagnosis matches existing provider? (auto)", answer:"No - dropped" });
+          return "p2_pick_provider_here";
+        }
+        if (result === true) s.providerTreatsDx = true;
+        s.crumbs.push({ short:"Diagnosis matches existing provider? (auto)", answer: result === true ? "Yes" : "Unknown - kept" });
+        return "p3_entry";
+      }
+    },
+    p2_dept_referral: { kind:"select", source:"Referral document", warning:"For this referral only - never change the patient's actual home clinic / registration department in Athena.", part:2, field:"location", options:DEPT_OPTIONS, dynamicGroups:deptGroupsForProvider, otherAllowed:true,
+      text:"Pick the department tied to that receiving location.", short:"Receiving-location department",
+      next:"p2_referral_gate"
+    },
+    p2_referral_gate: { kind:"auto", part:2,
+      run:function(s){
+        if (s.part1Result !== "PROVIDER_PICKED") return "p2_diag_entry";
+        s._afterDiag2 = "p2_referral_recheck";
+        return s.out.diagnosisText ? "p2_referral_recheck" : "p2_diag_input2";
+      }
+    },
+    p2_referral_recheck: { kind:"auto", part:2,
+      run:function(s){
+        var result = providerTreatsDiagnosis(s.out.provider, s.out.diagnosisText);
+        if (result === false){
+          setOut("provider","FIND LOCATION FIRST"); setOut("providerNote","dropped - does not treat diagnosis");
+          s.part1Result = "FIND_LOCATION";
+          s.pendingBanner = "Diagnosis doesn't match the already-picked provider - provider dropped, finding one who treats it.";
+          s.crumbs.push({ short:"Diagnosis matches existing provider? (auto)", answer:"No - dropped" });
+          return "p2_pick_provider_here";
+        }
+        if (result === true) s.providerTreatsDx = true;
+        s.crumbs.push({ short:"Diagnosis matches existing provider? (auto)", answer: result === true ? "Yes" : "Unknown - kept" });
+        return "p3_entry";
+      }
+    },
+    p2_diag_entry_pick: { kind:"auto", part:2,
+      run:function(s){ s._afterDiag2 = "p2_pick_provider_here"; return s.out.diagnosisText ? "p2_pick_provider_here" : "p2_diag_input2"; }
+    },
+    p2_diag_entry: { kind:"auto", part:2,
+      run:function(s){ s._afterDiag2="p2_diag_auto"; return s.out.diagnosisText ? "p2_diag_auto" : "p2_diag_input2"; }
+    },
+    p2_diag_input2: { kind:"diagnosis", source:"Referral document", part:2, field:"diagnosisText",
+      text:"What's the diagnosis?", short:"Diagnosis",
+      next:"p2_diag_writtencheck_gate"
+    },
+    p2_diag_writtencheck_gate: { kind:"auto", part:2,
+      run:function(s){
+        var isFreshPick = (s._afterDiag2 === "p2_pick_provider_here" || s._afterDiag2 === "p2_diag_auto");
+        if (!isFreshPick) return s._afterDiag2;
+        var specs = specialtiesForDiagnosis(s.out.diagnosisText);
+        if (specs.length) return s._afterDiag2;
+        return "p2_diag_written_check";
+      }
+    },
+    p2_diag_written_check: { kind:"yesno", source:"Referral document", part:2,
+      text:"Do you have a written diagnosis or condition for this referral - not just an ICD code? A code alone isn't enough to confirm which provider treats it.",
+      short:"Written diagnosis available (not just ICD code)?",
+      yes:function(s){ return s._afterDiag2; },
+      no:function(s){
+        var locationText = s.out.location ? s.out.location : "not yet determined";
+        return stopManual("New patient, code-only diagnosis (no written condition) - cannot confirm provider fit from an ICD code alone. Location already determined: " + locationText + ".", 2);
+      }
+    },
+    p2_diag_auto: { kind:"auto", part:2,
+      run:function(s){
+        var deptShort = deptShortName(s.out.location);
+        var result = anyProviderAtLocationTreats(deptShort, s.out.diagnosisText);
+        if (result === true){
+          s.providerTreatsDx = true;
+          s.crumbs.push({ short:"Location has provider for dx? (auto)", answer:"Yes" });
+          return "p2_done_new";
+        }
+        if (result === false){
+          s.crumbs.push({ short:"Location has provider for dx? (auto)", answer:"No" });
+          return "p2_new3";
+        }
+        return "p2_diag_q";
+      }
+    },
+    p2_diag_q: { kind:"yesno", source:"Provider list - specialty reference", part:2,
+      text:"Does that location have a provider who treats this diagnosis?",
+      short:"Location has provider for dx?",
+      yes:function(s){ s.providerTreatsDx = true; return "p2_done_new"; },
+      no:function(s){ return "p2_new3"; }
+    },
+    p2_done_new: { kind:"auto", part:2, run:function(s){ return afterLocationPicked(s); } },
+    p2_new3: { kind:"yesno", source:"Provider list - specialty reference", part:2,
+      text:"Is there a closer or other Example Cardiology location that has a provider who treats this diagnosis?",
+      short:"Closer location treats dx?",
+      yes:function(s){ return "p2_dept_closer"; },
+      no:function(s){ setOut("location","MANUAL REVIEW"); return stopManual("No Example Cardiology location found with a provider who treats this diagnosis.",2); }
+    },
+    p2_dept_closer: { kind:"select", source:"Provider list - practice locations", warning:"For this referral only - never change the patient's actual home clinic / registration department in Athena.", part:2, field:"location", options:DEPT_OPTIONS, dynamicGroups:deptGroupsForProvider, otherAllowed:true,
+      text:"Pick the closer Example Cardiology location's department.", short:"Closer Example Cardiology location",
+      afterSubmit:function(s){ setOut("locationChartNote","Location changed because the referred site has no one who treats the diagnosis."); s.providerTreatsDx = true; },
+      next:function(s){ return afterLocationPicked(s); }
+    },
+
+    p2_est1: { kind:"yesno", source:"Referral document + Athena department field + Intake Task Details", part:2,
+      text:"Does the receiving location in the intake system for this task match the department Athena already has on file? (If either is missing, answer No.)",
+      short:"Referral doc location matches Athena dept?",
+      yes:function(s){ return "p2_dept_match"; },
+      no:function(s){ return "p2_primarydept_check"; }
+    },
+    p2_dept_match: { kind:"select", source:"Referral document", warning:"For this referral only - never change the patient's actual home clinic / registration department in Athena.", part:2, field:"location", options:DEPT_OPTIONS, dynamicGroups:deptGroupsForProvider, otherAllowed:true,
+      text:"You confirmed the fax and Athena already agree - enter which department that shared value actually is. This just records it; you're not changing anything.", short:"Matching department",
+      next:function(s){ return afterLocationPicked(s); }
+    },
+    p2_primarydept_check: { kind:"yesno", source:"Athena - patient's primary department field", part:2,
+      text:"Is the patient's primary department in Athena something other than Example Cardiology Cardio?",
+      short:"Primary dept not Example Cardiology Cardio?",
+      yes:function(s){
+        s.pendingBanner = "Primary department isn't Example Cardiology Cardio - re-checking appointment history for the usual provider.";
+        return "p2_primarydept_provider";
+      },
+      no:function(s){ return "p2_est2"; }
+    },
+    p2_primarydept_provider: { kind:"select", source:"Quickview → Scheduling → View Patient Appointments", part:2, field:"provider", groups:PROVIDER_OPTION_GROUPS,
+      text:"Check the patient's appointment history and confirm the usual provider.", short:"Confirmed provider from history",
+      afterSubmit:function(s){ s.part1Result="PROVIDER_PICKED"; s.providerTreatsDx=false; },
+      next:"p3_entry"
+    },
+    p2_est2: { kind:"yesno", source:"Quickview → Scheduling → View Patient Appointments", part:2,
+      text:"Have they been seen before at a location with a qualifying appointment?",
+      short:"Seen before at qualifying location?",
+      yes:function(s){ return "p2_dept_prior"; },
+      no:function(s){ return "p3_entry"; }
+    },
+    p2_dept_prior: { kind:"select", source:"Quickview → Scheduling → View Patient Appointments", warning:"For this referral only - never change the patient's actual home clinic / registration department in Athena.", part:2, field:"location", options:DEPT_OPTIONS, dynamicGroups:deptGroupsForProvider, otherAllowed:true,
+      text:"Pick that prior qualifying-visit location's department.", short:"Prior qualifying-visit location",
+      next:function(s){ return afterLocationPicked(s); }
+    },
+    p2_pick_provider_here: { kind:"yesno", source:"Provider list - specialty reference", part:2, showRelevantProviders:true,
+      text:"Pick a provider who treats the diagnosis - do you have one to enter?",
+      short:"Provider who treats dx?",
+      yes:function(s){ return "p2_name_here"; },
+      no:function(s){ return stopManual("No provider available who treats the diagnosis.",2); }
+    },
+    p2_name_here: { kind:"select", source:"Provider list - practice locations", part:2, field:"provider",
+      dynamicGroups:function(s){ return suggestedProviderGroups(deptShortName(s.out.location), s.out.diagnosisText); },
+      text:"Pick that provider.", short:"Provider at this location",
+      afterSubmit:function(s){ s.part1Result="PROVIDER_PICKED"; s.providerTreatsDx = true; },
+      next:"p3_entry"
+    },
+
+    // ---- PART 3 - MAKE THEM AGREE ----
+    p3_entry: { kind:"auto", part:3,
+      run:function(s){
+        var info = PROVIDER_LOOKUP[s.out.provider];
+        if (!info || !info.locations || !info.locations.length){
+          return "p3_q1"; // no roster location data (custom-typed provider, or non-clinical staff) - ask manually
+        }
+        var deptShort = deptShortName(s.out.location);
+        var matches = info.locations.some(function(loc){ return locMatches(loc, deptShort); });
+        if (matches){
+          setOut("agree","keep pair (auto-matched from provider list)");
+          s.crumbs.push({ short:"Provider practices at that dept? (auto)", answer:"Yes" });
+          return "p4_q1";
+        }
+        if (info.locations.length === 1){
+          var only = canonicalDeptOption(info.locations[0]);
+          setOut("location", only);
+          setOut("agree","switched to " + only + " (auto - provider's only Example Cardiology location)");
+          s.crumbs.push({ short:"Provider practices at that dept? (auto)", answer:"No - switched to " + only });
+          return "p4_q1";
+        }
+        if (!s.out.location){
+          s.crumbs.push({ short:"Provider practices at that dept? (auto)", answer:"No receiving location was ever captured - picking from provider's locations directly" });
+          return "p3_pick_location_no_ref";
+        }
+        var hasPrimarySite = info.locations.some(function(loc){ return locMatches(loc, "Northgate"); });
+        if (hasPrimarySite){
+          s.crumbs.push({ short:"Provider practices at that dept? (auto)", answer:"No - checking usual location before defaulting" });
+          return "p3_usual_location_ask";
+        }
+        s.crumbs.push({ short:"Provider practices at that dept? (auto)", answer:"No - no matching location, including Northgate" });
+        return stopManual("Provider and location cannot be reconciled - Northgate is not one of their locations (provider list shows: " + info.locations.join(", ") + ").",3);
+      }
+    },
+    p3_pick_location_no_ref: { kind:"select", source:"Referral document / Athena - provider practice locations", part:3, field:"location",
+      dynamicOptions:function(s){
+        var info = PROVIDER_LOOKUP[s.out.provider];
+        var locs = (info && info.locations) ? info.locations : [];
+        return locs.map(function(loc){ return canonicalDeptOption(loc); });
+      },
+      text:"No receiving location was captured for this referral, so we can't default to Northgate or anywhere else without a real signal. Which of the provider's locations should this be scheduled at?",
+      short:"Location (no referral location captured)",
+      afterSubmit:function(s){ setOut("agree","picked " + s.out.location + " (no receiving location was captured - chosen directly from provider's locations)"); },
+      next:"p4_q1"
+    },
+    p3_usual_location_ask: { kind:"yesno", source:"Athena - appointment history", part:3,
+      text:"Have they usually seen this provider at a different location than Northgate - one of the other locations that provider also practices at, according to our records?",
+      short:"Usually seen provider elsewhere?",
+      yes:function(s){ return "p3_usual_location_pick"; },
+      no:function(s){
+        setOut("location","Northgate (101)");
+        setOut("agree","defaulted Northgate (auto - provider's locations don't have one clear match, patient has no usual alternate location)");
+        return "p4_q1";
+      }
+    },
+    p3_usual_location_pick: { kind:"select", source:"Athena - appointment history", part:3, field:"location",
+      dynamicOptions:function(s){
+        var info = PROVIDER_LOOKUP[s.out.provider];
+        var locs = (info && info.locations) ? info.locations : [];
+        return locs.filter(function(loc){ return !locMatches(loc, "Northgate"); })
+          .map(function(loc){ return canonicalDeptOption(loc); });
+      },
+      text:"Which of the provider's other locations have they usually seen them at?", short:"Usual alternate location",
+      afterSubmit:function(s){ setOut("agree","switched to " + s.out.location + " (auto - patient's usual location with this provider)"); },
+      next:"p4_q1"
+    },
+    p3_q1: { kind:"yesno", source:"Provider list - practice locations", part:3,
+      text:"Does this provider practice at that department?",
+      short:"Provider practices at that dept?",
+      yes:function(s){ setOut("agree","keep pair"); return "p4_q1"; },
+      no:function(s){ return "p3_q2a"; }
+    },
+    p3_q2a: { kind:"yesno", source:"Provider list - practice locations", part:3,
+      text:"Do they practice at exactly one other Example Cardiology location?",
+      short:"Exactly one other Example Cardiology location?",
+      yes:function(s){ return "p3_dept_other"; },
+      no:function(s){ return "p3_q2b"; }
+    },
+    p3_dept_other: { kind:"select", source:"Provider list - practice locations", warning:"For this referral only - never change the patient's actual home clinic / registration department in Athena.", part:3, field:"location", options:DEPT_OPTIONS, dynamicGroups:deptGroupsForProvider, otherAllowed:true,
+      text:"Pick that other Example Cardiology location's department.", short:"Their other Example Cardiology location",
+      afterSubmit:function(s){ setOut("agree","switched to " + s.out.location); },
+      next:"p4_q1"
+    },
+    p3_q2b: { kind:"yesno", source:"Provider list - practice locations", part:3,
+      text:"Is Northgate one of their practice locations?",
+      short:"Northgate is one of their locations?",
+      yes:function(s){ setOut("location","Northgate (101)"); setOut("agree","defaulted Northgate"); return "p4_q1"; },
+      no:function(s){ return stopManual("Provider and location cannot be reconciled - Northgate is not one of their locations.",3); }
+    },
+
+    // ---- PART 4 - DISPOSITION ----
+    p4_q1: { kind:"auto", part:4,
+      run:function(s){
+        var deptShort = deptShortName(s.out.location);
+        var isPrimarySite = locMatches(deptShort, "Northgate");
+        s.isPrimarySiteReferral = isPrimarySite;
+        if (!isPrimarySite){
+          setOut("bucket","specialty-scheduling");
+          setOut("actionNote","Non-Northgate Referral - route to specialty-scheduling (not scheduled through intake automation)");
+          s.crumbs.push({ short:"Northgate referral? (auto)", answer:"No" });
+          return "p5_referral_date";
+        }
+        s.crumbs.push({ short:"Northgate referral? (auto)", answer:"Yes" });
+        return "p4_provider_gate";
+      }
+    },
+    p4_provider_gate: { kind:"auto", part:4,
+      run:function(s){
+        var inClinicOnlyProvider = providerIsInClinicOnly(s.out.provider);
+        var nonAutoProvider = providerIsNonAuto(s.out.provider);
+        if (inClinicOnlyProvider){
+          setOut("bucket","clinic-scheduling"); setOut("actionNote","Ready to schedule - do not manually outreach");
+          s.isInClinicOnly = true;
+          s.crumbs.push({ short:"Provider is in-clinic-only? (auto)", answer:"Yes" });
+          return "p4_intake_ehr_check";
+        }
+        if (nonAutoProvider){
+          setOut("bucket","specialty-scheduling"); setOut("actionNote","Ineligible for Scheduling - Non-Intake Scheduling");
+          s.crumbs.push({ short:"Provider is non-auto scheduling? (auto)", answer:"Yes" });
+          return "p5_referral_date";
+        }
+        s.crumbs.push({ short:"Provider has scheduling restrictions? (auto)", answer:"No" });
+        return "p4_intake_ehr_check";
+      }
+    },
+    p4_intake_ehr_check: { kind:"yesno", source:"Athena Quickview - Insurance + Intake Task Details", part:4, context:"Insurance Check", checkpoint:true,
+      text:"Do the intake system and Athena match on insurance?",
+      short:"Intake/Athena insurance match?",
+      yes:function(s){ return "p4_q2"; },
+      no:function(s){ return "p4_intake_ehr_desc"; }
+    },
+    p4_intake_ehr_desc: { kind:"text", source:"Athena Quickview - Insurance + Intake Task Details", part:4, field:"engineeringIssueDesc", context:"Insurance Check",
+      text:"What's different between what the intake system shows and what's in Athena?",
+      short:"How the intake system and Athena differ on insurance",
+      placeholder:"Describe the mismatch",
+      afterSubmit:function(s){
+        s.needsEngineeringEscalation = true;
+        setOut("engineeringIssueCategory","Intake system and Athena don't match on insurance");
+        s.pendingBanner = "Flagged to Engineering. Assuming it's resolved - continuing into the normal workflow below.";
+      },
+      next:"p4_q2"
+    },
+    p4_edge_case_type: { kind:"select", source:"Referral document / insurance card", part:4, field:"edgeCaseInsuranceType", context:"Insurance Check",
+      options:["VA (Veteran)","Regional Health Plan","Other (not VA or Regional Health Plan)","Not sure"],
+      text:"Which type of edge-case insurance is this?", short:"Edge-case insurance type",
+      next:function(s){
+        if (s.out.edgeCaseInsuranceType === "VA (Veteran)") return "p4_edge_case_va_check";
+        if (s.out.edgeCaseInsuranceType === "Regional Health Plan") return "p4_edge_case_plan_check";
+        s.pendingBanner = "Flagged as an edge-case insurance, type not VA/Regional Health Plan - proceed carefully through the normal insurance grid below.";
+        return s._afterEdgeCase;
+      }
+    },
+    p4_edge_case_va_check: { kind:"yesno", source:"Athena - Insurance Authorization", part:4, context:"Insurance Check",
+      text:"Check the case policy (VA Community Care Network), Veteran ICN, and eligibility - update if necessary.",
+      short:"VA case policy + ICN + eligibility check",
+      yesLabel:"Good", noLabel:"Update was required",
+      yes:function(s){ s.pendingBanner = "VA insurance checked - case policy, Veteran ICN, and eligibility were already correct. Continuing below."; return s._afterEdgeCase; },
+      no:function(s){ return "p4_edge_case_va_missing"; }
+    },
+    p4_edge_case_va_missing: { kind:"text", source:"Athena - Insurance Authorization", part:4, field:"engineeringIssueDesc", context:"Insurance Check",
+      text:"What was updated, or what's missing / couldn't be resolved (e.g., case policy wasn't set, no Veteran ICN available, eligibility won't run)?",
+      short:"What was updated / what's missing for VA setup",
+      placeholder:"Describe what was updated or what's missing",
+      afterSubmit:function(s){
+        s.needsEngineeringEscalation = true;
+        setOut("engineeringIssueCategory","VA insurance setup required an update (VA Community Care Network / Veteran ICN / eligibility)");
+        s.pendingBanner = "Flagged to Engineering. Assuming it's now good - continuing into the normal workflow below.";
+      },
+      next:function(s){ return s._afterEdgeCase; }
+    },
+    p4_edge_case_plan_check: { kind:"yesno", source:"Referral document / insurance card", part:4, context:"Insurance Check",
+      text:"Does this Regional Health Plan plan require a referral from the PCP?",
+      short:"Regional Health Plan plan requires PCP referral?",
+      yes:function(s){ s.pendingBanner = "Regional Health Plan Plan requires a referral from PCP - make sure Special Notes captures this."; return s._afterEdgeCase; },
+      no:function(s){ return s._afterEdgeCase; }
+    },
+    p4_q2: { kind:"yesno", source:"In the toolbox", part:4, context:"Insurance Check", edgeCaseToggle:true, selfPayToggle:true,
+      text:"Is this plan contracted with Example Cardiology?",
+      short:"Contracted?",
+      yes:function(s){
+        setOut("contractedGrid","Yes");
+        return "p4_referral_required";
+      },
+      no:function(s){
+        setOut("contractedGrid","No"); setOut("bucket","specialty-scheduling"); setOut("actionNote","Ineligible for Scheduling - Ineligible Insurance");
+        return "p5_referral_date";
+      }
+    },
+    p4_referral_required: { kind:"yesno", source:"In the toolbox", part:4, context:"Insurance Check",
+      text:"Is a referral required?",
+      short:"Referral Required?",
+      yes:function(s){ setOut("referralRequiredGrid","Yes"); return "p4_referral_auth"; },
+      no:function(s){ setOut("referralRequiredGrid","No"); return "p4_referral_auth"; }
+    },
+    p4_referral_auth: { kind:"yesno", source:"In the toolbox", part:4, context:"Insurance Check",
+      text:"Is referral authorization required?",
+      short:"Referral Authorization Required?",
+      yes:function(s){ setOut("referralAuthRequiredGrid","Yes"); return "p4_diag_entry"; },
+      no:function(s){ setOut("referralAuthRequiredGrid","No"); return "p4_diag_entry"; }
+    },
+    p4_diag_entry: { kind:"auto", part:4,
+      run:function(s){ if (s.providerTreatsDx) return "p4_q4"; s._afterDiag3="p4_treats_auto"; return s.out.diagnosisText ? "p4_treats_auto" : "p4_diag_input"; }
+    },
+    p4_diag_input: { kind:"diagnosis", source:"Referral document", part:4, field:"diagnosisText",
+      text:"What's the diagnosis?", short:"Diagnosis",
+      next:function(s){ return s._afterDiag3; }
+    },
+    p4_treats_auto: { kind:"auto", part:4,
+      run:function(s){
+        var result = providerTreatsDiagnosis(s.out.provider, s.out.diagnosisText);
+        if (result === true){
+          s.providerTreatsDx = true;
+          s.crumbs.push({ short:"Provider treats the diagnosis? (auto)", answer:"Yes" });
+          return "p4_q4";
+        }
+        if (result === false){
+          setOut("bucket","specialty-scheduling"); setOut("actionNote","Ineligible for Scheduling - Ineligible Provider");
+          s.crumbs.push({ short:"Provider treats the diagnosis? (auto)", answer:"No" });
+          return "p5_referral_date";
+        }
+        return "p4_q3";
+      }
+    },
+    p4_q3: { kind:"yesno", source:"Provider list - specialty reference", part:4,
+      text:"Does this provider treat the diagnosis?",
+      short:"Provider treats the diagnosis?",
+      yes:function(s){ s.providerTreatsDx = true; return "p4_q4"; },
+      no:function(s){ setOut("bucket","specialty-scheduling"); setOut("actionNote","Ineligible for Scheduling - Ineligible Provider"); return "p5_referral_date"; }
+    },
+    p4_q4: { kind:"yesno", source:"Referral document / Athena chart", part:4,
+      text:"Any other block - no phone, referring provider not in database, something else?",
+      short:"Any other scheduling block?",
+      yes:function(s){ return "p4_q4a"; },
+      no:function(s){ setOut("bucket","clinic-scheduling"); setOut("actionNote", s.isInClinicOnly ? "Ready to schedule - do not manually outreach" : "Ready to schedule"); return "p5_referral_date"; }
+    },
+    p4_q4a: { kind:"yesno3", source:"Athena - referring provider database", part:4,
+      text:"Is it because the referring provider isn't in the database, or because they're missing an address?",
+      short:"Referring provider not in DB or missing address?",
+      thirdLabel:"Missing referring provider address",
+      yes:function(s){ setOut("bucket","specialty-scheduling"); setOut("actionNote","Referring provider not in database"); return "p4_missing_provider_name"; },
+      third:function(s){ setOut("bucket","specialty-scheduling"); setOut("actionNote","Referring provider is missing an address - cannot schedule until address is added"); return "p4_missing_provider_name"; },
+      no:function(s){ return "p4_block_reason"; }
+    },
+    p4_missing_provider_name: { kind:"text", source:"Referral document", part:4, field:"referringProviderName", optional:true,
+      text:"What's the referring provider's name, if found anywhere on the referral? Leave blank if unavailable.",
+      short:"Referring provider name found",
+      placeholder:"Leave blank if unavailable",
+      next:"p4_missing_provider_npi"
+    },
+    p4_missing_provider_npi: { kind:"text", source:"Referral document", part:4, field:"referringProviderNPI", optional:true,
+      text:"What's their NPI number, if found? Leave blank if unavailable.",
+      short:"Referring provider NPI found",
+      placeholder:"Leave blank if unavailable",
+      next:"p4_missing_provider_address"
+    },
+    p4_missing_provider_address: { kind:"text", source:"Referral document", part:4, field:"referringProviderAddress", optional:true,
+      text:"What's their address, if found anywhere on the referral (letterhead, fax header, etc.)? Leave blank if unavailable.",
+      short:"Referring provider address found",
+      placeholder:"Leave blank if unavailable",
+      afterSubmit:function(s){
+        var parts = [];
+        if (s.out.referringProviderName && s.out.referringProviderName.trim()) parts.push(s.out.referringProviderName.trim());
+        if (s.out.referringProviderNPI && s.out.referringProviderNPI.trim()) parts.push(s.out.referringProviderNPI.trim());
+        if (s.out.referringProviderAddress && s.out.referringProviderAddress.trim()) parts.push(s.out.referringProviderAddress.trim());
+        setOut("patientNote", "Referring Provider Missing from Database - " + (parts.length ? parts.join(", ") : "not found on referral"));
+      },
+      next:"p5_referral_date"
+    },
+    p4_block_reason: { kind:"text", source:"Staff judgment - no fixed source", part:4, field:"blockReason",
+      text:"Briefly note the reason (e.g. no phone).", short:"Block reason",
+      placeholder:"Reason",
+      afterSubmit:function(s){ setOut("bucket","specialty-scheduling"); setOut("actionNote","Blocked - " + s.out.blockReason); },
+      next:"p5_referral_date"
+    },
+
+    // ---- PART 5 - WRITES & OBJECTS ----
+    p5_referral_date: { kind:"text", source:"Referral document", part:5, field:"referralDate",
+      text:"What's the referral date?", short:"Referral date",
+      placeholder:"MM/DD/YYYY", dateMask:true, defaultToday:true,
+      next:"p5_urgent"
+    },
+    p5_urgent: { kind:"auto", part:5,
+      run:function(s){
+        var urgentDx = ["afib","atrial fibrillation","chest pain","angina","stenosis","regurgitation","tavr"];
+        var dx = (s.out.diagnosisText || "").toLowerCase();
+        var matched = urgentDx.some(function(k){ return dx.indexOf(k) !== -1; });
+        if (matched){ setOut("urgent","YES"); setOut("urgentReason","diagnosis"); return "p5_urgent_appt_check"; }
+        return "p5_urgent_fax";
+      }
+    },
+    p5_urgent_fax: { kind:"yesno", source:"Referral document - fax marking", part:5,
+      text:"Is the fax marked Urgent?",
+      short:"Fax marked Urgent?",
+      yes:function(s){ setOut("urgent","YES"); setOut("urgentReason","provider"); return "p5_urgent_appt_check"; },
+      no:function(s){ setOut("urgent","NO"); return "p5_careteam1"; }
+    },
+    p5_urgent_appt_check: { kind:"auto", part:5,
+      run:function(s){
+        if (s.hasUpcomingAppt === false){
+          if (s.isPrimarySiteReferral !== true){
+            s.crumbs.push({ short:"Urgent - appt within 1 week? (auto)", answer:"No - already confirmed no upcoming appointment (non-Northgate, bucket unchanged)" });
+            return "p5_careteam1";
+          }
+          var prevBucket = s.out.bucket;
+          var prevNote = s.out.actionNote;
+          setOut("bucket","clinic-scheduling");
+          if (prevBucket && prevBucket !== "clinic-scheduling"){
+            setOut("actionNote","Ready to schedule (no appointment within a week) (previously: " + (prevNote || prevBucket) + ")");
+          } else {
+            setOut("actionNote","Ready to schedule (no appointment within a week)");
+          }
+          s.crumbs.push({ short:"Urgent - appt within 1 week? (auto)", answer:"No - already confirmed no upcoming appointment" });
+          return "p5_careteam1";
+        }
+        return "p5_urgent_appt_check_ask";
+      }
+    },
+    p5_urgent_appt_check_ask: { kind:"yesno", source:"Quickview → Scheduling → View Patient Appointments", part:5,
+      text:"This is urgent - is there an appointment already scheduled within the next week?",
+      short:"Urgent - appt within 1 week?",
+      yes:function(s){ s.hasUpcomingAppt = true; return "p5_careteam1"; },
+      no:function(s){
+        s.hasUpcomingAppt = false;
+        if (s.isPrimarySiteReferral !== true) return "p5_careteam1";
+        var prevBucket = s.out.bucket;
+        var prevNote = s.out.actionNote;
+        setOut("bucket","clinic-scheduling");
+        if (prevBucket && prevBucket !== "clinic-scheduling"){
+          setOut("actionNote","Ready to schedule (no appointment within a week) (previously: " + (prevNote || prevBucket) + ")");
+        } else {
+          setOut("actionNote","Ready to schedule (no appointment within a week)");
+        }
+        return "p5_careteam1";
+      }
+    },
+    p5_careteam1: { kind:"yesno", source:"Athena Quickview - Care Team + Intake Task Details", part:5,
+      warning:"A provider can be listed as both Referring Provider and PCP at the same time - adding one doesn't mean removing the other. Never delete an existing Care Team entry that's already there.",
+      text:"Check Care Team in Quickview - does the referring provider's address there match what's recorded in the intake system for this task? Mark this complete.",
+      short:"Referring provider on Care Team, address matches?",
+      yes:function(s){ setOut("careTeamReferring","already listed"); return "p5_pcp_existing"; },
+      no:function(s){ return "p5_careteam1a"; }
+    },
+    p5_careteam1a: { kind:"yesno3", source:"Athena Quickview - Care Team + Intake Task Details", part:5,
+      text:"Check whether they're missing from Care Team entirely (not just an address mismatch against what's in the intake system), then mark this complete.",
+      short:"Missing from Care Team entirely?",
+      thirdLabel:"Not in Athena's database at all",
+      yes:function(s){ setOut("careTeamReferring","add them; address must match referring location"); return "p5_pcp_existing"; },
+      no:function(s){ setOut("careTeamReferring","address mismatch or missing - note: Referring provider address does not match (or is missing) in the care team: Referring Provider, NPI, Referring Address."); return "p5_pcp_existing"; },
+      third:function(s){
+        setOut("careTeamReferring","referring provider not in Athena's database - chart note added, moved to specialty-scheduling");
+        setOut("bucket","specialty-scheduling");
+        setOut("actionNote","Referring provider not in database");
+        return "p5_pcp_existing";
+      }
+    },
+    p5_pcp_existing: { kind:"yesno", source:"Athena Quickview - Care Team", part:5,
+      warning:"A provider can be listed as both PCP and Referring Provider at the same time. If a PCP is already listed, do not delete or override it - leave the existing entry alone.",
+      text:"Check Care Team for an existing PCP on this patient, then mark this complete.",
+      short:"PCP already listed?",
+      yes:function(s){ setOut("pcpNote","do not override existing PCP"); return "p5_registration"; },
+      no:function(s){ return "p5_pcp_specialty"; }
+    },
+    p5_pcp_specialty: { kind:"yesno", source:"Referral document - referring provider's specialty", part:5,
+      warning:"A provider can be listed as both Referring Provider and PCP at the same time - adding the referring provider as PCP doesn't remove them as Referring Provider, or vice versa.",
+      text:"Check the referral for whether the referring provider is Family Medicine, Internal Medicine, or a Nurse Practitioner (FM / IM / FNP), then mark this complete.",
+      short:"Referring provider is FM/IM/FNP?",
+      yes:function(s){ setOut("pcpNote","add referring provider as PCP"); return "p5_registration"; },
+      no:function(s){ setOut("pcpNote","referring provider is not FM/IM/FNP - no PCP action"); return "p5_registration"; }
+    },
+    p5_registration: { kind:"yesno3", source:"Athena Full Registration", part:5,
+      text:"Check Full Registration - does the patient's address match the subscriber address on the insurance, then mark this complete.",
+      short:"Address on file & matches insurance?",
+      thirdLabel:"On file but doesn't match insurance",
+      yes:function(s){ setOut("addressNote","on file, matches insurance subscriber address"); return "p5_email"; },
+      no:function(s){ setOut("addressNote","Please Obtain, Zip: 00000"); return "p5_email"; },
+      third:function(s){ setOut("addressNote","on file but doesn't match insurance subscriber address - update it from the referral"); return "p5_email"; }
+    },
+    p5_email: { kind:"yesno", source:"Athena Full Registration", part:5,
+      text:"Check Full Registration for an email on file, then mark this complete.",
+      short:"Email on file?",
+      yes:function(s){ setOut("emailNote","on file"); return "p5_emergency"; },
+      no:function(s){ setOut("emailNote","check No Email"); return "p5_emergency"; }
+    },
+    p5_emergency: { kind:"yesno", source:"Referral document", part:5,
+      text:"Check the referral fax for an emergency contact, then mark this complete.",
+      short:"Emergency contact on fax?",
+      yes:function(s){ setOut("emergencyNote","add it"); return "p5_insurance1"; },
+      no:function(s){ setOut("emergencyNote","none on fax"); return "p5_insurance1"; }
+    },
+    p5_insurance1: { kind:"auto", part:5,
+      run:function(s){
+        if (s.isPrimarySiteReferral === true) return "p5_va_gate";
+        if (s.isPrimarySiteReferral === false){
+          setOut("insurancePath","in chart only - do not check eligibility/auth");
+          setOut("referralObjNote","n/a"); setOut("authObjNote","n/a"); setOut("outboundExport","no");
+          return "__DONE__";
+        }
+        return "p5_insurance1_ask";
+      }
+    },
+    p5_insurance1_ask: { kind:"yesno", source:"Athena - receiving provider's location", part:5,
+      text:"Is the receiving provider at Northgate?",
+      short:"Receiving provider at Northgate?",
+      yes:function(s){ return "p5_va_gate"; },
+      no:function(s){ setOut("insurancePath","in chart only - do not check eligibility/auth");
+                      setOut("referralObjNote","n/a"); setOut("authObjNote","n/a"); setOut("outboundExport","no");
+                      return "__DONE__"; }
+    },
+    // Coverage type is established once, by p4_edge_case_type. These gates let
+    // Part 5 skip any coverage question that answer already settled, rather than
+    // walking staff back through the same determination. "Not sure" is treated as
+    // unknown on purpose - it is the one answer that rules nothing out.
+    p5_va_gate: { kind:"auto", part:5,
+      run:function(s){
+        if (s.out.edgeCaseInsuranceType === "VA (Veteran)"){
+          setOut("insurancePath", buildVaInsuranceNote());
+          s.crumbs.push({ short:"VA already confirmed via edge case? (auto)", answer:"Yes - skipping insurance questions" });
+          return "p5_referral_needed";
+        }
+        return "p5_insurance_athena_gate";
+      }
+    },
+    // Part 4 has already settled whether a plan exists: contracting can only be
+    // answered Yes or No against a real plan, and the self-pay toggle states
+    // there is none. Re-asking "is there insurance listed in Athena?" sends staff
+    // back to a screen they have already read, so it is now only asked when
+    // Part 4 genuinely left the question open.
+    p5_insurance_athena_gate: { kind:"auto", part:5,
+      run:function(s){
+        var cg = s.out.contractedGrid || "";
+        var et = s.out.edgeCaseInsuranceType || "";
+        if (cg.indexOf("self-pay") !== -1){
+          s.crumbs.push({ short:"Insurance listed in Athena? (auto)", answer:"No - already established as self-pay" });
+          return "p5_referral_needed";
+        }
+        if (cg === "Yes" || cg === "No"){
+          s.crumbs.push({ short:"Insurance listed in Athena? (auto)", answer:"Yes - plan already identified when checking contracting" });
+          return "p5_va_ask_gate";
+        }
+        if (et === "Regional Health Plan" || et === "Other (not VA or Regional Health Plan)"){
+          s.crumbs.push({ short:"Insurance listed in Athena? (auto)", answer:"Yes - payer already identified as " + et });
+          return "p5_va_ask_gate";
+        }
+        return "p5_insurance_athena_check";
+      }
+    },
+    p5_insurance_athena_check: { kind:"yesno", source:"Athena Quickview - Insurance", part:5,
+      text:"Is there insurance listed in Athena for this patient?",
+      short:"Insurance listed in Athena?",
+      yes:function(s){ return "p5_va_ask_gate"; },
+      no:function(s){ return "p5_insurance_selfpay_check"; }
+    },
+    p5_va_ask_gate: { kind:"auto", part:5,
+      run:function(s){
+        var t = s.out.edgeCaseInsuranceType;
+        if (t === "Regional Health Plan" || t === "Other (not VA or Regional Health Plan)"){
+          s.crumbs.push({ short:"VA coverage? (auto)", answer:"No - already established by edge-case type (" + t + ")" });
+          return "p5_insurance2";
+        }
+        return "p5_insurance_va";
+      }
+    },
+    p5_insurance_selfpay_check: { kind:"yesno", source:"Referral document / insurance card", part:5,
+      text:"Are they self-pay?",
+      short:"Self-pay?",
+      yes:function(s){ setOut("insurancePath","self-pay - no insurance to bill, proceed accordingly"); return "p5_referral_needed"; },
+      no:function(s){
+        s.needsEngineeringEscalation = true;
+        setOut("engineeringIssueCategory","No insurance found in Athena, and patient isn't self-pay");
+        return "p5_engineering_desc";
+      }
+    },
+    p5_insurance_va: { kind:"yesno", source:"Referral document / insurance card", part:5,
+      text:"Is this VA (Veteran) coverage?",
+      short:"VA coverage?",
+      yes:function(s){
+        setOut("insurancePath", buildVaInsuranceNote());
+        return "p5_referral_needed";
+      },
+      no:function(s){ return "p5_insurance2"; }
+    },
+    p5_insurance2: { kind:"yesno", source:"Athena Quickview - Insurance", part:5,
+      text:"Has this patient's insurance record synced correctly in the system and come back eligible?",
+      short:"Insurance record synced & eligible?",
+      yes:function(s){ setOut("insurancePath","synced-ok - leave it"); return "p5_referral_needed"; },
+      no:function(s){ return "p5_insurance3"; }
+    },
+    p5_insurance3: { kind:"yesno", source:"Athena Quickview - Insurance", part:5,
+      text:"Did it fail to sync at all (nothing there)?",
+      short:"Insurance did not sync?",
+      yes:function(s){ setOut("insurancePath","did not sync - Add without card image → search → pick plan → run eligibility (must return eligible)"); return "p5_referral_needed"; },
+      no:function(s){ return "p5_insurance4"; }
+    },
+    p5_insurance4: { kind:"yesno", source:"Athena Quickview - Insurance", part:5,
+      text:"Is it synced but showing the wrong plan or type?",
+      short:"Insurance synced but wrong?",
+      yes:function(s){
+        setOut("insurancePath",'synced but wrong - deactivate reason "Wrong type.", then add-without-card flow');
+        s.needsEngineeringEscalation = true;
+        setOut("engineeringIssueCategory","Synced but showing the wrong plan/type");
+        return "p5_engineering_desc";
+      },
+      no:function(s){ return "p5_insurance_mismatch"; }
+    },
+    p5_insurance_mismatch: { kind:"yesno", source:"Athena Quickview - Insurance + Intake Task Details", part:5,
+      text:"Is there an existing insurance on file that doesn't match the most recent insurance recorded in the intake system for this task?",
+      short:"Existing insurance doesn't match most recent?",
+      yes:function(s){
+        setOut("insurancePath",'existing insurance does not match most recent - deactivate reason "Wrong type.", then add-without-card flow (verify with team if a different reason applies)');
+        s.needsEngineeringEscalation = true;
+        setOut("engineeringIssueCategory","Existing insurance doesn't match most recent insurance provided");
+        return "p5_engineering_desc";
+      },
+      no:function(s){ return "p5_tribal_gate"; }
+    },
+    p5_tribal_gate: { kind:"auto", part:5,
+      run:function(s){
+        if (s.out.edgeCaseInsuranceType === "Regional Health Plan"){
+          setOut("insurancePath","self-pay / none / not eligible - flag on output");
+          s.crumbs.push({ short:"Tribal Health Program coverage? (auto)", answer:"No - already established as Regional Health Plan" });
+          return "p5_referral_needed";
+        }
+        return "p5_insurance6";
+      }
+    },
+    p5_engineering_desc: { kind:"text", source:"Athena Quickview - Insurance (your observation)", part:5, field:"engineeringIssueDesc", context:"Insurance Check",
+      text:"Briefly describe exactly what's wrong with the insurance listing in Athena (e.g., wrong plan name, wrong subscriber ID, wrong insurer entirely).",
+      short:"What's wrong with insurance in Athena",
+      placeholder:"Describe the discrepancy",
+      next:"p5_referral_needed"
+    },
+    p5_insurance6: { kind:"yesno", source:"Referral document - Tribal Health Program referral format", part:5,
+      text:"Is this Tribal Health Program coverage?",
+      short:"Tribal Health Program coverage?",
+      yes:function(s){ setOut("insurancePath","Tribal Health Program - case policy TRIBAL HEALTH - REFERRED CARE + Tribal Health Program member ID"); return "p5_referral_needed"; },
+      no:function(s){ setOut("insurancePath","self-pay / none / not eligible - flag on output"); return "p5_referral_needed"; }
+    },
+    p5_referral_needed: { kind:"auto", part:5,
+      run:function(s){
+        if (s.out.referralRequiredGrid === "Yes") return "p5_referral_auto";
+        if (s.out.referralRequiredGrid === "No"){
+          setOut("referralObjNote","Not required (confirmed via toolbox eligibility check)");
+          return "p5_auth_needed";
+        }
+        return "p5_referral_needed_ask";
+      }
+    },
+    p5_referral_needed_ask: { kind:"yesno", source:"In the toolbox", part:5,
+      text:"Does toolbox / insurance grid say a referral is required?",
+      short:"Referral required?",
+      yes:function(s){ return "p5_referral_auto"; },
+      no:function(s){ setOut("referralObjNote","Not required (confirmed via toolbox eligibility check)"); return "p5_auth_needed"; }
+    },
+    p5_referral_auto: { kind:"yesno", source:"Athena - Authorization section", part:5,
+      text:"Does an auto-generated referral object already exist?",
+      short:"Auto referral object exists?",
+      yes:function(s){ setOut("referralObjNote","confirm existing object"); return "p5_auth_needed"; },
+      no:function(s){ setOut("referralObjNote","Check first - none found, so create new. Type: Referral (not Pre-Cert). Referring provider = referring provider on fax; Referred-to provider = receiving provider (leave blank if none named, e.g. round-robin); Specialty = Cardiology; Department = Primary Department; Insurance Authorization Number = Not Required; ICD-10 codes = include if extracted"); return "p5_auth_needed"; }
+    },
+    p5_auth_needed: { kind:"auto", part:5,
+      run:function(s){
+        if (s.out.referralAuthRequiredGrid === "Yes") return "p5_auth_chart_check";
+        if (s.out.referralAuthRequiredGrid === "No"){
+          setOut("authObjNote","Not required (confirmed via toolbox eligibility check)");
+          setOut("outboundExport","no");
+          return "__DONE__";
+        }
+        return "p5_auth_needed_ask";
+      }
+    },
+    p5_auth_needed_ask: { kind:"yesno", source:"In the toolbox", part:5,
+      text:"Does the grid say referral authorization is required?",
+      short:"Auth required?",
+      yes:function(s){ return "p5_auth_chart_check"; },
+      no:function(s){ setOut("authObjNote","Not required (confirmed via toolbox eligibility check)"); setOut("outboundExport","no"); return "__DONE__"; }
+    },
+    p5_auth_chart_check: { kind:"yesno", source:"Athena - Authorization section", part:5,
+      text:"Is there already an authorization for this referral in the chart?",
+      short:"Existing auth already in chart?",
+      yes:function(s){ return "p5_auth_chart_valid"; },
+      no:function(s){ return "p5_auth_onfax"; }
+    },
+    p5_auth_chart_valid: { kind:"yesno", source:"Athena - Authorization section", part:5,
+      text:"Is that existing authorization valid for at least 90 more days?",
+      short:"Existing auth valid 90+ days?",
+      yes:function(s){ setOut("authObjNote","existing authorization already in chart, valid for 90+ days - use it, no new object needed"); setOut("outboundExport","no"); return "__DONE__"; },
+      no:function(s){ s.pendingBanner = "The existing authorization doesn't have 90+ days of validity left - a new one is needed."; return "p5_auth_onfax"; }
+    },
+    p5_auth_onfax: { kind:"yesno", source:"Referral document", part:5,
+      text:"Is the authorization info printed on the fax?",
+      short:"Auth info on fax?",
+      yes:function(s){ setOut("authObjNote","Check first - no valid existing authorization, so create new. Type: Pre-Cert (not Referral). Referring provider = referring provider on fax; Referred-to provider = receiving provider (leave blank if none named, e.g. round-robin); Specialty = Cardiology; Department = Primary Department; Insurance authorization number = from the fax if a real number exists, otherwise type \"paper\" into that field (paper referral, no formal auth number); Effective date = from the fax, or for paper referrals with no dates: start = date of referral, end = one year from start; Number of visits/units = from the fax, default 12 for paper referrals if missing; Diagnosis codes = ICD-10 codes if extracted (required for both paper and auth referrals); Additional information = any other details available on the fax"); setOut("outboundExport","no"); return "__DONE__"; },
+      no:function(s){ return "p5_auth_outbound"; }
+    },
+    p5_auth_outbound: { kind:"yesno", source:"Athena - Authorization section", part:5,
+      text:"Do you need to send an outbound request for authorization?",
+      short:"Send outbound auth request?",
+      yes:function(s){ return "p5_export_verify"; },
+      no:function(s){ setOut("authObjNote","pending (no outbound sent)"); setOut("outboundExport","no"); return "__DONE__"; }
+    },
+    p5_export_verify: { kind:"yesno", source:"Athena - auto-generated \"Request for Authorization Referral\" document", part:5,
+      text:"Did you open the auto-generated \"Request for Authorization Referral\" document and confirm it matches what's being requested?",
+      short:"Verified auto-generated auth document?",
+      yes:function(s){ setOut("chkVerify","Yes"); return "p5_export_send"; },
+      no:function(s){ setOut("chkVerify","No - verify the document before sending"); return "p5_export_send"; }
+    },
+    p5_export_send: { kind:"yesno", source:"Athena - Chart Export", part:5,
+      text:"Did you complete Chart Export and send it to the referring provider (Athena Fax, Attention = referring provider, Note = \"Request for referral authorization.\")?",
+      short:"Chart Export sent to referring provider?",
+      yes:function(s){ setOut("chkSend","Yes"); return "p5_export_once"; },
+      no:function(s){ setOut("chkSend","No - not yet sent"); return "p5_export_once"; }
+    },
+    p5_export_once: { kind:"yesno", source:"Athena - Chart Export / patient chart documents", part:5,
+      text:"Did you run Chart Export only once? (Running it again creates a duplicate document in the chart.)",
+      short:"Ran Chart Export only once?",
+      yes:function(s){ setOut("chkOnce","Yes"); return "p5_export_note"; },
+      no:function(s){ setOut("chkOnce","No - check the chart for a duplicate document"); return "p5_export_note"; }
+    },
+    p5_export_note: { kind:"yesno", source:"Athena - patient chart notes", part:5,
+      text:"Did you add the chart note \"Referral Ops: Referral Authorization Requested [date]\" to the patient chart?",
+      short:"Added Referral Authorization Requested chart note?",
+      yes:function(s){ setOut("chkNote","Yes"); return finalizeOutboundExport(s); },
+      no:function(s){ setOut("chkNote","No - add the chart note"); return finalizeOutboundExport(s); }
+    }
+  };
+
+  function finalizeOutboundExport(s){
+    setOut("outboundExport",'yes (once) - Chart Export "Request for Authorization Referral"; method Athena Fax; Attention = referring provider; Note = Request for referral authorization.');
+    setOut("authObjNote","pending");
+    return "__DONE__";
+  }
+
+  // =========================================================
+  // ENGINE
+  // =========================================================
+  function gotoResolve(id){
+    while(true){
+      if (id === "__STOP__" || id === "__DONE__"){ state.node = id; logCurrentRun(); render(); return; }
+      var node = NODES[id];
+      if (!node){ return; }
+      if (node.kind === "auto"){ id = node.run(state); continue; }
+      state.node = id;
+      if (state.lastPart !== node.part){
+        state.crumbs.push({ divider:true, text: PART_LABELS[node.part] });
+        state.lastPart = node.part;
+      }
+      render();
+      return;
+    }
+  }
+
+  function recordStepTime(node){
+    var now = Date.now();
+    var pausedTotal = pausedMsForCurrentStep + ((isPaused && pauseStartedAt) ? (now - pauseStartedAt) : 0);
+    var ms = stepStartTime ? Math.max(0, now - stepStartTime - pausedTotal) : 0;
+    state.stepTimings.push({ short: node.short, ms: ms });
+  }
+
+  function answer(node, kind, label){
+    historyStack.push(JSON.parse(JSON.stringify(state)));
+    recordStepTime(node);
+    state.crumbs.push({ short: node.short, answer: label });
+    var next = node[kind](state);
+    gotoResolve(next);
+  }
+
+  function submitText(node, value){
+    historyStack.push(JSON.parse(JSON.stringify(state)));
+    recordStepTime(node);
+    state.out[node.field] = value;
+    if (node.afterSubmit) node.afterSubmit(state);
+    state.crumbs.push({ short: node.short, answer: state.out[node.field] });
+    var next = (typeof node.next === "function") ? node.next(state) : node.next;
+    gotoResolve(next);
+  }
+
+  function parseWhyPathText(text){
+    var segments = String(text || "").split("→").map(function(s){ return s.trim(); }).filter(Boolean);
+    if (!segments.length) return null;
+    var parsed = [];
+    for (var i = 0; i < segments.length; i++){
+      var seg = segments[i];
+      var idx = seg.indexOf(": ");
+      if (idx === -1) return null;
+      var short = seg.slice(0, idx);
+      var ans = seg.slice(idx + 2);
+      if (short.indexOf("(auto)") !== -1) continue; // regenerates on its own, not a real user step
+      parsed.push({ short: short, answer: ans });
+    }
+    return parsed.length ? parsed : null;
+  }
+
+  function resumeFromWhyPathText(text){
+    var parsed = parseWhyPathText(text);
+    if (!parsed) return { ok:false, error:"Couldn't read that - paste the full \"Why this path\" text." };
+
+    state = freshState();
+    historyStack = [];
+    isPaused = false; pauseStartedAt = null; pausedMsForCurrentStep = 0;
+
+    for (var i = 0; i < parsed.length; i++){
+      if (state.node === "__STOP__" || state.node === "__DONE__") break;
+      var step = parsed[i];
+      var node = NODES[state.node];
+      if (!node) return { ok:false, error:"Stopped at step " + (i+1) + " (\"" + step.short + "\") - couldn't continue from there." };
+
+      if (node.showRelevantProviders && / \(selected from list\)$/.test(step.answer)){
+        var providerName = step.answer.replace(/ \(selected from list\)$/, "");
+        historyStack.push(JSON.parse(JSON.stringify(state)));
+        recordStepTime(node);
+        setOut("provider", providerName);
+        state.part1Result = "PROVIDER_PICKED";
+        state.providerTreatsDx = true;
+        state.crumbs.push({ short: node.short, answer: step.answer });
+        gotoResolve("p3_entry");
+        continue;
+      }
+
+      if (node.edgeCaseToggle && step.answer === "Edge case (skipped contracted question)"){
+        historyStack.push(JSON.parse(JSON.stringify(state)));
+        recordStepTime(node);
+        setOut("contractedGrid","N/A - edge case (see type-specific check)");
+        state.crumbs.push({ short: node.short, answer: step.answer });
+        state._afterEdgeCase = "p4_referral_required";
+        gotoResolve("p4_edge_case_type");
+        continue;
+      }
+      if (node.selfPayToggle && step.answer === "Self-pay (skipped contracted question)"){
+        historyStack.push(JSON.parse(JSON.stringify(state)));
+        recordStepTime(node);
+        setOut("contractedGrid","N/A - self-pay");
+        setOut("insurancePath","self-pay - no insurance to bill, proceed accordingly");
+        state.crumbs.push({ short: node.short, answer: step.answer });
+        gotoResolve("p4_diag_entry");
+        continue;
+      }
+
+      if (node.kind === "yesno" || node.kind === "yesno3"){
+        var kind = null;
+        if (step.answer === (node.yesLabel || "Yes")) kind = "yes";
+        else if (step.answer === (node.noLabel || "No")) kind = "no";
+        else if (node.kind === "yesno3" && step.answer === node.thirdLabel) kind = "third";
+        if (!kind) return { ok:false, error:"Stopped at step " + (i+1) + " - couldn't match answer \"" + step.answer + "\" to \"" + step.short + "\"." };
+        answer(node, kind, step.answer);
+      } else if (node.kind === "text" || node.kind === "select" || node.kind === "diagnosis"){
+        submitText(node, step.answer);
+      } else {
+        return { ok:false, error:"Stopped at step " + (i+1) + " - unexpected question type." };
+      }
+    }
+    return { ok:true };
+  }
+
+  function goBack(){
+    if (!historyStack.length) return;
+    state = historyStack.pop();
+    render();
+  }
+
+  function reset(){
+    state = freshState();
+    historyStack = [];
+    isPaused = false;
+    pauseStartedAt = null;
+    pausedMsForCurrentStep = 0;
+    viewMode = "flow";
+    updatePauseUI();
+    render();
+  }
+
+  function hasProgress(){
+    return !!(state && (state.crumbs || []).length);
+  }
+  // Records the current run, replacing any earlier entry for the same run so
+  // that going Back and finishing again updates in place instead of duplicating.
+  function logCurrentRun(outcomeOverride){
+    if (!state || !state.runId) return;
+    var o = state.out || {};
+    var outcome = outcomeOverride || (state.node === "__STOP__" ? "Manual review"
+                                    : state.node === "__DONE__" ? "Complete"
+                                    : "Exited early");
+    var entry = {
+      runId: state.runId, seq: state.runSeq, at: new Date(),
+      patientName: o.patientName || "(no name entered)",
+      taskId: o.taskId || "", provider: o.provider || "",
+      location: deptShortName(o.location) || "", bucket: o.bucket || "",
+      urgent: o.urgent === "YES", outcome: outcome,
+      schedulingStatus: computeSchedulingStatus(),
+      ms: (state.stepTimings || []).reduce(function(sum, t){ return sum + t.ms; }, 0),
+      output: buildOutputText(), why: buildWhyPath()
+    };
+    for (var i = 0; i < sessionLog.length; i++){
+      if (sessionLog[i].runId === entry.runId){ sessionLog[i] = entry; updateLogButton(); return; }
+    }
+    sessionLog.push(entry);
+    updateLogButton();
+  }
+  function exitCurrentRun(){
+    if (hasProgress()) logCurrentRun(state.node === "__DONE__" ? null : (state.node === "__STOP__" ? null : "Exited early"));
+    reset();
+  }
+  function updateLogButton(){
+    var b = document.getElementById("logBtn");
+    if (!b) return;
+    b.textContent = "Log (" + sessionLog.length + ")";
+    b.classList.toggle("has-entries", sessionLog.length > 0);
+  }
+
+  // Escapes quotes as well as tags: several call sites drop free-typed text
+  // (patient name, diagnosis) into double-quoted attributes such as data-copy
+  // and data-val, where a bare " would break out of the attribute.
+  function escapeHtml(str){
+    return String(str).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
+      .replace(/"/g,"&quot;").replace(/'/g,"&#39;");
+  }
+
+  function bannerHtml(){
+    if (!state.pendingBanner) return "";
+    var html = '<div class="banner"><b>Why you\'re here</b>' + escapeHtml(state.pendingBanner) + '</div>';
+    state.pendingBanner = null;
+    return html;
+  }
+  function contextBadgeHtml(node){
+    if (!node.context) return "";
+    return '<div class="context-badge">' + escapeHtml(node.context) + '</div>';
+  }
+  function sourceLabelHtml(node){
+    if (!node.source) return "";
+    return '<div class="source-label">📍 Find this in: <b>' + escapeHtml(toTitleCase(node.source)) + '</b></div>';
+  }
+  function warningLabelHtml(node){
+    if (!node.warning) return "";
+    return '<div class="warning-label">⚠️ ' + escapeHtml(node.warning) + '</div>';
+  }
+  function resumeBoxHtml(node){
+    if (!node.showResumeBox) return "";
+    return '<details class="resume-box">' +
+      '<summary>Have a saved path? Paste it here to resume where you left off.</summary>' +
+      '<textarea id="resumeInput" class="text-input textarea-input" rows="4" placeholder="Paste the copied \u201cWhy this path\u201d text here…"></textarea>' +
+      '<div class="resume-error" id="resumeError" style="display:none;"></div>' +
+      '<button type="button" class="continue-btn resume-btn" id="resumeBtn">Resume from this path</button>' +
+      '</details>';
+  }
+  function wireResumeBox(){
+    var btn = document.getElementById("resumeBtn");
+    if (!btn) return;
+    btn.addEventListener("click", function(){
+      var input = document.getElementById("resumeInput");
+      var errEl = document.getElementById("resumeError");
+      var result = resumeFromWhyPathText(input.value);
+      if (!result.ok){
+        errEl.textContent = result.error;
+        errEl.style.display = "block";
+        return;
+      }
+      render();
+    });
+  }
+  function definitionLabelHtml(node){
+    if (!node.definition) return "";
+    return '<div class="definition-label">ℹ️ ' + escapeHtml(node.definition) + '</div>';
+  }
+  function checkpointHtml(node){
+    if (!node.checkpoint) return "";
+    var o = state.out;
+    var deptName = deptShortName(o.location);
+    var deptNum = deptNumberOnly(o.location);
+    var sendingTo = deptName ? (deptName + (deptNum ? " (" + deptNum + ")" : "")) : " - ";
+    return '<div class="checkpoint-card">' +
+      '<div class="checkpoint-title">Provider &amp; Location Set</div>' +
+      '<div class="checkpoint-row"><span class="cp-label">Provider</span><span class="cp-val">' + escapeHtml(o.provider || " - ") + '</span></div>' +
+      '<div class="checkpoint-row"><span class="cp-label">Sending to</span><span class="cp-val">' + escapeHtml(sendingTo) + '</span></div>' +
+      '<div class="checkpoint-note">Check insurance using the tool in Toolbox and in Athena (Quickview → Insurance), then continue below.</div>' +
+      '</div>';
+  }
+  // Scheduling restrictions are read off the roster rather than matched by name
+  // substring, so the flags and the displayed notes cannot drift apart. The two
+  // restrictions are distinct: inClinicOnly providers ARE schedulable through
+  // the intake system (clinic-scheduling, just no manual outreach), while
+  // nonAutoScheduling providers are not (routed to specialty-scheduling).
+  function providerFlag(name, flag){
+    var p = PROVIDER_LOOKUP[name];
+    return !!(p && p[flag]);
+  }
+  function providerIsInClinicOnly(name){ return providerFlag(name, "inClinicOnly"); }
+  function providerIsNonAuto(name){ return providerFlag(name, "nonAutoScheduling"); }
+  function isRestrictedProvider(name){
+    return providerIsInClinicOnly(name) || providerIsNonAuto(name);
+  }
+  function restrictionLabel(name){
+    if (providerIsNonAuto(name)) return " - not schedulable through the intake system";
+    if (providerIsInClinicOnly(name)) return " - schedulable, but no manual outreach";
+    return "";
+  }
+  function relevantProvidersListHtml(node){
+    if (!node.showRelevantProviders) return "";
+    var dxText = state.out.diagnosisText;
+    var dxSpecs = specialtiesForDiagnosis(dxText);
+    if (!dxSpecs.length) return "";
+    var matches = PROVIDER_DATA.filter(function(p){
+      return p.specialty && dxSpecs.some(function(sp){ return p.specialty.toLowerCase().indexOf(sp.toLowerCase()) !== -1; });
+    });
+    if (!matches.length) return "";
+    matches = matches.slice().sort(function(a, b){
+      function rank(p){
+        if (isRestrictedProvider(p.name)) return 3;
+        var deptShort = deptShortName(state.out.location);
+        if (deptShort && p.locations.some(function(loc){ return locMatches(loc, deptShort); })) return 0;
+        if (!deptShort && p.locations.some(function(loc){ return locMatches(loc, "Northgate"); })) return 0;
+        return 1;
+      }
+      return rank(a) - rank(b);
+    });
+    var rows = matches.map(function(p){
+      var loc = p.locations.length ? p.locations.join(", ") : "no location on file";
+      var restricted = isRestrictedProvider(p.name);
+      return '<button type="button" class="relevant-provider-row' + (restricted ? " rp-blocked" : "") + '" data-provider="' + escapeHtml(p.name) + '">' +
+        '<span class="rp-name">' + escapeHtml(p.name) + '</span>' +
+        '<span class="rp-meta">' + escapeHtml(p.specialty) + ' - ' + escapeHtml(loc) + escapeHtml(restrictionLabel(p.name)) + '</span>' +
+        '</button>';
+    }).join("");
+    return '<div class="relevant-providers">' +
+      '<div class="relevant-providers-title">Providers who treat ' + escapeHtml(dxText || "this diagnosis") + ' - tap to select</div>' +
+      rows +
+      '</div>';
+  }
+  function wireRelevantProvidersList(node){
+    if (!node.showRelevantProviders) return;
+    var rows = document.querySelectorAll(".relevant-provider-row");
+    rows.forEach(function(row){
+      row.addEventListener("click", function(){
+        var name = row.getAttribute("data-provider");
+        historyStack.push(JSON.parse(JSON.stringify(state)));
+        recordStepTime(node);
+        setOut("provider", name);
+        state.part1Result = "PROVIDER_PICKED";
+        state.providerTreatsDx = true;
+        state.crumbs.push({ short: node.short, answer: name + " (selected from list)" });
+        gotoResolve("p3_entry");
+      });
+    });
+  }
+
+  // ---- output text builder ----
+  function f(val){
+    if (val !== undefined && val !== null && val !== "") return val;
+    return state.manualReview ? "STOP - manual review" : " - ";
+  }
+  // Sentence case, not title case. These values are authored deliberately -   // proper nouns are already capitalized ("Pre-Cert", "Athena Fax", "Wrong
+  // type.") and the rest is meant to read as prose. Capitalizing every word
+  // mangled them into "Deactivate Reason "Wrong Type.", Then Add-without-card
+  // Flow", so only the first letter is raised and the rest is left as written.
+  function toTitleCase(str){
+    if (!str) return str;
+    var s = String(str);
+    var i = s.search(/[A-Za-z]/);
+    if (i === -1) return s;
+    return s.slice(0, i) + s.charAt(i).toUpperCase() + s.slice(i + 1);
+  }
+  function ft(val){ return toTitleCase(f(val)); }
+  function buildVaInsuranceNote(){
+    var end = new Date();
+    end.setFullYear(end.getFullYear() + 1);
+    var endStr = String(end.getMonth()+1).padStart(2,"0") + "/" + String(end.getDate()).padStart(2,"0") + "/" + end.getFullYear();
+    return "VA - case policy VA Community Care Network + Veteran ICN + eligibility. Refer to the referral document first for the number of visits authorized; if not specified there, default to 12 visits, with the authorization window running one year from today's date (through " + endStr + ").";
+  }
+  function providerAthenaCode(){
+    var p = state.out.provider;
+    if (!p || p === "FIND LOCATION FIRST" || p === "MANUAL REVIEW") return "";
+    return athenaProviderCode(p);
+  }
+  function providerSpecialty(){
+    var p = state.out.provider;
+    if (!p || p === "FIND LOCATION FIRST" || p === "MANUAL REVIEW") return "";
+    return (PROVIDER_LOOKUP[p] && PROVIDER_LOOKUP[p].specialty) ? PROVIDER_LOOKUP[p].specialty : "";
+  }
+  function buildUrgentReasonText(){
+    var o = state.out;
+    if (o.urgent !== "YES") return "";
+    if (o.urgentReason === "diagnosis") return "Diagnosis: " + (o.diagnosisText || " - ");
+    return "Per provider (fax marked Urgent)";
+  }
+  function buildInternalNote(){
+    var o = state.out;
+    if (!o.status) return "";
+    var dateStr = (o.referralDate || "DATE").replace(/\//g, ".");
+    var urgencyText = "";
+    if (o.urgent === "YES"){
+      if (o.urgentReason === "diagnosis"){
+        var dxLabel = (o.diagnosisText || "diagnosis").replace(/\s*\([^)]*\)\s*$/, "");
+        urgencyText = " - Urgent for " + dxLabel;
+      } else {
+        urgencyText = " - Urgent Per Provider";
+      }
+    }
+    var providerShort = (o.provider || "-").replace(/,\s*(MD|DO|DNP)\s*$/i, "");
+    return "Reviewed by Referral Ops (" + dateStr + ") - " + providerShort + " - " + shortActionNote(o.actionNote) + urgencyText;
+  }
+  // Action notes read as "Summary - detail clause", where the trailing clause
+  // starts lowercase ("Ready to schedule - do not manually outreach"). Only that
+  // clause is trimmed for the chart note. A separator joining two capitalised
+  // halves ("Ineligible for Scheduling - Ineligible Insurance") and a free-typed
+  // block reason are both kept whole, so no reason is silently dropped.
+  function shortActionNote(note){
+    var n = String(note || "-").trim();
+    if (/^Blocked - /.test(n)) return n;
+    return n.split(/\s-\s(?=[a-z])/)[0].trim();
+  }
+  function isInsuranceIneligible(){
+    var o = state.out;
+    return o.contractedGrid === "No" || (o.insurancePath && o.insurancePath.indexOf("not eligible") !== -1);
+  }
+  function buildInsuranceErrorNote(){
+    var o = state.out;
+    if (!isInsuranceIneligible()) return "";
+    var reason = o.contractedGrid === "No"
+      ? "Ineligible Insurance - plan not contracted with Example Cardiology"
+      : "Insurance not eligible - " + (o.insurancePath || "see insurance path");
+    return "Patient: " + (o.patientName || " - ") + " | Task ID: " + (o.taskId || " - ") + " | Issue: " + reason;
+  }
+  function buildEngineeringEscalationNote(){
+    if (!state.needsEngineeringEscalation) return "";
+    var o = state.out;
+    var url = o.taskId ? "https://referrals.example.com/tasks/" + o.taskId : " - ";
+    var issue = (o.engineeringIssueCategory || "Insurance listed incorrectly in Athena") +
+      " - " + (o.engineeringIssueDesc || "no description provided");
+    issue += " (URL: " + url + ")";
+    return "Message Engineering on Slack - " + (o.taskId || " - ") + ": " + (o.patientName || " - ") +
+      " - " + issue + ". Could we please rerun? [Tag eng]";
+  }
+  function engineeringEscalationButtonHtml(){
+    if (!state.needsEngineeringEscalation) return "";
+    return '<button type="button" class="escalate-btn" id="escalateBtn" aria-label="Copy engineering escalation note">' +
+      '<span class="escalate-label" id="escalateLabel">🛠 Escalate to Engineering - tap to copy note</span>' +
+      '</button>';
+  }
+  function wireEngineeringEscalationButton(){
+    var btn = document.getElementById("escalateBtn");
+    if (!btn) return;
+    btn.addEventListener("click", function(){
+      doCopy(buildEngineeringEscalationNote(), function(){
+        var label = document.getElementById("escalateLabel");
+        if (label){
+          var orig = label.textContent;
+          btn.classList.add("copied");
+          label.textContent = "Copied ✓";
+          setTimeout(function(){
+            var l = document.getElementById("escalateLabel");
+            if (l) l.textContent = orig;
+            btn.classList.remove("copied");
+          }, 1200);
+        }
+      });
+    });
+  }
+  function buildAuthChartNote(){
+    var o = state.out;
+    if (o.outboundExport && o.outboundExport.indexOf("yes") === 0){
+      return "Referral Ops: Referral Authorization Requested " + (o.referralDate || "[date]");
+    }
+    return o.authObjNote ? "n/a" : "";
+  }
+  function buildOutboundChecklist(){
+    var o = state.out;
+    if (!o.chkVerify && !o.chkSend && !o.chkOnce && !o.chkNote) return "";
+    return "Verified doc: " + (o.chkVerify || " - ") +
+      " | Sent via Chart Export: " + (o.chkSend || " - ") +
+      " | Ran once: " + (o.chkOnce || " - ") +
+      " | Chart note added: " + (o.chkNote || " - ");
+  }
+  function computeSchedulingStatus(){
+    if (state.manualReview) return "Review";
+    var o = state.out;
+    var authGood = !!o.authObjNote && o.authObjNote.toLowerCase().indexOf("pending") === -1;
+    var referralGood = !!o.referralObjNote && o.referralObjNote.toLowerCase().indexOf("pending") === -1;
+    var inSchedBucket = o.bucket === "clinic-scheduling";
+    return (state.hasUpcomingAppt && authGood && referralGood && inSchedBucket) ? "Closed" : "Review";
+  }
+  function buildWhyPath(){
+    var parts = state.crumbs.filter(function(c){ return !c.divider; }).map(function(c){ return c.short + ": " + c.answer; });
+    return parts.length ? parts.join(" → ") : " - ";
+  }
+  function formatDuration(ms){
+    if (ms < 1000) return "<1s";
+    var totalSec = Math.round(ms / 1000);
+    if (totalSec < 60) return totalSec + "s";
+    var min = Math.floor(totalSec / 60);
+    var sec = totalSec % 60;
+    return min + "m " + (sec < 10 ? "0" : "") + sec + "s";
+  }
+  function buildTotalTimeNote(){
+    var timings = state.stepTimings || [];
+    if (!timings.length) return "";
+    var total = timings.reduce(function(sum, t){ return sum + t.ms; }, 0);
+    return "Total time to complete: " + formatDuration(total);
+  }
+  function timeBreakdownHtml(){
+    var timings = state.stepTimings || [];
+    if (!timings.length) return "";
+    var total = timings.reduce(function(sum, t){ return sum + t.ms; }, 0);
+    var sorted = timings.slice().sort(function(a, b){ return b.ms - a.ms; });
+    var top = sorted.slice(0, 8);
+    var rows = top.map(function(t){
+      return '<div class="time-row"><span class="time-label">' + escapeHtml(t.short) + '</span><span class="time-val">' + formatDuration(t.ms) + '</span></div>';
+    }).join("");
+    return '<div class="card time-breakdown-card">' +
+      '<span class="step-label">Time Breakdown</span>' +
+      '<h3>Slowest steps <span class="time-total">(total: ' + formatDuration(total) + ')</span></h3>' +
+      rows +
+      '</div>';
+  }
+  function whyPathBoxHtml(){
+    var hasAnswers = state.crumbs.some(function(c){ return !c.divider; });
+    if (!hasAnswers) return "";
+    return '<div class="whypath-box" id="whyPathBox" tabindex="0" role="button" aria-label="Copy why this path">' +
+      '<span class="whypath-label" id="whyPathLabel">Why this path - tap to copy</span>' +
+      escapeHtml(buildWhyPath()) +
+      '</div>';
+  }
+  function wireWhyPathBox(){
+    var box = document.getElementById("whyPathBox");
+    if (!box) return;
+    function activate(){
+      doCopy(buildWhyPath(), function(){
+        var label = document.getElementById("whyPathLabel");
+        if (label){
+          var orig = label.textContent;
+          box.classList.add("copied");
+          label.textContent = "Copied ✓";
+          setTimeout(function(){
+            var l = document.getElementById("whyPathLabel");
+            if (l) l.textContent = orig;
+            box.classList.remove("copied");
+          }, 1000);
+        }
+      });
+    }
+    box.addEventListener("click", activate);
+    box.addEventListener("keydown", function(e){ if (e.key === "Enter" || e.key === " "){ e.preventDefault(); activate(); } });
+  }
+
+  function buildErrorNote(){
+    var o = state.out;
+    var name = o.patientName ? o.patientName.trim() : "";
+    var task = o.taskId ? o.taskId.trim() : "";
+    var who = name ? name : "Unknown patient";
+    if (task) who += " (" + task + ")";
+    var reason = state.manualReviewReason || "This case needs manual review.";
+    return "Manual review - " + who + ": " + reason;
+  }
+  function errorNoteBoxHtml(){
+    return '<div class="errornote-box" id="errorNoteBox" tabindex="0" role="button" aria-label="Copy error note">' +
+      '<span class="errornote-label" id="errorNoteLabel">Error note - tap to copy</span>' +
+      escapeHtml(buildErrorNote()) +
+      '</div>';
+  }
+  function wireErrorNoteBox(){
+    var box = document.getElementById("errorNoteBox");
+    if (!box) return;
+    function activate(){
+      doCopy(buildErrorNote(), function(){
+        var label = document.getElementById("errorNoteLabel");
+        if (label){
+          var orig = label.textContent;
+          box.classList.add("copied");
+          label.textContent = "Copied ✓";
+          setTimeout(function(){
+            var l = document.getElementById("errorNoteLabel");
+            if (l) l.textContent = orig;
+            box.classList.remove("copied");
+          }, 1000);
+        }
+      });
+    }
+    box.addEventListener("click", activate);
+    box.addEventListener("keydown", function(e){ if (e.key === "Enter" || e.key === " "){ e.preventDefault(); activate(); } });
+  }
+  function buildOutputText(){
+    var o = state.out;
+    var L = [];
+    L.push("PATIENT: " + f(o.patientName));
+    L.push("TASK ID: " + f(o.taskId));
+    if (isInsuranceIneligible()) L.push("ERROR / ESCALATION NOTE: " + buildInsuranceErrorNote());
+    if (state.needsEngineeringEscalation) L.push("ENGINEERING ESCALATION: " + buildEngineeringEscalationNote());
+    L.push("");
+    L.push("STATUS: " + f(o.status));
+    L.push("PROVIDER: " + f(o.provider));
+    if (providerSpecialty()) L.push("SPECIALTY: " + providerSpecialty());
+    if (providerAthenaCode()) L.push("ATHENA PROVIDER CODE: " + providerAthenaCode());
+    L.push("LOCATION: " + f(deptShortName(o.location)));
+    var deptLine = "DEPARTMENT: " + f(deptNumberOnly(o.location));
+    if (o.locationFlag) deptLine += " (Flag: " + o.locationFlag + ")";
+    L.push(deptLine);
+    if (o.locationChartNote) L.push("  Chart note: " + toTitleCase(o.locationChartNote));
+    L.push("AGREE: " + ft(o.agree));
+    L.push("HOME CLINIC: Do Not Change");
+    L.push("");
+    L.push("BUCKET: " + f(o.bucket));
+    L.push("ACTION / CHART NOTE: " + ft(o.actionNote));
+    L.push("SCHEDULING STATUS: " + computeSchedulingStatus());
+    L.push("");
+    L.push("URGENT: " + f(o.urgent));
+    if (o.urgent === "YES") L.push("URGENT REASON: " + ft(buildUrgentReasonText()));
+    L.push("DOCUMENT DATE: " + f(o.referralDate));
+    L.push("INTERNAL NOTE: " + ft(buildInternalNote()));
+    if (o.patientNote) L.push("PATIENT NOTE: " + ft(o.patientNote));
+    if (buildTotalTimeNote()) L.push("TOTAL TIME NOTE: " + buildTotalTimeNote());
+    L.push("");
+    L.push("CARE TEAM:");
+    L.push("- Usual / receiving: " + f(o.provider) + (providerAthenaCode() ? " (" + providerAthenaCode() + ")" : ""));
+    L.push("- Referring: " + ft(o.careTeamReferring));
+    L.push("- PCP: " + ft(o.pcpNote));
+    L.push("");
+    L.push("REGISTRATION WRITES:");
+    L.push("- Address: " + ft(o.addressNote) + " | Email: " + ft(o.emailNote));
+    L.push("- Calls YES, Texts YES, phones match fax, Privacy notice YES, hear-about-us: Physician Referral (if blank)");
+    L.push("- Emergency contact: " + ft(o.emergencyNote));
+    L.push("");
+    L.push("INSURANCE PATH:");
+    var ins = "- " + ft(o.insurancePath);
+    if (o.insuranceVerifyFlag) ins += " (Flag: " + o.insuranceVerifyFlag + ")";
+    L.push(ins);
+    if (o.contractedGrid || o.referralRequiredGrid || o.referralAuthRequiredGrid){
+      L.push("- Grid - Contracted: " + f(o.contractedGrid) + " | Referral Required: " + f(o.referralRequiredGrid) +
+        " | Referral Authorization Required: " + f(o.referralAuthRequiredGrid));
+    }
+    L.push("");
+    L.push("AUTH / REFERRAL OBJECTS:");
+    L.push("- Referral: " + ft(o.referralObjNote));
+    L.push("- Auth: " + ft(o.authObjNote));
+    L.push("- Outbound export: " + ft(o.outboundExport));
+    L.push("- Chart note: " + ft(buildAuthChartNote()));
+    var checklist = buildOutboundChecklist();
+    if (checklist) L.push("- Outbound checklist: " + toTitleCase(checklist));
+    L.push("");
+    L.push("WHY THIS PATH: " + buildWhyPath());
+    return L.join("\n");
+  }
+
+  function outputFieldsList(){
+    var o = state.out;
+    var insVal = ft(o.insurancePath);
+    if (o.insuranceVerifyFlag) insVal += " (Flag: " + o.insuranceVerifyFlag + ")";
+
+    var items = [];
+    items.push({ sec:"Patient" });
+    items.push({ label:"Patient name", value:f(o.patientName) });
+    items.push({ label:"Task ID", value:f(o.taskId) });
+    if (isInsuranceIneligible()) items.push({ label:"Error / escalation note", value:buildInsuranceErrorNote(), cls:"urgent-yes" });
+
+    items.push({ sec:"Core" });
+    items.push({ label:"Status", value:f(o.status) });
+    items.push({ label:"Provider", value:f(o.provider) });
+    if (providerSpecialty()) items.push({ label:"Specialty", value:providerSpecialty() });
+    if (providerAthenaCode()) items.push({ label:"Athena provider code", value:providerAthenaCode() });
+    items.push({ label:"Location", value:f(deptShortName(o.location)) });
+    items.push({ label:"Department", value:f(deptNumberOnly(o.location)) });
+    if (o.locationChartNote) items.push({ label:"Location chart note", value:toTitleCase(o.locationChartNote) });
+    items.push({ label:"Agree", value:ft(o.agree) });
+    items.push({ label:"Home clinic", value:"Do Not Change" });
+
+    items.push({ sec:"Scheduling" });
+    items.push({ label:"Bucket", value:f(o.bucket) });
+    items.push({ label:"Action / chart note", value:ft(o.actionNote) });
+    var schedStatus = computeSchedulingStatus();
+    items.push({ label:"Status", value:schedStatus, cls: schedStatus === "Closed" ? "status-closed" : "status-review" });
+
+    items.push({ sec:"Document" });
+    items.push({ label:"Urgent", value:f(o.urgent), cls: o.urgent === "YES" ? "urgent-yes" : "" });
+    if (o.urgent === "YES") items.push({ label:"Urgent reason", value:ft(buildUrgentReasonText()), cls:"urgent-yes" });
+    items.push({ label:"Document date", value:f(o.referralDate) });
+    items.push({ label:"Internal note", value:ft(buildInternalNote()) });
+    if (o.patientNote) items.push({ label:"Patient note", value:ft(o.patientNote) });
+    if (buildTotalTimeNote()) items.push({ label:"Total time note", value:buildTotalTimeNote() });
+
+    items.push({ sec:"Care team" });
+    items.push({ label:"Usual / receiving", value: f(o.provider) + (providerAthenaCode() ? " (" + providerAthenaCode() + ")" : "") });
+    items.push({ label:"Referring", value:ft(o.careTeamReferring) });
+    items.push({ label:"PCP", value:ft(o.pcpNote) });
+
+    items.push({ sec:"Registration" });
+    items.push({ label:"Address", value:ft(o.addressNote) });
+    items.push({ label:"Email", value:ft(o.emailNote) });
+    items.push({ label:"Emergency contact", value:ft(o.emergencyNote) });
+
+    items.push({ sec:"Insurance" });
+    items.push({ label:"Insurance path", value:insVal });
+    if (o.contractedGrid || o.referralRequiredGrid || o.referralAuthRequiredGrid){
+      items.push({ label:"Grid: Contracted", value:f(o.contractedGrid) });
+      items.push({ label:"Grid: Referral Required", value:o.referralRequiredGrid || " - " });
+      items.push({ label:"Grid: Referral Authorization Required", value:o.referralAuthRequiredGrid || " - " });
+    }
+
+    items.push({ sec:"Auth / referral objects" });
+    items.push({ label:"Referral", value:ft(o.referralObjNote) });
+    items.push({ label:"Auth", value:ft(o.authObjNote) });
+    items.push({ label:"Outbound export", value:ft(o.outboundExport) });
+    items.push({ label:"Chart note", value:ft(buildAuthChartNote()) });
+    if (o.chkVerify || o.chkSend || o.chkOnce || o.chkNote){
+      items.push({ label:"Verified auto-generated doc", value:toTitleCase(o.chkVerify) || " - " });
+      items.push({ label:"Sent via Chart Export", value:toTitleCase(o.chkSend) || " - " });
+      items.push({ label:"Ran Chart Export once", value:toTitleCase(o.chkOnce) || " - " });
+      items.push({ label:"Added Referral Authorization Requested note", value:toTitleCase(o.chkNote) || " - " });
+    }
+
+    items.push({ sec:"Why this path" });
+    items.push({ label:"Why this path", value:buildWhyPath() });
+
+    return items;
+  }
+
+  function outputSectionHtml(){
+    if (!state.out.status) return "";
+    var items = outputFieldsList();
+    var boxesHtml = items.map(function(it){
+      if (it.sec) return '<div class="output-section">' + escapeHtml(it.sec) + '</div>';
+      var safeVal = escapeHtml(it.value);
+      var extraCls = it.cls ? (" " + it.cls) : "";
+      return '<div class="output-box' + extraCls + '" data-copy="' + safeVal + '" tabindex="0" role="button" aria-label="Copy ' + escapeHtml(it.label) + '">' +
+        '<div class="ob-label">' + escapeHtml(it.label) + '</div>' +
+        '<div class="ob-value">' + safeVal + '</div>' +
+        '</div>';
+    }).join("");
+
+    var urgentBanner = (state.out.urgent === "YES")
+      ? '<div class="urgent-banner">⚠ URGENT - follow the urgent workflow</div>'
+      : "";
+    var errorBanner = isInsuranceIneligible()
+      ? '<div class="urgent-banner">⚠ INSURANCE ISSUE - see error/escalation note below</div>'
+      : "";
+
+    return '<div class="card output-card">' +
+      '<h2>Output card</h2>' +
+      urgentBanner +
+      errorBanner +
+      '<p class="output-hint">Tap any box to copy just that value.</p>' +
+      '<div class="output-fields">' + boxesHtml + '</div>' +
+      '<button class="copy-btn" id="copyOutputBtn">Copy all as text</button>' +
+      '<details class="output-raw"><summary>View as plain text</summary><pre>' + escapeHtml(buildOutputText()) + '</pre></details>' +
+      '</div>';
+  }
+
+  function doCopy(text, onDone){
+    if (navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(text).then(onDone, function(){ fallbackCopy(text); onDone(); });
+    } else {
+      fallbackCopy(text); onDone();
+    }
+  }
+
+  function wireOutputSection(){
+    var btn = document.getElementById("copyOutputBtn");
+    if (btn){
+      btn.addEventListener("click", function(){
+        doCopy(buildOutputText(), function(){
+          var b = document.getElementById("copyOutputBtn");
+          if (b){
+            var orig = "Copy all as text";
+            b.textContent = "Copied!";
+            setTimeout(function(){ if (document.getElementById("copyOutputBtn")) document.getElementById("copyOutputBtn").textContent = orig; }, 1200);
+          }
+        });
+      });
+    }
+    var boxes = document.querySelectorAll(".output-box");
+    for (var i = 0; i < boxes.length; i++){
+      (function(box){
+        function activate(){
+          var val = box.getAttribute("data-copy");
+          doCopy(val, function(){
+            var labelEl = box.querySelector(".ob-label");
+            if (labelEl){
+              var orig = labelEl.textContent;
+              box.classList.add("copied");
+              labelEl.textContent = "Copied ✓";
+              setTimeout(function(){ labelEl.textContent = orig; box.classList.remove("copied"); }, 1000);
+            }
+          });
+        }
+        box.addEventListener("click", activate);
+        box.addEventListener("keydown", function(e){ if (e.key === "Enter" || e.key === " "){ e.preventDefault(); activate(); } });
+      })(boxes[i]);
+    }
+  }
+  function fallbackCopy(text){
+    var ta = document.createElement("textarea");
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    try{ document.execCommand("copy"); } catch(e){}
+    document.body.removeChild(ta);
+  }
+
+  // ---- renderers ----
+  function updateStageBadge(){
+    var partNum = 0;
+    if (state.node === "__STOP__") partNum = state.manualReviewPart;
+    else if (state.node === "__DONE__") partNum = 5;
+    else if (NODES[state.node]) partNum = NODES[state.node].part;
+    stageBadge.textContent = PART_LABELS[partNum];
+  }
+
+  function updateHeaderSub(){
+    var sub = document.getElementById("headerSub");
+    if (!sub) return;
+    var name = state.out.patientName;
+    var task = state.out.taskId;
+    if (!name && !task){
+      sub.innerHTML = 'Example Cardiology';
+      return;
+    }
+    var bits = [];
+    if (name) bits.push(escapeHtml(name));
+    if (task) bits.push(escapeHtml(task));
+    sub.textContent = bits.join(" · ");
+  }
+
+  function computeProgress(){
+    if (state.node === "__DONE__" || state.node === "__STOP__") return 100;
+    var node = NODES[state.node];
+    if (!node) return 0;
+    var part = node.part;
+    var answered = 0;
+    // Only count real questions. Auto-resolved steps also push a crumb, but
+    // PART_INTERACTIVE counts interactive questions only, so including them
+    // overstated progress - and each gate added to Part 5 made it worse.
+    for (var i = state.crumbs.length - 1; i >= 0; i--){
+      if (state.crumbs[i].divider) break;
+      if (String(state.crumbs[i].short || "").indexOf("(auto)") !== -1) continue;
+      answered++;
+    }
+    var total = PART_INTERACTIVE[part] || 1;
+    var ratio = Math.min(1, answered / total);
+    var pct = PART_START[part] + ratio * PART_WEIGHTS[part];
+    return Math.max(0, Math.min(100, Math.round(pct)));
+  }
+
+  function updateProgress(){
+    var pct = computeProgress();
+    var fill = document.getElementById("progressFill");
+    var label = document.getElementById("progressLabel");
+    if (fill) fill.style.width = pct + "%";
+    if (label) label.textContent = pct + "% through";
+  }
+
+  function logEntryHtml(e){
+    var cls = e.outcome === "Manual review" ? " is-review" : (e.outcome === "Exited early" ? " is-exited" : "");
+    var meta = [];
+    if (e.taskId) meta.push("Task " + e.taskId);
+    if (e.provider) meta.push(e.provider);
+    if (e.location) meta.push(e.location);
+    if (e.bucket) meta.push(e.bucket);
+    meta.push(formatDuration(e.ms));
+    meta.push(e.at.toLocaleTimeString());
+    return '<details class="log-entry' + cls + '" data-run="' + escapeHtml(e.runId) + '">' +
+      '<summary>' +
+        '<div class="log-top">' +
+          '<span class="log-name">' + e.seq + '. ' + escapeHtml(e.patientName) + (e.urgent ? " ⚡" : "") + '</span>' +
+          '<span class="log-outcome">' + escapeHtml(e.outcome) + '</span>' +
+        '</div>' +
+        '<div class="log-meta">' + escapeHtml(meta.join(" · ")) + '</div>' +
+      '</summary>' +
+      '<div class="log-body">' +
+        '<div class="log-out">' + escapeHtml(e.output) + '</div>' +
+        '<div class="log-actions">' +
+          '<button type="button" data-act="copy-output" data-run="' + escapeHtml(e.runId) + '">Copy output card</button>' +
+          '<button type="button" data-act="copy-why" data-run="' + escapeHtml(e.runId) + '">Copy path (resumable)</button>' +
+          '<button type="button" class="danger-btn" data-act="remove" data-run="' + escapeHtml(e.runId) + '">Remove</button>' +
+        '</div>' +
+      '</div>' +
+    '</details>';
+  }
+
+  function renderLog(){
+    stageBadge.textContent = "Session log";
+    var html;
+    if (!sessionLog.length){
+      html = '<div class="card"><h2>Session log</h2>' +
+        '<p>Nothing logged yet. Each determination is added here automatically when you finish it, ' +
+        'or when you exit one part-way through.</p>' +
+        '<p style="font-size:12px;color:var(--ink-soft);">This log lives in the page only. Refreshing or ' +
+        'closing the tab clears it, so no patient name is ever saved to this computer.</p>' +
+        '<div class="btnrow-continue"><button class="continue-btn" id="logBackBtn">Back to determination</button></div>' +
+        '</div>';
+    } else {
+      var complete = sessionLog.filter(function(e){ return e.outcome === "Complete"; }).length;
+      var review = sessionLog.filter(function(e){ return e.outcome === "Manual review"; }).length;
+      var exited = sessionLog.filter(function(e){ return e.outcome === "Exited early"; }).length;
+      var totalMs = sessionLog.reduce(function(s, e){ return s + e.ms; }, 0);
+      var bits = [sessionLog.length + " logged", complete + " complete"];
+      if (review) bits.push(review + " manual review");
+      if (exited) bits.push(exited + " exited early");
+      bits.push(formatDuration(totalMs) + " total");
+      html = '<div class="card"><h2>Session log</h2>' +
+        '<div class="log-summary-bar">' + escapeHtml(bits.join(" · ")) + '</div>' +
+        '<div class="btnrow-continue">' +
+          '<button class="continue-btn" id="logBackBtn">Back to determination</button>' +
+          '<button class="again" id="logNextBtn">Start next patient</button>' +
+        '</div>' +
+        '<div class="log-actions" style="margin-top:12px;">' +
+          '<button type="button" id="logCopyAllBtn">Copy whole log</button>' +
+          '<button type="button" class="danger-btn" id="logClearBtn">End session &amp; clear log</button>' +
+        '</div>' +
+        '</div>' +
+        sessionLog.slice().reverse().map(logEntryHtml).join("");
+    }
+    stage.innerHTML = html;
+    wireLogView();
+  }
+
+  function wireLogView(){
+    var back = document.getElementById("logBackBtn");
+    if (back) back.addEventListener("click", function(){ viewMode = "flow"; render(); });
+    var next = document.getElementById("logNextBtn");
+    if (next) next.addEventListener("click", function(){ exitCurrentRun(); });
+    var copyAll = document.getElementById("logCopyAllBtn");
+    if (copyAll) copyAll.addEventListener("click", function(){
+      var text = sessionLog.map(function(e){
+        return "#" + e.seq + " " + e.patientName + " [" + e.outcome + "] " +
+               e.at.toLocaleTimeString() + " (" + formatDuration(e.ms) + ")\n" + e.output;
+      }).join("\n\n" + new Array(50).join("=") + "\n\n");
+      doCopy(text, function(){ copyAll.textContent = "Copied ✓";
+        setTimeout(function(){ copyAll.textContent = "Copy whole log"; }, 1200); });
+    });
+    var clear = document.getElementById("logClearBtn");
+    if (clear) clear.addEventListener("click", function(){
+      if (clear.dataset.armed !== "1"){
+        clear.dataset.armed = "1";
+        clear.textContent = "Tap again to clear " + sessionLog.length + " entries";
+        setTimeout(function(){
+          if (clear && clear.dataset){ clear.dataset.armed = "0"; clear.textContent = "End session & clear log"; }
+        }, 4000);
+        return;
+      }
+      sessionLog = [];
+      updateLogButton();
+      reset();
+    });
+    stage.querySelectorAll(".log-actions button[data-act]").forEach(function(btn){
+      btn.addEventListener("click", function(ev){
+        ev.preventDefault(); ev.stopPropagation();
+        var run = btn.getAttribute("data-run");
+        var entry = sessionLog.filter(function(e){ return e.runId === run; })[0];
+        if (!entry) return;
+        var act = btn.getAttribute("data-act");
+        if (act === "remove"){
+          sessionLog = sessionLog.filter(function(e){ return e.runId !== run; });
+          updateLogButton(); renderLog(); return;
+        }
+        var label = btn.textContent;
+        doCopy(act === "copy-why" ? entry.why : entry.output, function(){
+          btn.textContent = "Copied ✓";
+          setTimeout(function(){ btn.textContent = label; }, 1200);
+        });
+      });
+    });
+  }
+
+  function render(){
+    updateStageBadge();
+    updateProgress();
+    updateHeaderSub();
+    updateLiveTimer();
+    updateLogButton();
+
+    if (viewMode === "log"){ renderLog(); return; }
+    if (state.node === "__STOP__"){ renderStop(); return; }
+    if (state.node === "__DONE__"){ renderDone(); return; }
+
+    var node = NODES[state.node];
+    if (!node) return;
+    if (node.kind !== "auto"){ stepStartTime = Date.now(); pausedMsForCurrentStep = 0; updateLiveTimer(); }
+    if (node.kind === "text") renderTextNode(node);
+    else if (node.kind === "select") renderSelectNode(node);
+    else if (node.kind === "diagnosis") renderDiagnosisNode(node);
+    else renderQuestionNode(node);
+  }
+
+  function renderQuestionNode(node){
+    var thirdHtml = "";
+    if (node.kind === "yesno3"){
+      thirdHtml = '<div class="third-row"><button class="btn third" id="btnThird">' + escapeHtml(node.thirdLabel) + '</button></div>';
+    }
+    var html = bannerHtml() + contextBadgeHtml(node) + checkpointHtml(node) +
+      '<div class="card question">' +
+        '<span class="step-label">Question</span>' +
+        '<h2>' + escapeHtml(node.text) + '</h2>' +
+        sourceLabelHtml(node) +
+        warningLabelHtml(node) +
+        definitionLabelHtml(node) +
+        relevantProvidersListHtml(node) +
+        '<div class="btnrow">' +
+          backButtonHtml() +
+          '<button class="btn yes" id="btnYes">' + escapeHtml(node.yesLabel || "Yes") + '</button>' +
+          '<button class="btn no" id="btnNo">' + escapeHtml(node.noLabel || "No") + '</button>' +
+        '</div>' +
+        thirdHtml +
+        ((node.edgeCaseToggle || node.selfPayToggle) ? '<div class="toggle-row">' +
+          (node.edgeCaseToggle ? '<button type="button" class="edge-case-toggle" id="edgeCaseToggleBtn">Is this an edge case? <b>(Yes)</b></button>' : '') +
+          (node.selfPayToggle ? '<button type="button" class="edge-case-toggle" id="selfPayToggleBtn">Is this self-pay? <b>(Yes)</b></button>' : '') +
+        '</div>' : '') +
+      '</div>' +
+      whyPathBoxHtml();
+    stage.innerHTML = html;
+    var edgeCaseBtn = document.getElementById("edgeCaseToggleBtn");
+    if (edgeCaseBtn){
+      edgeCaseBtn.addEventListener("click", function(){
+        historyStack.push(JSON.parse(JSON.stringify(state)));
+        recordStepTime(node);
+        setOut("contractedGrid","N/A - edge case (see type-specific check)");
+        state.crumbs.push({ short: node.short, answer: "Edge case (skipped contracted question)" });
+        state._afterEdgeCase = "p4_referral_required";
+        gotoResolve("p4_edge_case_type");
+      });
+    }
+    var selfPayBtn = document.getElementById("selfPayToggleBtn");
+    if (selfPayBtn){
+      selfPayBtn.addEventListener("click", function(){
+        historyStack.push(JSON.parse(JSON.stringify(state)));
+        recordStepTime(node);
+        setOut("contractedGrid","N/A - self-pay");
+        setOut("insurancePath","self-pay - no insurance to bill, proceed accordingly");
+        state.crumbs.push({ short: node.short, answer: "Self-pay (skipped contracted question)" });
+        gotoResolve("p4_diag_entry");
+      });
+    }
+    document.getElementById("btnYes").addEventListener("click", function(){
+      answer(node, "yes", node.yesLabel || "Yes");
+    });
+    document.getElementById("btnNo").addEventListener("click", function(){
+      answer(node, "no", node.noLabel || "No");
+    });
+    var thirdBtn = document.getElementById("btnThird");
+    if (thirdBtn) thirdBtn.addEventListener("click", function(){ answer(node, "third", node.thirdLabel); });
+    wireBackButton();
+    wireWhyPathBox();
+    wireRelevantProvidersList(node);
+  }
+
+  // Real calendar date, not just the right shape: rejects 13/01, 02/30 and
+  // half-typed values by round-tripping through Date and comparing the parts.
+  function isRealDate(str){
+    var m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(String(str).trim());
+    if (!m) return false;
+    var mm = +m[1], dd = +m[2], yyyy = +m[3];
+    if (mm < 1 || mm > 12 || dd < 1 || yyyy < 1900 || yyyy > 2200) return false;
+    var d = new Date(yyyy, mm - 1, dd);
+    return d.getFullYear() === yyyy && d.getMonth() === mm - 1 && d.getDate() === dd;
+  }
+  function formatDateMask(value){
+    var digits = value.replace(/\D/g, "").slice(0, 8);
+    if (digits.length > 4) return digits.slice(0,2) + "/" + digits.slice(2,4) + "/" + digits.slice(4);
+    if (digits.length > 2) return digits.slice(0,2) + "/" + digits.slice(2);
+    return digits;
+  }
+
+  function backButtonHtml(){
+    return historyStack.length ? '<button type="button" class="back-btn" id="backBtn">Back</button>' : "";
+  }
+  function wireBackButton(){
+    var backBtn = document.getElementById("backBtn");
+    if (backBtn) backBtn.addEventListener("click", goBack);
+  }
+
+  function renderTextNode(node){
+    var fieldTag = node.multiline
+      ? '<textarea class="text-input textarea-input" id="textField" rows="8" placeholder="' + escapeHtml(node.placeholder || "") + '" autocomplete="off"></textarea>'
+      : '<input type="text" class="text-input" id="textField" placeholder="' + escapeHtml(node.placeholder || "") + '" autocomplete="off"' + (node.dateMask ? ' inputmode="numeric" maxlength="10"' : '') + '>';
+    if (node.prefix){
+      fieldTag = '<div class="prefixed-input">' +
+        '<span class="input-prefix">' + escapeHtml(node.prefix) + '</span>' +
+        '<input type="text" class="text-input" id="textField" placeholder="' + escapeHtml(node.placeholder || "") + '" autocomplete="off">' +
+      '</div>';
+    }
+    var html = bannerHtml() + contextBadgeHtml(node) +
+      '<div class="card question">' +
+        '<span class="step-label">Type in' + (node.optional ? " (optional)" : "") + '</span>' +
+        '<h2>' + escapeHtml(node.text) + '</h2>' +
+        sourceLabelHtml(node) +
+        '<div class="input-row">' +
+          fieldTag +
+          '<div class="field-warn" id="fieldWarn">Please enter a value to continue.</div>' +
+        '</div>' +
+        '<div class="btnrow-continue">' +
+          backButtonHtml() +
+          '<button class="continue-btn" id="submitBtn">' + (node.optional ? "Continue (or leave blank)" : "Continue") + '</button>' +
+        '</div>' +
+        resumeBoxHtml(node) +
+      '</div>' +
+      whyPathBoxHtml();
+    stage.innerHTML = html;
+
+    var input = document.getElementById("textField");
+    if (node.defaultToday){
+      var today = new Date();
+      var mm = String(today.getMonth() + 1).padStart(2, "0");
+      var dd = String(today.getDate()).padStart(2, "0");
+      input.value = mm + "/" + dd + "/" + today.getFullYear();
+    }
+    input.focus();
+    if (node.defaultToday) input.select();
+    if (node.dateMask){
+      input.addEventListener("input", function(){
+        input.value = formatDateMask(input.value);
+      });
+    }
+    function doSubmit(){
+      var val = input.value.trim();
+      if (!val && !node.optional){
+        document.getElementById("fieldWarn").style.display = "block";
+        return;
+      }
+      // The mask only shapes digits into MM/DD/YYYY, so "99/99/9999" and a
+      // half-typed "1/2" both used to sail through and land verbatim in the
+      // chart note. Check it is a real calendar date before accepting it.
+      if (node.dateMask && val && !isRealDate(val)){
+        var warn = document.getElementById("fieldWarn");
+        warn.textContent = "Enter a real date as MM/DD/YYYY.";
+        warn.style.display = "block";
+        return;
+      }
+      if (node.prefix && val) val = node.prefix + val;
+      submitText(node, val);
+    }
+    document.getElementById("submitBtn").addEventListener("click", doSubmit);
+    input.addEventListener("keydown", function(e){ if (e.key === "Enter") doSubmit(); });
+    wireBackButton();
+    wireWhyPathBox();
+    wireResumeBox();
+  }
+
+  // Providers pick from a real searchable list only - no free-text escape hatch.
+  // Typing filters; the answer is only ever set by clicking an actual match.
+  function renderProviderSelectNode(node){
+    var groups = node.dynamicGroups ? node.dynamicGroups(state) : node.groups;
+    var flat = [];
+    (groups || []).forEach(function(g){
+      g.options.forEach(function(opt){ flat.push({ value:opt.value, label:opt.label, groupLabel:g.label }); });
+    });
+    var selectedValue = null;
+
+    var html = bannerHtml() + contextBadgeHtml(node) +
+      '<div class="card question">' +
+        '<span class="step-label">Select</span>' +
+        '<h2>' + escapeHtml(node.text) + '</h2>' +
+        sourceLabelHtml(node) +
+        warningLabelHtml(node) +
+        definitionLabelHtml(node) +
+        '<div class="input-row dx-picker">' +
+          '<input type="text" class="text-input" id="providerSearch" placeholder="Search providers…" autocomplete="off">' +
+          '<div class="dx-suggestions" id="providerSuggestions"></div>' +
+          '<div class="dx-chips" id="providerChips"></div>' +
+          '<div class="field-warn" id="fieldWarn">Search and select a provider from the list to continue.</div>' +
+        '</div>' +
+        '<div class="btnrow-continue">' +
+          backButtonHtml() +
+          '<button class="continue-btn" id="submitBtn">Continue</button>' +
+        '</div>' +
+      '</div>' +
+      whyPathBoxHtml();
+    stage.innerHTML = html;
+
+    var searchInput = document.getElementById("providerSearch");
+    var suggestionsEl = document.getElementById("providerSuggestions");
+    var chipsEl = document.getElementById("providerChips");
+    searchInput.focus();
+
+    function renderChip(){
+      if (!selectedValue){ chipsEl.innerHTML = ""; return; }
+      var match = flat.find(function(f){ return f.value === selectedValue; });
+      chipsEl.innerHTML = '<span class="dx-chip">' + escapeHtml(match ? match.label : selectedValue) +
+        ' <button type="button" class="dx-chip-x" id="providerClearBtn" aria-label="Clear">×</button></span>';
+      var clearBtn = document.getElementById("providerClearBtn");
+      if (clearBtn) clearBtn.addEventListener("click", function(){
+        selectedValue = null;
+        renderChip();
+        searchInput.value = "";
+        searchInput.style.display = "block";
+        searchInput.focus();
+        renderSuggestions();
+      });
+    }
+
+    function renderSuggestions(){
+      var q = searchInput.value.trim().toLowerCase();
+      suggestionsEl.innerHTML = "";
+      if (!q){ suggestionsEl.style.display = "none"; return; }
+      var matches = flat.filter(function(f){ return f.label.toLowerCase().indexOf(q) !== -1; }).slice(0, 10);
+      if (!matches.length){
+        suggestionsEl.innerHTML = '<div class="dx-suggestion dx-suggestion-empty">No matching provider - try a different search.</div>';
+        suggestionsEl.style.display = "block";
+        return;
+      }
+      suggestionsEl.innerHTML = matches.map(function(f){
+        return '<div class="dx-suggestion" data-val="' + escapeHtml(f.value) + '">' + escapeHtml(f.label) + '</div>';
+      }).join("");
+      suggestionsEl.style.display = "block";
+      suggestionsEl.querySelectorAll(".dx-suggestion[data-val]").forEach(function(el){
+        el.addEventListener("click", function(){
+          selectedValue = el.getAttribute("data-val");
+          renderChip();
+          searchInput.value = "";
+          suggestionsEl.innerHTML = "";
+          suggestionsEl.style.display = "none";
+          searchInput.style.display = "none";
+          document.getElementById("fieldWarn").style.display = "none";
+        });
+      });
+    }
+
+    searchInput.addEventListener("input", renderSuggestions);
+
+    document.getElementById("submitBtn").addEventListener("click", function(){
+      if (!selectedValue){
+        document.getElementById("fieldWarn").style.display = "block";
+        return;
+      }
+      submitText(node, selectedValue);
+    });
+    wireBackButton();
+    wireWhyPathBox();
+  }
+
+  function renderSelectNode(node){
+    var isProvider = node.field === "provider";
+    if (isProvider) return renderProviderSelectNode(node);
+    var placeholderLabel = "Select a department…";
+    var otherLabel = "Type the department";
+    var optionsHtml = '<option value="" disabled selected>' + placeholderLabel + '</option>';
+    var groups = node.dynamicGroups ? node.dynamicGroups(state) : node.groups;
+    if (groups){
+      groups.forEach(function(g){
+        optionsHtml += '<optgroup label="' + escapeHtml(g.label) + '">';
+        g.options.forEach(function(opt){
+          optionsHtml += '<option value="' + escapeHtml(opt.value) + '">' + escapeHtml(opt.label) + '</option>';
+        });
+        optionsHtml += '</optgroup>';
+      });
+    } else {
+      var flatOptions = node.dynamicOptions ? node.dynamicOptions(state) : node.options;
+      flatOptions.forEach(function(opt){
+        var val = (opt && typeof opt === "object") ? opt.value : opt;
+        var label = (opt && typeof opt === "object") ? opt.label : opt;
+        optionsHtml += '<option value="' + escapeHtml(val) + '">' + escapeHtml(label) + '</option>';
+      });
+    }
+    if (node.otherAllowed){
+      optionsHtml += '<option value="__OTHER__">Other / not listed - type it in</option>';
+    }
+    var html = bannerHtml() + contextBadgeHtml(node) +
+      '<div class="card question">' +
+        '<span class="step-label">Select</span>' +
+        '<h2>' + escapeHtml(node.text) + '</h2>' +
+        sourceLabelHtml(node) +
+        warningLabelHtml(node) +
+        definitionLabelHtml(node) +
+        '<div class="input-row">' +
+          '<select class="text-input select-input" id="selectField">' + optionsHtml + '</select>' +
+          (node.otherAllowed ? '<input type="text" class="text-input other-input" id="otherField" placeholder="' + escapeHtml(otherLabel) + '" style="display:none;margin-top:10px;" autocomplete="off">' : '') +
+          '<div class="field-warn" id="fieldWarn">Please choose an option to continue.</div>' +
+        '</div>' +
+        '<div class="btnrow-continue">' +
+          backButtonHtml() +
+          '<button class="continue-btn" id="submitBtn">Continue</button>' +
+        '</div>' +
+      '</div>' +
+      whyPathBoxHtml();
+    stage.innerHTML = html;
+
+    var sel = document.getElementById("selectField");
+    var other = document.getElementById("otherField");
+    sel.addEventListener("change", function(){
+      if (!other) return;
+      if (sel.value === "__OTHER__"){ other.style.display = "block"; other.focus(); }
+      else { other.style.display = "none"; }
+    });
+
+    function doSubmit(){
+      var val = sel.value;
+      if (!val){
+        document.getElementById("fieldWarn").style.display = "block";
+        return;
+      }
+      if (val === "__OTHER__"){
+        var ov = other ? other.value.trim() : "";
+        if (!ov){
+          document.getElementById("fieldWarn").style.display = "block";
+          return;
+
+        }
+        val = ov;
+      }
+      submitText(node, val);
+    }
+    document.getElementById("submitBtn").addEventListener("click", doSubmit);
+    if (other) other.addEventListener("keydown", function(e){ if (e.key === "Enter") doSubmit(); });
+    wireBackButton();
+    wireWhyPathBox();
+  }
+
+  function renderDiagnosisNode(node){
+    var selected = [];
+
+    var html = bannerHtml() + contextBadgeHtml(node) +
+      '<div class="card question">' +
+        '<span class="step-label">Search</span>' +
+        '<h2>' + escapeHtml(node.text) + '</h2>' +
+        sourceLabelHtml(node) +
+        '<div class="input-row dx-picker">' +
+          '<input type="text" class="text-input" id="dxSearch" placeholder="Search diagnoses…" autocomplete="off">' +
+          '<div class="dx-suggestions" id="dxSuggestions"></div>' +
+          '<div class="dx-chips" id="dxChips"></div>' +
+          '<div class="field-warn" id="fieldWarn">Add at least one diagnosis to continue.</div>' +
+        '</div>' +
+        '<div class="btnrow-continue">' +
+          backButtonHtml() +
+          '<button class="continue-btn" id="submitBtn">Continue</button>' +
+        '</div>' +
+      '</div>' +
+      whyPathBoxHtml();
+    stage.innerHTML = html;
+
+    var searchInput = document.getElementById("dxSearch");
+    var suggestionsEl = document.getElementById("dxSuggestions");
+    var chipsEl = document.getElementById("dxChips");
+    searchInput.focus();
+
+    function renderChips(){
+      chipsEl.innerHTML = selected.map(function(d, i){
+        return '<span class="dx-chip" data-i="' + i + '">' + escapeHtml(d) + ' <button type="button" class="dx-chip-x" data-i="' + i + '" aria-label="Remove">×</button></span>';
+      }).join("");
+      chipsEl.querySelectorAll(".dx-chip-x").forEach(function(btn){
+        btn.addEventListener("click", function(){
+          selected.splice(parseInt(btn.getAttribute("data-i"), 10), 1);
+          renderChips();
+        });
+      });
+    }
+
+    function renderSuggestions(){
+      var q = searchInput.value.trim().toLowerCase();
+      suggestionsEl.innerHTML = "";
+      if (!q){ suggestionsEl.style.display = "none"; return; }
+      var matches = CANONICAL_DIAGNOSES.filter(function(d){
+        return d.toLowerCase().indexOf(q) !== -1 && selected.indexOf(d) === -1;
+      }).slice(0, 8);
+      var exact = CANONICAL_DIAGNOSES.some(function(d){ return d.toLowerCase() === q; });
+      var html2 = matches.map(function(d){
+        var cats = specialtiesForDiagnosis(d).join(", ");
+        return '<div class="dx-suggestion" data-val="' + escapeHtml(d) + '">' + escapeHtml(d) +
+          (cats ? '<span class="dx-suggestion-cat">' + escapeHtml(cats) + '</span>' : '') + '</div>';
+      }).join("");
+      if (!exact && selected.indexOf(searchInput.value.trim()) === -1){
+        var typed = searchInput.value.trim();
+        html2 += '<div class="dx-suggestion dx-suggestion-custom" data-val="' + escapeHtml(typed) + '">Add "' + escapeHtml(typed) + '" (not listed)</div>';
+        var suppressSpecialtyTags = node.field === "diagnosisText" && (state._afterDiag2 === "p2_pick_provider_here" || state._afterDiag2 === "p2_diag_auto");
+        if (!suppressSpecialtyTags){
+          html2 += DIAGNOSIS_CATEGORIES.map(function(cat){
+            return '<div class="dx-suggestion dx-suggestion-general" data-val="' + escapeHtml(typed + " [" + cat.specialty + "]") + '">Add "' + escapeHtml(typed) + '" as ' + escapeHtml(cat.specialty) + ' (no specific match - treat as ' + escapeHtml(cat.specialty) + ' for provider matching)</div>';
+          }).join("");
+        }
+      }
+      suggestionsEl.innerHTML = html2;
+      suggestionsEl.style.display = html2 ? "block" : "none";
+      suggestionsEl.querySelectorAll(".dx-suggestion").forEach(function(el){
+        el.addEventListener("click", function(){
+          var val = el.getAttribute("data-val");
+          if (val && selected.indexOf(val) === -1) selected.push(val);
+          searchInput.value = "";
+          renderChips();
+          renderSuggestions();
+          searchInput.focus();
+        });
+      });
+    }
+
+    searchInput.addEventListener("input", renderSuggestions);
+    searchInput.addEventListener("keydown", function(e){
+      if (e.key === "Enter"){
+        e.preventDefault();
+        var first = suggestionsEl.querySelector(".dx-suggestion");
+        if (first) first.click();
+        else doSubmit();
+      }
+    });
+
+    function doSubmit(){
+      if (!selected.length){
+        document.getElementById("fieldWarn").style.display = "block";
+        return;
+      }
+      submitText(node, selected.join(", "));
+    }
+    document.getElementById("submitBtn").addEventListener("click", doSubmit);
+    wireBackButton();
+    wireWhyPathBox();
+  }
+
+  function renderStop(){
+    var html = '<div class="card stop-card">' +
+      '<span class="tag">MANUAL REVIEW</span>' +
+      '<h2>Stopped - manual review needed</h2>' +
+      '<p>' + escapeHtml(state.manualReviewReason || "This case needs manual review.") + '</p>' +
+      errorNoteBoxHtml() +
+      engineeringEscalationButtonHtml() +
+      '<p>Everything already known is printed below. Anything not yet reached is marked STOP - manual review.</p>' +
+      '<div class="btnrow-continue">' +
+        backButtonHtml() +
+        '<button class="again" id="nextPatientBtn">Next patient</button>' +
+        '<button class="again" id="startOverBtn2">Start over</button>' +
+      '</div>' +
+      '</div>' +
+      timeBreakdownHtml() +
+      outputSectionHtml();
+    stage.innerHTML = html;
+    document.getElementById("startOverBtn2").addEventListener("click", reset);
+    document.getElementById("nextPatientBtn").addEventListener("click", exitCurrentRun);
+    wireErrorNoteBox();
+    wireEngineeringEscalationButton();
+    wireBackButton();
+    wireOutputSection();
+  }
+
+  function renderDone(){
+    var html = '<div class="card done-card">' +
+      '<span class="tag">DETERMINATIONS COMPLETE</span>' +
+      '<h2>All set</h2>' +
+      '<p>Update Athena wherever necessary using the output card below.</p>' +
+      engineeringEscalationButtonHtml() +
+      '<div class="btnrow-continue">' +
+        backButtonHtml() +
+        '<button class="again" id="nextPatientBtn">Next patient</button>' +
+        '<button class="again" id="startOverBtn2">Start over</button>' +
+      '</div>' +
+      '</div>' +
+      timeBreakdownHtml() +
+      outputSectionHtml();
+    stage.innerHTML = html;
+    document.getElementById("startOverBtn2").addEventListener("click", reset);
+    document.getElementById("nextPatientBtn").addEventListener("click", exitCurrentRun);
+    wireEngineeringEscalationButton();
+    wireBackButton();
+    wireOutputSection();
+  }
+
+  // ---- init ----
+  stage = document.getElementById("stage");
+  stageBadge = document.getElementById("stageBadge");
+  document.getElementById("headerReset").addEventListener("click", reset);
+  document.getElementById("pauseBtn").addEventListener("click", togglePause);
+  document.getElementById("logBtn").addEventListener("click", function(){
+    viewMode = (viewMode === "log") ? "flow" : "log";
+    render();
+  });
+  setInterval(updateLiveTimer, 500);
+
+  reset();
+})();
+</script>
+
+</body>
+</html>
