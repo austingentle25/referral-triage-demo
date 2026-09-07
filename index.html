@@ -1764,13 +1764,43 @@
       short:"Missing from Care Team entirely?",
       thirdLabel:"Not in Athena's database at all",
       yes:function(s){ setOut("careTeamReferring","add them; address must match referring location"); return "p5_pcp_existing"; },
-      no:function(s){ setOut("careTeamReferring","Referring provider address does not match in the care team: Referring Provider, NPI, Referring Address."); return "p5_pcp_existing"; },
+      no:function(s){ return "p5_ct_name"; },
       third:function(s){
         setOut("careTeamReferring","referring provider not in Athena's database - chart note added, moved to sscardio");
         setOut("bucket","sscardio");
         setOut("actionNote","Referring provider not in database");
         return "p5_pcp_existing";
       }
+    },
+    // The chart note names the referring provider, NPI and address, so those
+    // values have to be collected rather than left as field labels. Each is
+    // optional: what is on the referral is what goes in the note.
+    p5_ct_name: { kind:"text", source:"Referral document / Athena Care Team", part:5, field:"referringProviderName", optional:true,
+      text:"What's the referring provider's name as it should read in the care team? Leave blank if unavailable.",
+      short:"Referring provider name",
+      placeholder:"Leave blank if unavailable",
+      next:"p5_ct_npi"
+    },
+    p5_ct_npi: { kind:"text", source:"Referral document / Athena Care Team", part:5, field:"referringProviderNPI", optional:true,
+      text:"What's their NPI? Leave blank if unavailable.",
+      short:"Referring provider NPI",
+      placeholder:"Leave blank if unavailable",
+      next:"p5_ct_address"
+    },
+    p5_ct_address: { kind:"text", source:"Referral document / Athena Care Team", part:5, field:"referringProviderAddress", optional:true,
+      text:"What's the referring address exactly as it appears on the referral? Leave blank if unavailable.",
+      short:"Referring provider address",
+      placeholder:"Leave blank if unavailable",
+      afterSubmit:function(s){
+        var parts = [];
+        if (s.out.referringProviderName && s.out.referringProviderName.trim()) parts.push(s.out.referringProviderName.trim());
+        if (s.out.referringProviderNPI && s.out.referringProviderNPI.trim()) parts.push(s.out.referringProviderNPI.trim());
+        if (s.out.referringProviderAddress && s.out.referringProviderAddress.trim()) parts.push(s.out.referringProviderAddress.trim());
+        setOut("careTeamReferring", "Referring provider address does not match in the care team: " +
+          (parts.length ? parts.join(", ") : "Referring Provider, NPI, Referring Address") + ".");
+        setOut("careTeamMismatch", "yes");
+      },
+      next:"p5_pcp_existing"
     },
     p5_pcp_existing: { kind:"yesno", source:"Athena Quickview - Care Team", part:5,
       warning:"A provider can be listed as both PCP and Referring Provider at the same time. If a PCP is already listed, do not delete or override it - leave the existing entry alone.",
@@ -2447,7 +2477,12 @@
     var urgencyText = "";
     if (o.urgent === "YES"){
       if (o.urgentReason === "diagnosis"){
-        var dxLabel = (o.diagnosisText || "diagnosis").replace(/\s*\([^)]*\)\s*$/, "");
+        // Strip both the ICD code in parentheses and the [Specialty] tag staff
+        // add when a diagnosis is not on the list - neither belongs in a chart note.
+        var dxLabel = (o.diagnosisText || "diagnosis")
+          .replace(/\s*\[[^\]]*\]\s*$/, "")
+          .replace(/\s*\([^)]*\)\s*$/, "")
+          .trim();
         urgencyText = "Urgent for " + dxLabel;
       } else {
         urgencyText = "Urgent Per Provider";
@@ -2470,6 +2505,8 @@
 
     if (actionShort && actionShort !== "-") segs.push(actionShort);
     else if (state.manualReview) segs.push("Manual review required");
+
+    if (o.careTeamMismatch === "yes" && o.careTeamReferring) segs.push(o.careTeamReferring.replace(/\.$/, ""));
 
     if (urgencyText) segs.push(urgencyText);
 
