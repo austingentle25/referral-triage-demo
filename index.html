@@ -3,18 +3,192 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Referral Triage Guide</title>
+<title>TPR OPS User Guide - Based on Updated Notion</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,400;0,500;0,700;1,400&display=swap" rel="stylesheet">
 <style>
+  /* ---- fluid type: every size below is rem, so one clamp scales the whole UI ---- */
+  html{ font-size:clamp(12.5px, 0.42vw + 11.2px, 17px); -webkit-text-size-adjust:100%; }
+
+  /* ---- palette. Tokens are keyed by colour AND role, because a colour used as
+         both text and surface must go light in one place and dark in the other.
+         Dark mode redefines only this layer; hue is preserved so the brand reads
+         the same. System preference is the default; an explicit choice stamps
+         data-theme on <html> and wins in both directions. ---- */
   :root{
-    --bg:#F3F6F5; --ink:#16241F; --ink-soft:#4B5D57;
-    --panel:#FFFFFF; --line:#D9E2DE;
-    --teal:#A6193B; --teal-dark:#7A1129;
-    --picked:#1B7A4D; --picked-bg:#E7F3EC;
-    --location:#A9660A; --location-bg:#FBF0DD;
-    --review:#B23B3B; --review-bg:#FBE9E9;
+    --k01b:#F3F6F5;
+    --k02f:#16241F;
+    --k03f:#4B5D57;
+    --k04b:#FFFFFF;
+    --k05b:#D9E2DE;
+    --k06b:#A6193B;
+    --k07b:#7A1129;
+    --k08f:#1B7A4D;
+    --k09b:#E7F3EC;
+    --k10f:#A9660A;
+    --k11b:#FBF0DD;
+    --k12f:#B23B3B;
+    --k13b:#FBE9E9;
+    --k14f:#F3F6F5;
+    --k15f:#E7B7C2;
+    --k16b:#C46A82;
+    --k17f:#E7F3EF;
+    --k18b:#5C0E22;
+    --k19f:#E7C9C9;
+    --k20b:#E0A32E;
+    --k21b:#E0A32E;
+    --k22f:#3A2A00;
+    --k23b:#F0AFC0;
+    --k24b:#FBE7EB;
+    --k25b:#F0C6D0;
+    --k26b:#EED6A6;
+    --k27f:#7A4E09;
+    --k28f:#8A5A0A;
+    --k29b:#FFF3D6;
+    --k30b:#F0DBA0;
+    --k31b:#EAF3F1;
+    --k32b:#C9E0DB;
+    --k33b:#F2F2F2;
+    --k34f:#FFF;
+    --k35b:#FBF0F2;
+    --k36b:#F6DEE3;
+    --k37b:#155F3C;
+    --k38b:#8F2F2F;
+    --k39b:#FFF;
+    --k40b:#F2F8F5;
+    --k41b:#BFE0CE;
+    --k42b:#1E4E8C;
+    --k43b:#173D6E;
+    --k44b:#122F55;
+    --k45b:#EBBCBC;
+    --k46b:#F7FAF9;
+    --k47b:#E7F3EC;
+    --k48b:#E2B3B3;
+    --teal-ink:#A6193B; --teal-dark-ink:#7A1129;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+    --k01b:#18201D;
+    --k02f:#DFECE7;
+    --k03f:#E3E8E6;
+    --k04b:#1C1C1C;
+    --k05b:#3E5148;
+    --k06b:#881430;
+    --k07b:#640E22;
+    --k08f:#DEEDE6;
+    --k09b:#254B35;
+    --k10f:#EDE7DE;
+    --k11b:#64440C;
+    --k12f:#EDDEDE;
+    --k13b:#5F1111;
+    --k14f:#F3F6F5;
+    --k15f:#DFC3CA;
+    --k16b:#662939;
+    --k17f:#E8F2EF;
+    --k18b:#4B0B1C;
+    --k19f:#E4CCCC;
+    --k20b:#C1891D;
+    --k21b:#685227;
+    --k22f:#EDE9DE;
+    --k23b:#5E1226;
+    --k24b:#601020;
+    --k25b:#682737;
+    --k26b:#685227;
+    --k27f:#EDE7DE;
+    --k28f:#EDE7DE;
+    --k29b:#684C08;
+    --k30b:#685727;
+    --k31b:#294741;
+    --k32b:#345B52;
+    --k33b:#1C1C1C;
+    --k34f:#FFFFFF;
+    --k35b:#591823;
+    --k36b:#581825;
+    --k37b:#114E31;
+    --k38b:#752727;
+    --k39b:#1C1C1C;
+    --k40b:#274938;
+    --k41b:#2F6045;
+    --k42b:#194073;
+    --k43b:#13325A;
+    --k44b:#0F2848;
+    --k45b:#682727;
+    --k46b:#2B453C;
+    --k47b:#305F43;
+    --k48b:#672727;
+    --teal-ink:#EDA9B7; --teal-dark-ink:#F3C4CD;
+      --teal-ink:#EDA9B7; --teal-dark-ink:#F3C4CD;
+    color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"]{
+    --k01b:#18201D;
+    --k02f:#DFECE7;
+    --k03f:#E3E8E6;
+    --k04b:#1C1C1C;
+    --k05b:#3E5148;
+    --k06b:#881430;
+    --k07b:#640E22;
+    --k08f:#DEEDE6;
+    --k09b:#254B35;
+    --k10f:#EDE7DE;
+    --k11b:#64440C;
+    --k12f:#EDDEDE;
+    --k13b:#5F1111;
+    --k14f:#F3F6F5;
+    --k15f:#DFC3CA;
+    --k16b:#662939;
+    --k17f:#E8F2EF;
+    --k18b:#4B0B1C;
+    --k19f:#E4CCCC;
+    --k20b:#C1891D;
+    --k21b:#685227;
+    --k22f:#EDE9DE;
+    --k23b:#5E1226;
+    --k24b:#601020;
+    --k25b:#682737;
+    --k26b:#685227;
+    --k27f:#EDE7DE;
+    --k28f:#EDE7DE;
+    --k29b:#684C08;
+    --k30b:#685727;
+    --k31b:#294741;
+    --k32b:#345B52;
+    --k33b:#1C1C1C;
+    --k34f:#FFFFFF;
+    --k35b:#591823;
+    --k36b:#581825;
+    --k37b:#114E31;
+    --k38b:#752727;
+    --k39b:#1C1C1C;
+    --k40b:#274938;
+    --k41b:#2F6045;
+    --k42b:#194073;
+    --k43b:#13325A;
+    --k44b:#0F2848;
+    --k45b:#682727;
+    --k46b:#2B453C;
+    --k47b:#305F43;
+    --k48b:#672727;
+    color-scheme: dark;
+  }
+  body{ background:var(--bg); color:var(--ink); }
+  .header-btns a.notionlink, button.themebtn{
+    flex-shrink:0; background:transparent; border:1px solid currentColor; color:inherit;
+    padding:7px 10px; border-radius:7px; font-size:0.8125rem; cursor:pointer; line-height:1;
+    opacity:.85; text-decoration:none; white-space:nowrap;
+  }
+  .header-btns a.notionlink:hover, button.themebtn:hover{ opacity:1; }
+
+  :root{
+    --bg:var(--k01b); --ink:var(--k02f); --ink-soft:var(--k03f);
+    --panel:var(--k04b); --line:var(--k05b);
+    --teal:var(--k06b); --teal-dark:var(--k07b);
+    --picked:var(--k08f); --picked-bg:var(--k09b);
+    --location:var(--k10f); --location-bg:var(--k11b);
+    --review:var(--k12f); --review-bg:var(--k13b);
   }
   *{box-sizing:border-box;}
   html,body{margin:0;padding:0;}
@@ -25,36 +199,36 @@
   }
   .wrap{max-width:640px;margin:0 auto;padding:0 16px;}
   header.top{
-    position:sticky;top:0;z-index:20; background:var(--teal-dark); color:#F3F6F5;
+    position:sticky;top:0;z-index:20; background:var(--teal-dark); color:var(--k14f);
     padding:14px 16px 12px;
   }
   header.top .row{
     max-width:640px;margin:0 auto; display:flex;align-items:center;justify-content:space-between;gap:12px;
   }
   header.top h1{
-    font-family:Roboto,"Roboto Regular","Helvetica Neue",Helvetica,Arial,sans-serif; font-size:18px;
+    font-family:Roboto,"Roboto Regular","Helvetica Neue",Helvetica,Arial,sans-serif; font-size:1.125rem;
     margin:0; font-weight:600; letter-spacing:0.2px;
   }
-  header.top .sub{ font-size:12px; color:#E7B7C2; margin-top:2px; }
+  header.top .sub{ font-size:0.75rem; color:var(--k15f); margin-top:2px; }
   button.startover{
-    flex-shrink:0; background:transparent; border:1px solid #C46A82; color:#E7F3EF;
-    padding:7px 12px; border-radius:7px; font-size:13px; cursor:pointer;
+    flex-shrink:0; background:transparent; border:1px solid var(--k16b); color:var(--k17f);
+    padding:7px 12px; border-radius:7px; font-size:0.8125rem; cursor:pointer;
   }
-  button.startover:hover{background:#5C0E22;}
+  button.startover:hover{background:var(--k18b);}
   .header-btns{ display:flex; gap:8px; align-items:center; flex-shrink:0; }
   .live-timer{
-    font-variant-numeric:tabular-nums; font-size:13px; font-weight:700; color:#E7C9C9;
+    font-variant-numeric:tabular-nums; font-size:0.8125rem; font-weight:700; color:var(--k19f);
     min-width:34px; text-align:right; letter-spacing:.2px;
   }
   button.pausebtn{
-    flex-shrink:0; background:transparent; border:1px solid #C46A82; color:#E7F3EF;
-    padding:7px 12px; border-radius:7px; font-size:13px; cursor:pointer;
+    flex-shrink:0; background:transparent; border:1px solid var(--k16b); color:var(--k17f);
+    padding:7px 12px; border-radius:7px; font-size:0.8125rem; cursor:pointer;
   }
-  button.pausebtn:hover{ background:#5C0E22; }
-  button.pausebtn.is-paused{ background:#E0A32E; border-color:#E0A32E; color:#3A2A00; font-weight:700; }
+  button.pausebtn:hover{ background:var(--k18b); }
+  button.pausebtn.is-paused{ background:var(--k20b); border-color:var(--k21b); color:var(--k22f); font-weight:700; }
   #stage.is-paused > .card{ opacity:0.35; pointer-events:none; user-select:none; }
   .paused-banner{
-    background:#E0A32E; color:#3A2A00; font-weight:700; font-size:13px;
+    background:var(--k20b); color:var(--k22f); font-weight:700; font-size:0.8125rem;
     padding:9px 12px; border-radius:9px; margin:0 0 12px; text-align:center;
   }
 
@@ -65,15 +239,15 @@
     flex:1; height:6px; background:rgba(255,255,255,0.18); border-radius:999px; overflow:hidden;
   }
   .progress-fill{
-    height:100%; width:0%; background:#F0AFC0; border-radius:999px; transition:width .25s ease;
+    height:100%; width:0%; background:var(--k23b); border-radius:999px; transition:width .25s ease;
   }
   .progress-label{
-    font-size:11px; color:#E7B7C2; white-space:nowrap; flex-shrink:0;
+    font-size:0.6875rem; color:var(--k15f); white-space:nowrap; flex-shrink:0;
   }
 
   .stage-badge{
-    display:inline-block; margin:14px 0 10px; font-size:12px; font-weight:700; letter-spacing:0.3px;
-    color:var(--teal-dark); background:#FBE7EB; border:1px solid #F0C6D0; padding:4px 10px; border-radius:999px;
+    display:inline-block; margin:14px 0 10px; font-size:0.75rem; font-weight:700; letter-spacing:0.3px;
+    color:var(--teal-dark-ink); background:var(--k24b); border:1px solid var(--k25b); padding:4px 10px; border-radius:999px;
   }
 
   .definition{
@@ -81,56 +255,56 @@
     border-radius:10px; padding:12px 16px;
   }
   .definition summary{ cursor:pointer; }
-  .definition summary::-webkit-details-marker{ color:var(--teal-dark); }
+  .definition summary::-webkit-details-marker{ color:var(--teal-dark-ink); }
   .def-summary-row{ display:block; }
-  .def-title{ font-size:13px; font-weight:700; color:var(--teal-dark); }
-  .def-oneliner{ display:block; font-size:12.5px; color:var(--ink-soft); margin-top:2px; font-weight:400; }
+  .def-title{ font-size:0.8125rem; font-weight:700; color:var(--teal-dark-ink); }
+  .def-oneliner{ display:block; font-size:0.7812rem; color:var(--ink-soft); margin-top:2px; font-weight:400; }
   .def-body{ margin-top:12px; padding-top:12px; border-top:1px solid var(--line); }
-  .definition p.rule{ margin:0 0 8px; font-size:14px; color:var(--ink); }
+  .definition p.rule{ margin:0 0 8px; font-size:0.875rem; color:var(--ink); }
   .definition p.rule b{font-weight:700;}
-  .definition ul{ margin:0 0 8px; padding-left:18px; font-size:13.5px; color:var(--ink-soft); }
+  .definition ul{ margin:0 0 8px; padding-left:18px; font-size:0.8438rem; color:var(--ink-soft); }
   .definition ul li{margin-bottom:3px;}
-  .definition dl{ margin:8px 0 0; font-size:13px; color:var(--ink-soft); border-top:1px solid var(--line); padding-top:8px; }
+  .definition dl{ margin:8px 0 0; font-size:0.8125rem; color:var(--ink-soft); border-top:1px solid var(--line); padding-top:8px; }
   .definition dl div{display:flex;gap:6px;margin-bottom:4px;}
   .definition dl dt{font-weight:700;color:var(--ink);flex:0 0 auto;}
   .definition dl dd{margin:0;}
-  .definition .def-body details{ margin-top:8px; font-size:12.5px; color:var(--ink-soft); }
-  .definition .def-body summary{ cursor:pointer; font-weight:700; color:var(--teal-dark); }
+  .definition .def-body details{ margin-top:8px; font-size:0.7812rem; color:var(--ink-soft); }
+  .definition .def-body summary{ cursor:pointer; font-weight:700; color:var(--teal-dark-ink); }
   .definition .def-body details ul{ margin-top:6px; }
 
   .card{ background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:22px 18px; margin-bottom:14px; }
 
   .banner{
-    background:#FBF0DD; border:1px solid #EED6A6; color:#7A4E09; font-size:13px;
+    background:var(--k11b); border:1px solid var(--k26b); color:var(--k27f); font-size:0.8125rem;
     padding:10px 14px; border-radius:10px; margin-bottom:14px;
   }
-  .banner b{display:block;font-size:11px;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:3px;color:#8A5A0A;}
+  .banner b{display:block;font-size:0.6875rem;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:3px;color:var(--k28f);}
 
   .context-badge{
-    display:inline-block; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.4px;
+    display:inline-block; font-size:0.6875rem; font-weight:700; text-transform:uppercase; letter-spacing:.4px;
     padding:5px 12px; border-radius:999px; margin-bottom:12px;
-    background:#FFF3D6; color:#8A5A0A; border:1px solid #F0DBA0;
+    background:var(--k29b); color:var(--k28f); border:1px solid var(--k30b);
   }
   .source-label{
-    font-size:12.5px; color:var(--ink-soft); margin:8px 0 14px;
+    font-size:0.7812rem; color:var(--ink-soft); margin:8px 0 14px;
   }
   .source-label b{ color:var(--ink); font-weight:700; }
   .warning-label{
-    font-size:12.5px; color:#8A5A0A; background:#FFF3D6; border:1px solid #F0DBA0;
+    font-size:0.7812rem; color:var(--k28f); background:var(--k29b); border:1px solid var(--k30b);
     border-radius:8px; padding:8px 11px; margin:8px 0 14px; font-weight:600; line-height:1.4;
   }
   .resume-box{
     margin-top:16px; padding-top:14px; border-top:1px solid var(--line);
   }
-  .resume-box summary{ font-size:13px; color:var(--teal-dark); font-weight:600; cursor:pointer; }
-  .resume-box .textarea-input{ margin-top:10px; font-size:13px; }
+  .resume-box summary{ font-size:0.8125rem; color:var(--teal-dark-ink); font-weight:600; cursor:pointer; }
+  .resume-box .textarea-input{ margin-top:10px; font-size:0.8125rem; }
   .resume-btn{ margin-top:10px; }
   .resume-error{
     margin-top:8px; padding:8px 11px; background:var(--review-bg); color:var(--review);
-    border-radius:8px; font-size:12.5px; font-weight:600;
+    border-radius:8px; font-size:0.7812rem; font-weight:600;
   }
   .definition-label{
-    font-size:12.5px; color:var(--teal-dark); background:#EAF3F1; border:1px solid #C9E0DB;
+    font-size:0.7812rem; color:var(--teal-dark-ink); background:var(--k31b); border:1px solid var(--k32b);
     border-radius:8px; padding:8px 11px; margin:8px 0 14px; font-weight:500; line-height:1.4;
   }
   .toggle-row{ display:flex; gap:10px; margin-top:14px; }
@@ -138,29 +312,29 @@
   .edge-case-toggle{
     display:block; width:100%; margin:14px 0 0; padding:11px 14px;
     background:var(--panel); border:1px solid var(--line); border-radius:9px;
-    font-size:13.5px; color:var(--ink); cursor:pointer; text-align:center;
+    font-size:0.8438rem; color:var(--ink); cursor:pointer; text-align:center;
     font-family:inherit; transition:background .15s, border-color .15s, color .15s;
   }
-  .edge-case-toggle:hover{ background:#F2F2F2; }
+  .edge-case-toggle:hover{ background:var(--k33b); }
   .edge-case-toggle.active{
-    background:var(--teal-dark); border-color:var(--teal-dark); color:#fff; font-weight:700;
+    background:var(--teal-dark); border-color:var(--teal-dark-ink); color:var(--k34f); font-weight:700;
   }
   .checkpoint-card{
-    background:var(--teal-dark); border-radius:14px; padding:16px 18px; margin-bottom:14px; color:#fff;
+    background:var(--teal-dark); border-radius:14px; padding:16px 18px; margin-bottom:14px; color:var(--k34f);
   }
-  .checkpoint-title{ font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.4px; opacity:0.85; margin-bottom:10px; }
-  .checkpoint-row{ display:flex; justify-content:space-between; gap:12px; padding:5px 0; font-size:14.5px; }
+  .checkpoint-title{ font-size:0.6875rem; font-weight:700; text-transform:uppercase; letter-spacing:.4px; opacity:0.85; margin-bottom:10px; }
+  .checkpoint-row{ display:flex; justify-content:space-between; gap:12px; padding:5px 0; font-size:0.9062rem; }
   .cp-label{ opacity:0.8; }
   .cp-val{ font-weight:700; text-align:right; }
-  .checkpoint-note{ margin-top:10px; padding-top:10px; border-top:1px solid rgba(255,255,255,0.25); font-size:13px; font-weight:600; }
+  .checkpoint-note{ margin-top:10px; padding-top:10px; border-top:1px solid rgba(255,255,255,0.25); font-size:0.8125rem; font-weight:600; }
 
   .relevant-providers{
     background:var(--panel); border:1px solid var(--line); border-radius:11px;
     padding:12px 14px; margin:0 0 16px;
   }
   .relevant-providers-title{
-    font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.4px;
-    color:var(--teal-dark); margin-bottom:8px;
+    font-size:0.6875rem; font-weight:700; text-transform:uppercase; letter-spacing:.4px;
+    color:var(--teal-dark-ink); margin-bottom:8px;
   }
   .relevant-provider-row{
     display:flex; flex-direction:column; padding:9px 6px; border-top:1px solid var(--line); gap:1px;
@@ -168,47 +342,47 @@
     cursor:pointer; border-radius:6px; transition:background .12s;
   }
   .relevant-provider-row:first-of-type{ border-top:none; }
-  .relevant-provider-row:hover{ background:#FBF0F2; }
-  .relevant-provider-row:active{ background:#F6DEE3; }
-  .rp-name{ font-size:13.5px; font-weight:700; color:var(--ink); }
-  .rp-meta{ font-size:12px; color:var(--ink-soft); }
+  .relevant-provider-row:hover{ background:var(--k35b); }
+  .relevant-provider-row:active{ background:var(--k36b); }
+  .rp-name{ font-size:0.8438rem; font-weight:700; color:var(--ink); }
+  .rp-meta{ font-size:0.75rem; color:var(--ink-soft); }
   .relevant-provider-row.rp-blocked{ opacity:0.6; }
   .relevant-provider-row.rp-blocked .rp-meta{ color:var(--review); font-weight:600; }
 
   .question h2, .output-card h2, .stop-card h2, .done-card h2{
-    font-family:Roboto,"Roboto Regular","Helvetica Neue",Helvetica,Arial,sans-serif; font-size:20px; line-height:1.35;
+    font-family:Roboto,"Roboto Regular","Helvetica Neue",Helvetica,Arial,sans-serif; font-size:1.25rem; line-height:1.35;
     margin:0 0 4px; color:var(--ink); font-weight:600;
   }
-  .question .step-label{ font-size:12px; color:var(--teal-dark); font-weight:700; margin-bottom:8px; display:block; }
+  .question .step-label{ font-size:0.75rem; color:var(--teal-dark-ink); font-weight:700; margin-bottom:8px; display:block; }
   .btnrow{ display:flex;gap:10px; margin-top:20px; }
   .btn{
-    flex:1; padding:16px 10px; font-size:17px; font-weight:700; border-radius:11px; border:none;
+    flex:1; padding:16px 10px; font-size:1.0625rem; font-weight:700; border-radius:11px; border:none;
     cursor:pointer; -webkit-tap-highlight-color:transparent;
   }
-  .btn.yes{background:var(--picked);color:#fff;}
-  .btn.yes:active{background:#155f3c;}
-  .btn.no{background:var(--review);color:#fff;}
-  .btn.no:active{background:#8f2f2f;}
+  .btn.yes{background:var(--picked);color:var(--k34f);}
+  .btn.yes:active{background:var(--k37b);}
+  .btn.no{background:var(--review);color:var(--k34f);}
+  .btn.no:active{background:var(--k38b);}
   .third-row{ margin-top:10px; text-align:center; }
   .btn.third{
     background:none; border:1px solid var(--location); color:var(--location);
-    padding:9px 16px; border-radius:9px; font-size:13.5px; font-weight:700; cursor:pointer;
+    padding:9px 16px; border-radius:9px; font-size:0.8438rem; font-weight:700; cursor:pointer;
   }
 
   .input-row{ margin-top:18px; }
   .text-input{
-    width:100%; padding:13px 12px; font-size:16px; border:1px solid var(--line); border-radius:9px;
+    width:100%; padding:13px 12px; font-size:1rem; border:1px solid var(--line); border-radius:9px;
     font-family:inherit; color:var(--ink);
   }
-  .text-input:focus{ outline:2px solid var(--teal); border-color:var(--teal); }
+  .text-input:focus{ outline:2px solid var(--teal); border-color:var(--teal-ink); }
   .textarea-input{ font-family:inherit; resize:vertical; line-height:1.4; }
 
   .prefixed-input{
-    display:flex; align-items:stretch; border:1px solid var(--line); border-radius:9px; overflow:hidden; background:#fff;
+    display:flex; align-items:stretch; border:1px solid var(--line); border-radius:9px; overflow:hidden; background:var(--k39b);
   }
-  .prefixed-input:focus-within{ outline:2px solid var(--teal); border-color:var(--teal); }
+  .prefixed-input:focus-within{ outline:2px solid var(--teal); border-color:var(--teal-ink); }
   .input-prefix{
-    display:flex; align-items:center; padding:0 0 0 12px; font-size:16px; font-weight:600;
+    display:flex; align-items:center; padding:0 0 0 12px; font-size:1rem; font-weight:600;
     color:var(--ink-soft); white-space:nowrap; user-select:none;
   }
   .prefixed-input .text-input{ border:none; outline:none; padding-left:4px; }
@@ -217,155 +391,155 @@
   .dx-picker{ position:relative; }
   .dx-suggestions{
     display:none; position:relative; margin-top:6px; border:1px solid var(--line); border-radius:9px;
-    background:#fff; max-height:280px; overflow-y:auto; box-shadow:0 4px 14px rgba(0,0,0,0.06);
+    background:var(--k39b); max-height:280px; overflow-y:auto; box-shadow:0 4px 14px rgba(0,0,0,0.06);
   }
   .dx-suggestion{
-    padding:11px 12px; font-size:14.5px; color:var(--ink); cursor:pointer; border-bottom:1px solid var(--line);
+    padding:11px 12px; font-size:0.9062rem; color:var(--ink); cursor:pointer; border-bottom:1px solid var(--line);
     display:flex; flex-direction:column;
   }
   .dx-suggestion:last-child{ border-bottom:none; }
-  .dx-suggestion:hover, .dx-suggestion:active{ background:#F2F8F5; }
-  .dx-suggestion-cat{ font-size:11px; color:var(--teal-dark); margin-top:2px; font-weight:600; }
+  .dx-suggestion:hover, .dx-suggestion:active{ background:var(--k40b); }
+  .dx-suggestion-cat{ font-size:0.6875rem; color:var(--teal-dark-ink); margin-top:2px; font-weight:600; }
   .dx-suggestion-custom{ color:var(--ink-soft); font-style:italic; }
-  .dx-suggestion-general{ color:var(--teal-dark); font-style:italic; font-weight:600; }
+  .dx-suggestion-general{ color:var(--teal-dark-ink); font-style:italic; font-weight:600; }
   .dx-chips{ display:flex; flex-wrap:wrap; gap:7px; margin-top:12px; }
   .dx-chip{
-    display:inline-flex; align-items:center; gap:6px; background:var(--picked-bg); border:1px solid #BFE0CE;
-    color:var(--picked); font-size:13.5px; font-weight:600; padding:6px 6px 6px 12px; border-radius:999px;
+    display:inline-flex; align-items:center; gap:6px; background:var(--picked-bg); border:1px solid var(--k41b);
+    color:var(--picked); font-size:0.8438rem; font-weight:600; padding:6px 6px 6px 12px; border-radius:999px;
   }
   .dx-chip-x{
-    background:none; border:none; color:var(--picked); font-size:16px; line-height:1; cursor:pointer;
+    background:none; border:none; color:var(--picked); font-size:1rem; line-height:1; cursor:pointer;
     padding:2px 6px; border-radius:999px;
   }
   .dx-chip-x:hover{ background:rgba(27,122,77,0.15); }
-  select.text-input{ background:#fff; appearance:auto; }
-  .field-warn{ color:var(--review); font-size:12px; margin-top:6px; display:none; }
+  select.text-input{ background:var(--k39b); appearance:auto; }
+  .field-warn{ color:var(--review); font-size:0.75rem; margin-top:6px; display:none; }
 
   .btnrow-continue{ display:flex; gap:10px; margin-top:16px; }
   .continue-btn{
     flex:1; display:block; padding:15px; background:var(--teal-dark); border:none;
-    border-radius:11px; color:#fff; font-size:15.5px; font-weight:700; cursor:pointer;
+    border-radius:11px; color:var(--k34f); font-size:0.9688rem; font-weight:700; cursor:pointer;
   }
-  .continue-btn:active{background:#5C0E22;}
+  .continue-btn:active{background:var(--k18b);}
   .back-btn{
     flex:0 0 auto; padding:15px 20px; background:var(--panel); border:1px solid var(--line);
-    border-radius:11px; color:var(--ink); font-size:15px; font-weight:700; cursor:pointer;
+    border-radius:11px; color:var(--ink); font-size:0.9375rem; font-weight:700; cursor:pointer;
   }
-  .back-btn:active{ background:#F2F2F2; }
+  .back-btn:active{ background:var(--k33b); }
 
   .whypath-box{
     margin:10px 0 14px; padding:9px 12px; background:var(--panel); border:1px solid var(--line);
-    border-radius:9px; font-size:11.5px; line-height:1.5; color:var(--ink-soft); cursor:pointer;
+    border-radius:9px; font-size:0.7188rem; line-height:1.5; color:var(--ink-soft); cursor:pointer;
     transition:background .15s, border-color .15s;
   }
-  .whypath-box:hover{ background:#FBF0F2; border-color:#F0C6D0; }
-  .whypath-box:active{ background:#F6DEE3; }
-  .whypath-box.copied{ background:var(--picked-bg); border-color:#BFE0CE; }
+  .whypath-box:hover{ background:var(--k35b); border-color:var(--k25b); }
+  .whypath-box:active{ background:var(--k36b); }
+  .whypath-box.copied{ background:var(--picked-bg); border-color:var(--k41b); }
   .whypath-label{
-    display:block; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.4px;
-    color:var(--teal-dark); margin-bottom:3px;
+    display:block; font-size:0.625rem; font-weight:700; text-transform:uppercase; letter-spacing:.4px;
+    color:var(--teal-dark-ink); margin-bottom:3px;
   }
   .whypath-box.copied .whypath-label{ color:var(--picked); }
 
-  .time-breakdown-card h3{ margin:4px 0 10px; font-size:15px; }
-  .time-total{ font-weight:400; color:var(--ink-soft); font-size:12.5px; }
+  .time-breakdown-card h3{ margin:4px 0 10px; font-size:0.9375rem; }
+  .time-total{ font-weight:400; color:var(--ink-soft); font-size:0.7812rem; }
   .time-row{
     display:flex; justify-content:space-between; gap:10px; padding:8px 0;
-    border-top:1px solid var(--line); font-size:13px;
+    border-top:1px solid var(--line); font-size:0.8125rem;
   }
   .time-row:first-of-type{ border-top:none; }
   .time-label{ color:var(--ink-soft); }
   .time-val{ font-weight:700; color:var(--ink); white-space:nowrap; }
 
   .escalate-btn{
-    display:block; width:100%; margin:0 0 14px; padding:14px 16px; background:#1E4E8C; border:none;
+    display:block; width:100%; margin:0 0 14px; padding:14px 16px; background:var(--k42b); border:none;
     border-radius:11px; cursor:pointer; text-align:center; transition:background .15s;
   }
-  .escalate-btn:hover{ background:#173D6E; }
-  .escalate-btn:active{ background:#122F55; }
+  .escalate-btn:hover{ background:var(--k43b); }
+  .escalate-btn:active{ background:var(--k44b); }
   .escalate-btn.copied{ background:var(--picked); }
-  .escalate-label{ color:#fff; font-weight:700; font-size:14px; }
+  .escalate-label{ color:var(--k34f); font-weight:700; font-size:0.875rem; }
 
   .errornote-box{
-    margin:14px 0 0; padding:11px 14px; background:#fff; border:1px solid #EBBCBC;
-    border-radius:9px; font-size:13px; line-height:1.5; color:var(--ink); cursor:pointer;
+    margin:14px 0 0; padding:11px 14px; background:var(--k39b); border:1px solid var(--k45b);
+    border-radius:9px; font-size:0.8125rem; line-height:1.5; color:var(--ink); cursor:pointer;
     font-weight:600; transition:background .15s, border-color .15s;
   }
-  .errornote-box:hover{ background:#FBF0F2; }
-  .errornote-box:active{ background:#F6DEE3; }
-  .errornote-box.copied{ background:var(--picked-bg); border-color:#BFE0CE; }
+  .errornote-box:hover{ background:var(--k35b); }
+  .errornote-box:active{ background:var(--k36b); }
+  .errornote-box.copied{ background:var(--picked-bg); border-color:var(--k41b); }
   .errornote-label{
-    display:block; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.4px;
+    display:block; font-size:0.625rem; font-weight:700; text-transform:uppercase; letter-spacing:.4px;
     color:var(--review); margin-bottom:4px;
   }
   .errornote-box.copied .errornote-label{ color:var(--picked); }
 
   .again{
     display:block;width:100%; margin-top:12px; padding:14px; background:var(--panel); border:1px solid var(--line);
-    border-radius:11px; color:var(--ink); font-size:15px; font-weight:700; cursor:pointer;
+    border-radius:11px; color:var(--ink); font-size:0.9375rem; font-weight:700; cursor:pointer;
   }
   .btnrow-continue .again{ flex:1; width:auto; margin-top:0; }
 
-  .stop-card{ background:var(--review-bg); border:1px solid #EBBCBC; }
-  .done-card{ background:var(--picked-bg); border:1px solid #BFE0CE; }
+  .stop-card{ background:var(--review-bg); border:1px solid var(--k45b); }
+  .done-card{ background:var(--picked-bg); border:1px solid var(--k41b); }
   .stop-card .tag, .done-card .tag{
-    display:inline-block; font-size:12px; font-weight:700; letter-spacing:0.3px; padding:4px 10px;
-    border-radius:999px; margin-bottom:10px; color:#fff;
+    display:inline-block; font-size:0.75rem; font-weight:700; letter-spacing:0.3px; padding:4px 10px;
+    border-radius:999px; margin-bottom:10px; color:var(--k34f);
   }
   .stop-card .tag{background:var(--review);}
   .done-card .tag{background:var(--picked);}
-  .stop-card p, .done-card p{ font-size:14.5px; color:var(--ink-soft); margin:0 0 4px; }
+  .stop-card p, .done-card p{ font-size:0.9062rem; color:var(--ink-soft); margin:0 0 4px; }
 
   .output-card{ background:var(--panel); border:1px solid var(--line); border-left:4px solid var(--teal-dark); }
-  .output-card h2{ font-size:15px; margin-bottom:2px; }
-  .output-hint{ font-size:12px; color:var(--ink-soft); margin:0 0 10px; }
+  .output-card h2{ font-size:0.9375rem; margin-bottom:2px; }
+  .output-hint{ font-size:0.75rem; color:var(--ink-soft); margin:0 0 10px; }
   .output-fields{ display:flex; flex-direction:column; gap:6px; }
   .output-section{
-    font-size:11px; font-weight:700; color:var(--teal-dark); text-transform:uppercase; letter-spacing:.4px;
+    font-size:0.6875rem; font-weight:700; color:var(--teal-dark-ink); text-transform:uppercase; letter-spacing:.4px;
     margin:12px 0 2px; padding-top:8px; border-top:1px solid var(--line);
   }
   .output-section:first-child{ margin-top:0; padding-top:0; border-top:none; }
   .output-box{
-    border:1px solid var(--line); border-radius:8px; padding:9px 11px; cursor:pointer; background:#F7FAF9;
+    border:1px solid var(--line); border-radius:8px; padding:9px 11px; cursor:pointer; background:var(--k46b);
     transition:background .15s, border-color .15s;
   }
-  .output-box:hover{ background:#FBF0F2; border-color:#F0C6D0; }
-  .output-box:active{ background:#F6DEE3; }
-  .output-box.copied{ background:var(--picked-bg); border-color:#BFE0CE; }
-  .output-box.status-closed{ background:var(--picked-bg); border-color:#BFE0CE; }
+  .output-box:hover{ background:var(--k35b); border-color:var(--k25b); }
+  .output-box:active{ background:var(--k36b); }
+  .output-box.copied{ background:var(--picked-bg); border-color:var(--k41b); }
+  .output-box.status-closed{ background:var(--picked-bg); border-color:var(--k41b); }
   .output-box.status-closed .ob-value{ color:var(--picked); font-weight:700; }
-  .output-box.status-review{ background:var(--location-bg); border-color:#EED6A6; }
+  .output-box.status-review{ background:var(--location-bg); border-color:var(--k26b); }
   .output-box.status-review .ob-value{ color:var(--location); font-weight:700; }
-  .output-box.urgent-yes{ background:var(--review-bg); border-color:#EBBCBC; }
+  .output-box.urgent-yes{ background:var(--review-bg); border-color:var(--k45b); }
   .output-box.urgent-yes .ob-value{ color:var(--review); font-weight:700; }
   .urgent-banner{
-    background:var(--review); color:#fff; font-weight:700; font-size:13px;
+    background:var(--review); color:var(--k34f); font-weight:700; font-size:0.8125rem;
     padding:9px 12px; border-radius:9px; margin:0 0 12px; text-align:center; letter-spacing:0.2px;
   }
-  .ob-label{ font-size:10.5px; text-transform:uppercase; letter-spacing:.4px; color:var(--ink-soft); font-weight:700; }
-  .ob-value{ font-size:13.5px; color:var(--ink); margin-top:2px; word-break:break-word; white-space:pre-wrap; }
-  .output-raw{ margin-top:14px; font-size:12.5px; color:var(--ink-soft); }
-  .output-raw summary{ cursor:pointer; font-weight:700; color:var(--teal-dark); }
+  .ob-label{ font-size:0.6562rem; text-transform:uppercase; letter-spacing:.4px; color:var(--ink-soft); font-weight:700; }
+  .ob-value{ font-size:0.8438rem; color:var(--ink); margin-top:2px; word-break:break-word; white-space:pre-wrap; }
+  .output-raw{ margin-top:14px; font-size:0.7812rem; color:var(--ink-soft); }
+  .output-raw summary{ cursor:pointer; font-weight:700; color:var(--teal-dark-ink); }
   .output-card pre{
     white-space:pre-wrap; word-break:break-word; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
-    font-size:12.5px; line-height:1.55; background:#F7FAF9; border:1px solid var(--line); border-radius:9px;
+    font-size:0.7812rem; line-height:1.55; background:var(--k46b); border:1px solid var(--line); border-radius:9px;
     padding:12px; color:var(--ink); margin-top:8px;
   }
   .copy-btn{
-    margin-top:14px; background:var(--teal); color:#fff; border:none; padding:10px 16px; border-radius:9px;
-    font-size:13.5px; font-weight:700; cursor:pointer;
+    margin-top:14px; background:var(--teal); color:var(--k34f); border:none; padding:10px 16px; border-radius:9px;
+    font-size:0.8438rem; font-weight:700; cursor:pointer;
   }
   .copy-btn:active{background:var(--teal-dark);}
 
-  footer.note{ max-width:640px;margin:22px auto 0;padding:0 16px; font-size:12px;color:var(--ink-soft); }
+  footer.note{ max-width:640px;margin:22px auto 0;padding:0 16px; font-size:0.75rem;color:var(--ink-soft); }
 
   /* ---- session log ---- */
   button.logbtn{
-    flex-shrink:0; background:transparent; border:1px solid #C46A82; color:#E7F3EF;
-    padding:7px 12px; border-radius:7px; font-size:13px; cursor:pointer; font-family:inherit;
+    flex-shrink:0; background:transparent; border:1px solid var(--k16b); color:var(--k17f);
+    padding:7px 12px; border-radius:7px; font-size:0.8125rem; cursor:pointer; font-family:inherit;
   }
-  button.logbtn:hover{ background:#5C0E22; }
-  button.logbtn.has-entries{ background:#E7F3EC; border-color:#E7F3EC; color:#16241F; font-weight:700; }
+  button.logbtn:hover{ background:var(--k18b); }
+  button.logbtn.has-entries{ background:var(--k09b); border-color:var(--k47b); color:var(--k02f); font-weight:700; }
   .log-entry{
     background:var(--panel); border:1px solid var(--line); border-left:4px solid var(--picked);
     border-radius:10px; padding:10px 14px; margin:0 0 10px;
@@ -375,26 +549,26 @@
   .log-entry summary{ cursor:pointer; list-style:none; }
   .log-entry summary::-webkit-details-marker{ display:none; }
   .log-top{ display:flex; align-items:baseline; justify-content:space-between; gap:10px; }
-  .log-name{ font-weight:700; font-size:15px; word-break:break-word; }
-  .log-outcome{ flex-shrink:0; font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px;
+  .log-name{ font-weight:700; font-size:0.9375rem; word-break:break-word; }
+  .log-outcome{ flex-shrink:0; font-size:0.6875rem; font-weight:700; padding:2px 8px; border-radius:999px;
     background:var(--picked-bg); color:var(--picked); }
   .log-entry.is-review .log-outcome{ background:var(--review-bg); color:var(--review); }
   .log-entry.is-exited .log-outcome{ background:var(--location-bg); color:var(--location); }
-  .log-meta{ font-size:12px; color:var(--ink-soft); margin-top:3px; word-break:break-word; }
+  .log-meta{ font-size:0.75rem; color:var(--ink-soft); margin-top:3px; word-break:break-word; }
   .log-body{ margin-top:10px; border-top:1px solid var(--line); padding-top:10px; }
   .log-out{
     white-space:pre-wrap; word-break:break-word; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
-    font-size:11px; line-height:1.45; background:var(--bg); border:1px solid var(--line);
+    font-size:0.6875rem; line-height:1.45; background:var(--bg); border:1px solid var(--line);
     border-radius:8px; padding:10px; max-height:260px; overflow:auto;
   }
   .log-actions{ display:flex; flex-wrap:wrap; gap:8px; margin-top:10px; }
   .log-actions button{
-    font-family:inherit; font-size:12px; padding:6px 12px; border-radius:7px; cursor:pointer;
+    font-family:inherit; font-size:0.75rem; padding:6px 12px; border-radius:7px; cursor:pointer;
     border:1px solid var(--line); background:var(--panel); color:var(--ink);
   }
   .log-actions button:hover{ background:var(--bg); }
-  .log-summary-bar{ font-size:12px; color:var(--ink-soft); margin:0 0 12px; }
-  .danger-btn{ border-color:#E2B3B3 !important; color:var(--review) !important; }
+  .log-summary-bar{ font-size:0.75rem; color:var(--ink-soft); margin:0 0 12px; }
+  .danger-btn{ border-color:var(--k48b) !important; color:var(--review) !important; }
 
   /* The header carries four controls once the log button is added, which is
      enough to squeeze the title into a column on a phone. Below 560px the title
@@ -403,9 +577,9 @@
   @media (max-width:560px){
     header.top .row{ flex-wrap:wrap; }
     header.top .row > div:first-child{ flex:1 1 100%; }
-    header.top h1{ font-size:17px; }
+    header.top h1{ font-size:1.0625rem; }
     .header-btns{ width:100%; justify-content:flex-end; }
-    button.logbtn, button.pausebtn, button.startover{ padding:6px 10px; font-size:12px; }
+    button.logbtn, button.pausebtn, button.startover{ padding:6px 10px; font-size:0.75rem; }
   }
 </style>
 </head>
@@ -414,11 +588,13 @@
 <header class="top">
   <div class="row">
     <div>
-      <h1>Referral Triage Guide</h1>
-      <div class="sub" id="headerSub">Example Cardiology</div>
+      <h1>TPR OPS User Guide</h1>
+      <div class="sub" id="headerSub"><em>- Based on Updated Notion</em> · Biltmore Cardiology</div>
     </div>
     <div class="header-btns">
       <span class="live-timer" id="liveTimer">0:00</span>
+      <a class="notionlink" href="https://app.notion.com/p/TPR-Pilot-Updated-Notion-3cfa27dc8d918006a439cadf0376b44d" target="_blank" rel="noopener noreferrer" title="Open the TPR Pilot Notion page">Notion</a>
+      <button class="themebtn" id="themeBtn" aria-label="Toggle dark mode" title="Toggle dark mode">◐</button>
       <button class="pausebtn" id="pauseBtn">⏸ Pause</button>
       <button class="logbtn" id="logBtn">Log (0)</button>
       <button class="startover" id="headerReset">Start over</button>
@@ -459,48 +635,48 @@
   })();
 
   var DEPT_OPTIONS = [
-    "Northgate (101)",
-    "Eastfield (102)", "Southport (103)", "Midtown (104)", "Lakeview (105)",
-    "Westbrook (106)", "North Ridge (107)", "HVI (108)",
-    "Parkway (109)", "Harborview (110)", "Fairview (111)", "Brookside Way (112)",
-    "Stonebridge (113)", "Highland (114)"
+    "Camelback (648)",
+    "Arrowhead (381)", "Casa Grande (523)", "Central (576)", "Scottsdale (594)",
+    "Goodyear (622)", "North Peoria (624)", "AHI (625)",
+    "Terrace (678)", "West (683)", "Surprise (708)", "Verrado Way (747)",
+    "Wickenburg (752)", "Kierland (772)"
   ];
 
   var PROVIDER_DATA = [
-    { name:"Adam Reyes, MD", specialty:"General, Interventional, Structural", locations:["Northgate","Southport"], inClinicOnly:true, notes:"All scheduling must go to in-clinic" },
-    { name:"Alan Whitfield, MD", specialty:"General, Interventional, Structural", locations:["Northgate"] },
-    { name:"Bianca Osei, MD", specialty:"General", locations:["Lakeview","Eastfield","Fairview"] },
-    { name:"Caleb Nakamura, MD", specialty:"General, Interventional, Structural", locations:["HVI"] },
-    { name:"Dana Whitlock, MD", specialty:"General, Interventional, Structural", locations:["Eastfield","Fairview","Ridge"] },
-    { name:"Elena Marsh, MD", specialty:"General, Interventional", locations:["Brookside","Harborview"] },
-    { name:"Felix Barrow, MD", specialty:"General", locations:["Southport"] },
-    { name:"Grace Halloway, DO", specialty:"General, Interventional", locations:["Eastfield","Fairview","Ridge"] },
-    { name:"Henry Vance, DO", specialty:"General", locations:["Northgate","HVI"] },
-    { name:"Iris Calloway, MD", specialty:"General", locations:["Eastfield","Fairview","Ridge"] },
-    { name:"Jonah Pratt, MD", specialty:"General, Interventional", locations:["Northgate"] },
-    { name:"Karen Ellsworth, MD", specialty:"Electrophysiology", locations:["Northgate"], inClinicOnly:true, notes:"All scheduling must go to in-clinic" },
-    { name:"Liam Rutherford, MD", specialty:"General", locations:["HVI"] },
-    { name:"Maya Sinclair, MD", specialty:"General, Interventional", locations:["Northgate"] },
-    { name:"Noah Kingsley, MD", specialty:"General", locations:["Northgate"] },
-    { name:"Olivia Trent, MD", specialty:"General, Interventional", locations:["Northgate"], notes:"Exception: also sees Pure hypercholesterolemia, unspecified" },
-    { name:"Priya Nakagawa, MD", specialty:"General", locations:["Eastfield","Ridge"] },
-    { name:"Quinn Ashford, MD", specialty:"Electrophysiology", locations:["Westbrook","Brookside","Northgate"], nonAutoScheduling:true, notes:"Not scheduled through the intake system - route to specialty-scheduling" },
-    { name:"Rosa Lindqvist, DO", specialty:"General, Interventional", locations:["Brookside","Harborview"] },
-    { name:"Sofia De Luca, MD", specialty:"General, Interventional", locations:["Harborview"] },
-    { name:"Theo Ramsey, MD", specialty:"General", locations:["Westbrook","Fairview","Harborview"] },
-    { name:"Uma Castellanos, DO", specialty:"General, Interventional, Structural", locations:["Northgate"] },
-    { name:"Victor Ellery, MD", specialty:"General", locations:["Lakeview","Midtown"] },
-    { name:"Wendy Archer", specialty:"", locations:[] },
-    { name:"Xavier Bloom, MD", specialty:"General, Interventional", locations:["Northgate"], notes:"Southbank physician, will have Northgate availability" },
-    { name:"Yara Nasser", specialty:"", locations:[] },
-    { name:"Zoe Hartley", specialty:"", locations:[] },
-    { name:"Nina Delacroix, DNP", specialty:"General", locations:["Northgate"] },
-    { name:"Owen Fairbanks", specialty:"General", locations:["Northgate"] }
+    { name:"Akil Loli, MD", specialty:"General, Interventional, Structural", locations:["Camelback","Casa Grande"], inClinicOnly:true, notes:"All scheduling must go to in-clinic" },
+    { name:"Akram Ibrahim, MD", specialty:"General, Interventional, Structural", locations:["Camelback"] },
+    { name:"Ashish Gupta, MD", specialty:"General", locations:["Scottsdale","Arrowhead","Surprise"] },
+    { name:"Ayman Jamal, MD", specialty:"General, Interventional, Structural", locations:["AHI"] },
+    { name:"David Prutzman, MD", specialty:"General, Interventional, Structural", locations:["Arrowhead","Surprise","Peoria"] },
+    { name:"James Kim, MD", specialty:"General, Interventional", locations:["Verrado","West"] },
+    { name:"Jason Cool, MD", specialty:"General", locations:["Casa Grande"] },
+    { name:"Kristina Skinner, DO", specialty:"General, Interventional", locations:["Arrowhead","Surprise","Peoria"] },
+    { name:"Lawrence Kline, DO", specialty:"General", locations:["Camelback","AHI"] },
+    { name:"Maedeh Kholgi, MD", specialty:"General", locations:["Arrowhead","Surprise","Peoria"] },
+    { name:"Marium Muzaffar, MD", specialty:"General, Interventional", locations:["Camelback"] },
+    { name:"Marwan Bahu, MD", specialty:"Electrophysiology", locations:["Camelback"], inClinicOnly:true, notes:"All scheduling must go to in-clinic" },
+    { name:"Michelle Mix, MD", specialty:"General", locations:["AHI"] },
+    { name:"Neal Klein, MD", specialty:"General, Interventional", locations:["Camelback"] },
+    { name:"Nickalaus Gramze, MD", specialty:"General", locations:["Camelback"] },
+    { name:"Peter Maki, MD", specialty:"General, Interventional", locations:["Camelback"], notes:"Exception: also sees Pure hypercholesterolemia, unspecified" },
+    { name:"Rahool Karnik, MD", specialty:"General", locations:["Arrowhead","Peoria"] },
+    { name:"Renzo Cataldo, MD", specialty:"Electrophysiology", locations:["Goodyear","Verrado","Camelback"], nonValerieScheduling:true, notes:"Not scheduled through Valerie - route to sscardio" },
+    { name:"Richard Pham, DO", specialty:"General, Interventional", locations:["Verrado","West"] },
+    { name:"Saifuldeen Al Qaisi, MD", specialty:"General, Interventional", locations:["West"] },
+    { name:"Sharon Sadeghinia, MD", specialty:"General", locations:["Goodyear","Surprise","West"] },
+    { name:"Timothy Byrne, DO", specialty:"General, Interventional, Structural", locations:["Camelback"] },
+    { name:"William Jaffe, MD", specialty:"General", locations:["Scottsdale","Central"] },
+    { name:"Tiffany Milette", specialty:"", locations:[] },
+    { name:"Chris Lichtenwalter, MD", specialty:"General, Interventional", locations:["Camelback"], notes:"Chandler physician, will have Camelback availability" },
+    { name:"Danielle Strum", specialty:"", locations:[] },
+    { name:"Diana Thayer", specialty:"", locations:[] },
+    { name:"Jody Eckhardt, DNP", specialty:"General", locations:["Camelback"] },
+    { name:"Lorraine Homes", specialty:"General", locations:["Camelback"] }
   ];
 
-  // Derives Athena's "PRV_LASTNAME_FIRSTINITIAL" provider code from a roster name.
-  // Examples: "Uma Castellanos, DO" -> PRV_CASTELLANOS_U,
-  // "Sofia De Luca, MD" -> PRV_DELUCA_S (multi-word last names lose the space).
+  // Derives Athena's "AMG_LASTNAME_FIRSTINITIAL" provider code from a roster name.
+  // Confirmed against real Athena entries: "Timothy Byrne, DO" -> AMG_BYRNE_T,
+  // "Saifuldeen Al Qaisi, MD" -> AMG_ALQAISI_S (multi-word last names lose the space).
   function athenaProviderCode(fullName){
     if (!fullName) return "";
     var namePart = fullName.split(",")[0].trim();
@@ -508,7 +684,7 @@
     if (words.length < 2) return "";
     var first = words[0];
     var last = words.slice(1).join("").toUpperCase();
-    return "PRV_" + last + "_" + first.charAt(0).toUpperCase();
+    return "AMG_" + last + "_" + first.charAt(0).toUpperCase();
   }
 
   var PROVIDER_LOOKUP = {};
@@ -517,7 +693,7 @@
     var display = p.specialty ? (p.name + " - " + p.specialty + " (" + p.locations.join(", ") + ")") : p.name;
     if (code) display = code + " - " + display;
     PROVIDER_LOOKUP[p.name] = { specialty:p.specialty, locations:p.locations, display:display, notes:p.notes || "", athenaCode:code,
-      inClinicOnly:!!p.inClinicOnly, nonAutoScheduling:!!p.nonAutoScheduling };
+      inClinicOnly:!!p.inClinicOnly, nonValerieScheduling:!!p.nonValerieScheduling };
     return { value:p.name, label:display };
   });
   PROVIDER_LOOKUP["Unknown provider"] = { specialty:"", locations:[], display:"Unknown provider", notes:"", athenaCode:"" };
@@ -558,7 +734,7 @@
     });
     if (!mine.length) return null;
     var groups = [{ label: providerShortName(s.out.provider) + " practices here", options: mine }];
-    if (rest.length) groups.push({ label:"Other Example Cardiology departments", options: rest });
+    if (rest.length) groups.push({ label:"Other Biltmore departments", options: rest });
     return groups;
   }
   function canonicalDeptOption(shortName){
@@ -568,7 +744,7 @@
     return shortName;
   }
 
-  // Provider dropdown grouped by location, Northgate first (matches DEPT_OPTIONS order).
+  // Provider dropdown grouped by location, Camelback first (matches DEPT_OPTIONS order).
   // A provider practicing at multiple locations appears once under each matching group.
   var PROVIDER_OPTION_GROUPS = (function(){
     var groups = DEPT_OPTIONS.map(function(deptOpt){
@@ -837,7 +1013,7 @@
     return { runId:"run-" + runCounter + "-" + Date.now(), runSeq:runCounter,
              node:"p_patient_name", crumbs:[], out:{}, stepTimings:[], manualReview:false, manualReviewReason:null,
              manualReviewPart:0, lastPart:0, pendingBanner:null, part1Result:null, part1Reason:null,
-             providerTreatsDx:false, hasUpcomingAppt:false, isPrimarySiteReferral:null, needsEngineeringEscalation:false, isInClinicOnly:false, pendingEdgeCase:false, pendingSelfPay:false,
+             providerTreatsDx:false, hasUpcomingAppt:false, isCamelbackReferral:null, needsEngineeringEscalation:false, isLoliBahu:false, pendingEdgeCase:false, pendingSelfPay:false,
              _afterDiag:null, _afterDiag2:null, _afterDiag3:null };
   }
 
@@ -865,13 +1041,13 @@
       placeholder:"Patient name",
       next:"p_task_id"
     },
-    p_task_id: { kind:"text", source:"referrals.example.com/tasks/", part:0, field:"taskId", prefix:"Task-",
+    p_task_id: { kind:"text", source:"tpr.valeriehealth.com/tasks/", part:0, field:"taskId", prefix:"Task-",
       text:"What's the Task ID?", short:"Task ID",
       placeholder:"12345",
       next:"p0_status"
     },
     p0_status: { kind:"yesno", source:"Quickview → Scheduling → View Patient Appointments", part:0,
-      definition:"A qualifying appointment must be cardiology, with a Example Cardiology provider, at a Example Cardiology location, and the patient attended (not Canceled or No Show). Established = one of those within the last 3 years.",
+      definition:"A qualifying appointment must be cardiology, with a Biltmore provider, at a Biltmore location, and the patient attended (not Canceled or No Show). Established = one of those within the last 3 years.",
       text:"Have they completed a qualifying appointment in the last 3 years?",
       short:"Established (3 yrs)?",
       yes:function(s){ setOut("status","Established"); return "p1_q1"; },
@@ -880,14 +1056,14 @@
 
     // ---- PART 1 - PROVIDER ----
     p1_q1: { kind:"yesno", source:"Quickview → Scheduling → View Patient Appointments", part:1,
-      definition:"A qualifying appointment must be cardiology, with a Example Cardiology provider, at a Example Cardiology location, and the patient attended (not Canceled or No Show). Upcoming window = next 60 days.",
+      definition:"A qualifying appointment must be cardiology, with a Biltmore provider, at a Biltmore location, and the patient attended (not Canceled or No Show). Upcoming window = next 60 days.",
       text:"Is there a qualifying appointment in the next 60 days?",
       short:"Upcoming qualifying appt (60 days)?",
       yes:function(s){ s.hasUpcomingAppt = true; return "p1_q1a"; },
       no:function(s){ return "p1_q2"; }
     },
     p1_q1a: { kind:"yesno", source:"Quickview → Scheduling → View Patient Appointments", part:1,
-      definition:"A qualifying appointment must be cardiology, with a Example Cardiology provider, at a Example Cardiology location, and the patient attended (not Canceled or No Show).",
+      definition:"A qualifying appointment must be cardiology, with a Biltmore provider, at a Biltmore location, and the patient attended (not Canceled or No Show).",
       text:"Is that just one appointment - not several?",
       short:"Only one upcoming appt?",
       yes:function(s){ return "p1_name_unique"; },
@@ -899,7 +1075,7 @@
       next:"p2_entry"
     },
     p1_q1b: { kind:"yesno", source:"Quickview → Scheduling → View Patient Appointments", part:1,
-      definition:"A qualifying appointment must be cardiology, with a Example Cardiology provider, at a Example Cardiology location, and the patient attended (not Canceled or No Show).",
+      definition:"A qualifying appointment must be cardiology, with a Biltmore provider, at a Biltmore location, and the patient attended (not Canceled or No Show).",
       text:"Are those upcoming appointments all with the same provider?",
       short:"Upcoming appts, same provider?",
       yes:function(s){ return "p1_name_same"; },
@@ -1102,19 +1278,19 @@
     },
     p2_done_new: { kind:"auto", part:2, run:function(s){ return afterLocationPicked(s); } },
     p2_new3: { kind:"yesno", source:"Provider list - specialty reference", part:2,
-      text:"Is there a closer or other Example Cardiology location that has a provider who treats this diagnosis?",
+      text:"Is there a closer or other Biltmore location that has a provider who treats this diagnosis?",
       short:"Closer location treats dx?",
       yes:function(s){ return "p2_dept_closer"; },
-      no:function(s){ setOut("location","MANUAL REVIEW"); return stopManual("No Example Cardiology location found with a provider who treats this diagnosis.",2); }
+      no:function(s){ setOut("location","MANUAL REVIEW"); return stopManual("No Biltmore location found with a provider who treats this diagnosis.",2); }
     },
     p2_dept_closer: { kind:"select", source:"Provider list - practice locations", warning:"For this referral only - never change the patient's actual home clinic / registration department in Athena.", part:2, field:"location", options:DEPT_OPTIONS, dynamicGroups:deptGroupsForProvider, otherAllowed:true,
-      text:"Pick the closer Example Cardiology location's department.", short:"Closer Example Cardiology location",
+      text:"Pick the closer Biltmore location's department.", short:"Closer Biltmore location",
       afterSubmit:function(s){ setOut("locationChartNote","Location changed because the referred site has no one who treats the diagnosis."); s.providerTreatsDx = true; },
       next:function(s){ return afterLocationPicked(s); }
     },
 
-    p2_est1: { kind:"yesno", source:"Referral document + Athena department field + Intake Task Details", part:2,
-      text:"Does the receiving location in the intake system for this task match the department Athena already has on file? (If either is missing, answer No.)",
+    p2_est1: { kind:"yesno", source:"Referral document + Athena department field + Valerie Task Details", part:2,
+      text:"Does the receiving location on Valerie for this task match the department Athena already has on file? (If either is missing, answer No.)",
       short:"Referral doc location matches Athena dept?",
       yes:function(s){ return "p2_dept_match"; },
       no:function(s){ return "p2_primarydept_check"; }
@@ -1124,10 +1300,10 @@
       next:function(s){ return afterLocationPicked(s); }
     },
     p2_primarydept_check: { kind:"yesno", source:"Athena - patient's primary department field", part:2,
-      text:"Is the patient's primary department in Athena something other than Example Cardiology Cardio?",
-      short:"Primary dept not Example Cardiology Cardio?",
+      text:"Is the patient's primary department in Athena something other than Biltmore Cardio?",
+      short:"Primary dept not Biltmore Cardio?",
       yes:function(s){
-        s.pendingBanner = "Primary department isn't Example Cardiology Cardio - re-checking appointment history for the usual provider.";
+        s.pendingBanner = "Primary department isn't Biltmore Cardio - re-checking appointment history for the usual provider.";
         return "p2_primarydept_provider";
       },
       no:function(s){ return "p2_est2"; }
@@ -1177,7 +1353,7 @@
         if (info.locations.length === 1){
           var only = canonicalDeptOption(info.locations[0]);
           setOut("location", only);
-          setOut("agree","switched to " + only + " (auto - provider's only Example Cardiology location)");
+          setOut("agree","switched to " + only + " (auto - provider's only Biltmore location)");
           s.crumbs.push({ short:"Provider practices at that dept? (auto)", answer:"No - switched to " + only });
           return "p4_q1";
         }
@@ -1185,12 +1361,12 @@
           s.crumbs.push({ short:"Provider practices at that dept? (auto)", answer:"No receiving location was ever captured - picking from provider's locations directly" });
           return "p3_pick_location_no_ref";
         }
-        var hasPrimarySite = info.locations.some(function(loc){ return locMatches(loc, "Northgate"); });
-        if (hasPrimarySite){
+        var hasCamelback = info.locations.some(function(loc){ return locMatches(loc, "Camelback"); });
+        if (hasCamelback){
           s.crumbs.push({ short:"Provider practices at that dept? (auto)", answer:"No - checking usual location before defaulting" });
           return "p3_usual_location_ask";
         }
-        s.crumbs.push({ short:"Provider practices at that dept? (auto)", answer:"No - no matching location, including Northgate" });
+        s.crumbs.push({ short:"Provider practices at that dept? (auto)", answer:"No - no matching location, including Camelback" });
         return stopManual("Provider and location cannot be reconciled - " + (deptShortName(s.out.location) || "that department") + " is not one of their locations (provider list shows: " + info.locations.join(", ") + ").",3);
       }
     },
@@ -1200,18 +1376,18 @@
         var locs = (info && info.locations) ? info.locations : [];
         return locs.map(function(loc){ return canonicalDeptOption(loc); });
       },
-      text:"No receiving location was captured for this referral, so we can't default to Northgate or anywhere else without a real signal. Which of the provider's locations should this be scheduled at?",
+      text:"No receiving location was captured for this referral, so we can't default to Camelback or anywhere else without a real signal. Which of the provider's locations should this be scheduled at?",
       short:"Location (no referral location captured)",
       afterSubmit:function(s){ setOut("agree","picked " + s.out.location + " (no receiving location was captured - chosen directly from provider's locations)"); },
       next:"p4_q1"
     },
     p3_usual_location_ask: { kind:"yesno", source:"Athena - appointment history", part:3,
-      text:"Have they usually seen this provider at a different location than Northgate - one of the other locations that provider also practices at, according to our records?",
+      text:"Have they usually seen this provider at a different location than Camelback - one of the other locations that provider also practices at, according to our records?",
       short:"Usually seen provider elsewhere?",
       yes:function(s){ return "p3_usual_location_pick"; },
       no:function(s){
-        setOut("location","Northgate (101)");
-        setOut("agree","defaulted Northgate (auto - provider's locations don't have one clear match, patient has no usual alternate location)");
+        setOut("location","Camelback (648)");
+        setOut("agree","defaulted Camelback (auto - provider's locations don't have one clear match, patient has no usual alternate location)");
         return "p4_q1";
       }
     },
@@ -1219,7 +1395,7 @@
       dynamicOptions:function(s){
         var info = PROVIDER_LOOKUP[s.out.provider];
         var locs = (info && info.locations) ? info.locations : [];
-        return locs.filter(function(loc){ return !locMatches(loc, "Northgate"); })
+        return locs.filter(function(loc){ return !locMatches(loc, "Camelback"); })
           .map(function(loc){ return canonicalDeptOption(loc); });
       },
       text:"Which of the provider's other locations have they usually seen them at?", short:"Usual alternate location",
@@ -1233,20 +1409,20 @@
       no:function(s){ return "p3_q2a"; }
     },
     p3_q2a: { kind:"yesno", source:"Provider list - practice locations", part:3,
-      text:"Do they practice at exactly one other Example Cardiology location?",
-      short:"Exactly one other Example Cardiology location?",
+      text:"Do they practice at exactly one other Biltmore location?",
+      short:"Exactly one other Biltmore location?",
       yes:function(s){ return "p3_dept_other"; },
       no:function(s){ return "p3_q2b"; }
     },
     p3_dept_other: { kind:"select", source:"Provider list - practice locations", warning:"For this referral only - never change the patient's actual home clinic / registration department in Athena.", part:3, field:"location", options:DEPT_OPTIONS, dynamicGroups:deptGroupsForProvider, otherAllowed:true,
-      text:"Pick that other Example Cardiology location's department.", short:"Their other Example Cardiology location",
+      text:"Pick that other Biltmore location's department.", short:"Their other Biltmore location",
       afterSubmit:function(s){ setOut("agree","switched to " + s.out.location); },
       next:"p4_q1"
     },
     p3_q2b: { kind:"yesno", source:"Provider list - practice locations", part:3,
-      text:"Is Northgate one of their practice locations?",
-      short:"Northgate is one of their locations?",
-      yes:function(s){ setOut("location","Northgate (101)"); setOut("agree","defaulted Northgate"); return "p4_q1"; },
+      text:"Is Camelback one of their practice locations?",
+      short:"Camelback is one of their locations?",
+      yes:function(s){ setOut("location","Camelback (648)"); setOut("agree","defaulted Camelback"); return "p4_q1"; },
       no:function(s){ return stopManual("Provider and location cannot be reconciled - " + (deptShortName(s.out.location) || "that department") + " is not one of their locations.",3); }
     },
 
@@ -1254,66 +1430,66 @@
     p4_q1: { kind:"auto", part:4,
       run:function(s){
         var deptShort = deptShortName(s.out.location);
-        var isPrimarySite = locMatches(deptShort, "Northgate");
-        s.isPrimarySiteReferral = isPrimarySite;
-        if (!isPrimarySite){
-          setOut("bucket","specialty-scheduling");
-          setOut("actionNote","Non-Northgate Referral - route to specialty-scheduling (not scheduled through intake automation)");
-          s.crumbs.push({ short:"Northgate referral? (auto)", answer:"No" });
+        var isCamelback = locMatches(deptShort, "Camelback");
+        s.isCamelbackReferral = isCamelback;
+        if (!isCamelback){
+          setOut("bucket","sscardio");
+          setOut("actionNote","Non-Camelback Referral - route to sscardio (not scheduled through Valerie automation)");
+          s.crumbs.push({ short:"Camelback referral? (auto)", answer:"No" });
           return "p5_referral_date";
         }
-        s.crumbs.push({ short:"Northgate referral? (auto)", answer:"Yes" });
+        s.crumbs.push({ short:"Camelback referral? (auto)", answer:"Yes" });
         return "p4_provider_gate";
       }
     },
     p4_provider_gate: { kind:"auto", part:4,
       run:function(s){
-        var inClinicOnlyProvider = providerIsInClinicOnly(s.out.provider);
-        var nonAutoProvider = providerIsNonAuto(s.out.provider);
-        if (inClinicOnlyProvider){
-          setOut("bucket","clinic-scheduling"); setOut("actionNote","Ready to schedule - do not manually outreach");
-          s.isInClinicOnly = true;
-          s.crumbs.push({ short:"Provider is in-clinic-only? (auto)", answer:"Yes" });
-          return "p4_intake_ehr_check";
+        var loliBahu = providerIsInClinicOnly(s.out.provider);
+        var cataldo = providerIsNonValerie(s.out.provider);
+        if (loliBahu){
+          setOut("bucket","biltmorecardsched"); setOut("actionNote","Ready to schedule - do not manually outreach");
+          s.isLoliBahu = true;
+          s.crumbs.push({ short:"Provider is Loli/Bahu? (auto)", answer:"Yes" });
+          return "p4_valerie_athena_check";
         }
-        if (nonAutoProvider){
-          setOut("bucket","specialty-scheduling"); setOut("actionNote","Ineligible for Scheduling - Non-Intake Scheduling");
-          s.crumbs.push({ short:"Provider is non-auto scheduling? (auto)", answer:"Yes" });
+        if (cataldo){
+          setOut("bucket","sscardio"); setOut("actionNote","Ineligible for Scheduling - Non-Valerie Scheduling");
+          s.crumbs.push({ short:"Provider is Cataldo? (auto)", answer:"Yes" });
           return "p5_referral_date";
         }
-        s.crumbs.push({ short:"Provider has scheduling restrictions? (auto)", answer:"No" });
-        return "p4_intake_ehr_check";
+        s.crumbs.push({ short:"Provider is Loli/Bahu/Cataldo? (auto)", answer:"No" });
+        return "p4_valerie_athena_check";
       }
     },
-    p4_intake_ehr_check: { kind:"yesno", source:"Athena Quickview - Insurance + Intake Task Details", part:4, context:"Insurance Check", checkpoint:true,
-      text:"Do the intake system and Athena match on insurance?",
-      short:"Intake/Athena insurance match?",
+    p4_valerie_athena_check: { kind:"yesno", source:"Athena Quickview - Insurance + Valerie Task Details", part:4, context:"Insurance Check", checkpoint:true,
+      text:"Does Valerie and Athena match on insurance?",
+      short:"Valerie/Athena insurance match?",
       yes:function(s){ return "p4_q2"; },
-      no:function(s){ return "p4_intake_ehr_desc"; }
+      no:function(s){ return "p4_valerie_athena_desc"; }
     },
-    p4_intake_ehr_desc: { kind:"text", source:"Athena Quickview - Insurance + Intake Task Details", part:4, field:"engineeringIssueDesc", context:"Insurance Check",
-      text:"What's different between what the intake system shows and what's in Athena?",
-      short:"How the intake system and Athena differ on insurance",
+    p4_valerie_athena_desc: { kind:"text", source:"Athena Quickview - Insurance + Valerie Task Details", part:4, field:"engineeringIssueDesc", context:"Insurance Check",
+      text:"What's different between what Valerie shows and what's in Athena?",
+      short:"How Valerie and Athena differ on insurance",
       placeholder:"Describe the mismatch",
       afterSubmit:function(s){
         s.needsEngineeringEscalation = true;
-        setOut("engineeringIssueCategory","Intake system and Athena don't match on insurance");
+        setOut("engineeringIssueCategory","Valerie and Athena don't match on insurance");
         s.pendingBanner = "Flagged to Engineering. Assuming it's resolved - continuing into the normal workflow below.";
       },
       next:"p4_q2"
     },
     p4_edge_case_type: { kind:"select", source:"Referral document / insurance card", part:4, field:"edgeCaseInsuranceType", context:"Insurance Check",
-      options:["VA (Veteran)","Regional Health Plan","Other (not VA or Regional Health Plan)","Not sure"],
+      options:["VA (Veteran)","Mercy","Other (not VA or Mercy)","Not sure"],
       text:"Which type of edge-case insurance is this?", short:"Edge-case insurance type",
       next:function(s){
         if (s.out.edgeCaseInsuranceType === "VA (Veteran)") return "p4_edge_case_va_check";
-        if (s.out.edgeCaseInsuranceType === "Regional Health Plan") return "p4_edge_case_plan_check";
-        s.pendingBanner = "Flagged as an edge-case insurance, type not VA/Regional Health Plan - proceed carefully through the normal insurance grid below.";
+        if (s.out.edgeCaseInsuranceType === "Mercy") return "p4_edge_case_mercy_check";
+        s.pendingBanner = "Flagged as an edge-case insurance, type not VA/Mercy - proceed carefully through the normal insurance grid below.";
         return s._afterEdgeCase;
       }
     },
     p4_edge_case_va_check: { kind:"yesno", source:"Athena - Insurance Authorization", part:4, context:"Insurance Check",
-      text:"Check the case policy (VA Community Care Network), Veteran ICN, and eligibility - update if necessary.",
+      text:"Check the case policy (Optum - VA Community Care Network), Veteran ICN, and eligibility - update if necessary.",
       short:"VA case policy + ICN + eligibility check",
       yesLabel:"Good", noLabel:"Update was required",
       yes:function(s){ s.pendingBanner = "VA insurance checked - case policy, Veteran ICN, and eligibility were already correct. Continuing below."; return s._afterEdgeCase; },
@@ -1325,26 +1501,26 @@
       placeholder:"Describe what was updated or what's missing",
       afterSubmit:function(s){
         s.needsEngineeringEscalation = true;
-        setOut("engineeringIssueCategory","VA insurance setup required an update (VA Community Care Network / Veteran ICN / eligibility)");
+        setOut("engineeringIssueCategory","VA insurance setup required an update (Optum - VA Community Care Network / Veteran ICN / eligibility)");
         s.pendingBanner = "Flagged to Engineering. Assuming it's now good - continuing into the normal workflow below.";
       },
       next:function(s){ return s._afterEdgeCase; }
     },
-    p4_edge_case_plan_check: { kind:"yesno", source:"Referral document / insurance card", part:4, context:"Insurance Check",
-      text:"Does this Regional Health Plan plan require a referral from the PCP?",
-      short:"Regional Health Plan plan requires PCP referral?",
-      yes:function(s){ s.pendingBanner = "Regional Health Plan Plan requires a referral from PCP - make sure Special Notes captures this."; return s._afterEdgeCase; },
+    p4_edge_case_mercy_check: { kind:"yesno", source:"Referral document / insurance card", part:4, context:"Insurance Check",
+      text:"Does this Mercy plan require a referral from the PCP?",
+      short:"Mercy plan requires PCP referral?",
+      yes:function(s){ s.pendingBanner = "Mercy Plan requires a referral from PCP - make sure Special Notes captures this."; return s._afterEdgeCase; },
       no:function(s){ return s._afterEdgeCase; }
     },
     p4_q2: { kind:"yesno", source:"In the toolbox", part:4, context:"Insurance Check", edgeCaseToggle:true, selfPayToggle:true,
-      text:"Is this plan contracted with Example Cardiology?",
+      text:"Is this plan contracted with Biltmore?",
       short:"Contracted?",
       yes:function(s){
         setOut("contractedGrid","Yes");
         return "p4_referral_required";
       },
       no:function(s){
-        setOut("contractedGrid","No"); setOut("bucket","specialty-scheduling"); setOut("actionNote","Ineligible for Scheduling - Ineligible Insurance");
+        setOut("contractedGrid","No"); setOut("bucket","sscardio"); setOut("actionNote","Ineligible for Scheduling - Ineligible Insurance");
         return "p5_referral_date";
       }
     },
@@ -1376,7 +1552,7 @@
           return "p4_q4";
         }
         if (result === false){
-          setOut("bucket","specialty-scheduling"); setOut("actionNote","Ineligible for Scheduling - Ineligible Provider");
+          setOut("bucket","sscardio"); setOut("actionNote","Ineligible for Scheduling - Ineligible Provider");
           s.crumbs.push({ short:"Provider treats the diagnosis? (auto)", answer:"No" });
           return "p5_referral_date";
         }
@@ -1387,20 +1563,20 @@
       text:"Does this provider treat the diagnosis?",
       short:"Provider treats the diagnosis?",
       yes:function(s){ s.providerTreatsDx = true; return "p4_q4"; },
-      no:function(s){ setOut("bucket","specialty-scheduling"); setOut("actionNote","Ineligible for Scheduling - Ineligible Provider"); return "p5_referral_date"; }
+      no:function(s){ setOut("bucket","sscardio"); setOut("actionNote","Ineligible for Scheduling - Ineligible Provider"); return "p5_referral_date"; }
     },
     p4_q4: { kind:"yesno", source:"Referral document / Athena chart", part:4,
       text:"Any other block - no phone, referring provider not in database, something else?",
       short:"Any other scheduling block?",
       yes:function(s){ return "p4_q4a"; },
-      no:function(s){ setOut("bucket","clinic-scheduling"); setOut("actionNote", s.isInClinicOnly ? "Ready to schedule - do not manually outreach" : "Ready to schedule"); return "p5_referral_date"; }
+      no:function(s){ setOut("bucket","biltmorecardsched"); setOut("actionNote", s.isLoliBahu ? "Ready to schedule - do not manually outreach" : "Ready to schedule"); return "p5_referral_date"; }
     },
     p4_q4a: { kind:"yesno3", source:"Athena - referring provider database", part:4,
       text:"Is it because the referring provider isn't in the database, or because they're missing an address?",
       short:"Referring provider not in DB or missing address?",
       thirdLabel:"Missing referring provider address",
-      yes:function(s){ setOut("bucket","specialty-scheduling"); setOut("actionNote","Referring provider not in database"); return "p4_missing_provider_name"; },
-      third:function(s){ setOut("bucket","specialty-scheduling"); setOut("actionNote","Referring provider is missing an address - cannot schedule until address is added"); return "p4_missing_provider_name"; },
+      yes:function(s){ setOut("bucket","sscardio"); setOut("actionNote","Referring provider not in database"); return "p4_missing_provider_name"; },
+      third:function(s){ setOut("bucket","sscardio"); setOut("actionNote","Referring provider is missing an address - cannot schedule until address is added"); return "p4_missing_provider_name"; },
       no:function(s){ return "p4_block_reason"; }
     },
     p4_missing_provider_name: { kind:"text", source:"Referral document", part:4, field:"referringProviderName", optional:true,
@@ -1431,7 +1607,7 @@
     p4_block_reason: { kind:"text", source:"Staff judgment - no fixed source", part:4, field:"blockReason",
       text:"Briefly note the reason (e.g. no phone).", short:"Block reason",
       placeholder:"Reason",
-      afterSubmit:function(s){ setOut("bucket","specialty-scheduling"); setOut("actionNote","Blocked - " + s.out.blockReason); },
+      afterSubmit:function(s){ setOut("bucket","sscardio"); setOut("actionNote","Blocked - " + s.out.blockReason); },
       next:"p5_referral_date"
     },
 
@@ -1459,8 +1635,8 @@
     p5_urgent_appt_check: { kind:"auto", part:5,
       run:function(s){
         if (s.hasUpcomingAppt === false){
-          if (s.isPrimarySiteReferral !== true){
-            s.crumbs.push({ short:"Urgent - appt within 1 week? (auto)", answer:"No - already confirmed no upcoming appointment (non-Northgate, bucket unchanged)" });
+          if (s.isCamelbackReferral !== true){
+            s.crumbs.push({ short:"Urgent - appt within 1 week? (auto)", answer:"No - already confirmed no upcoming appointment (non-Camelback, bucket unchanged)" });
             return "p5_careteam1";
           }
           var prevBucket = s.out.bucket;
@@ -1468,12 +1644,12 @@
           // Never resurrect a case already ruled ineligible. The bucket is what
           // actually drives routing, so overwriting it here would send a rejected
           // referral to scheduling with the reason surviving only as prose.
-          if (prevBucket === "specialty-scheduling" || /ineligible/i.test(prevNote || "")){
+          if (prevBucket === "sscardio" || /ineligible/i.test(prevNote || "")){
             s.crumbs.push({ short:"Urgent - appt within 1 week? (auto)", answer:"No - case already ineligible, routing left unchanged" });
             return "p5_careteam1";
           }
-          setOut("bucket","clinic-scheduling");
-          if (prevBucket && prevBucket !== "clinic-scheduling"){
+          setOut("bucket","biltmorecardsched");
+          if (prevBucket && prevBucket !== "biltmorecardsched"){
             setOut("actionNote","Ready to schedule (no appointment within a week) (previously: " + (prevNote || prevBucket) + ")");
           } else {
             setOut("actionNote","Ready to schedule (no appointment within a week)");
@@ -1490,14 +1666,14 @@
       yes:function(s){ s.hasUpcomingAppt = true; return "p5_careteam1"; },
       no:function(s){
         s.hasUpcomingAppt = false;
-        if (s.isPrimarySiteReferral !== true) return "p5_careteam1";
+        if (s.isCamelbackReferral !== true) return "p5_careteam1";
         var prevBucket = s.out.bucket;
         var prevNote = s.out.actionNote;
         // Same guard as the auto gate: an already-ineligible case must keep its
         // routing rather than being flipped into the scheduling bucket.
-        if (prevBucket === "specialty-scheduling" || /ineligible/i.test(prevNote || "")) return "p5_careteam1";
-        setOut("bucket","clinic-scheduling");
-        if (prevBucket && prevBucket !== "clinic-scheduling"){
+        if (prevBucket === "sscardio" || /ineligible/i.test(prevNote || "")) return "p5_careteam1";
+        setOut("bucket","biltmorecardsched");
+        if (prevBucket && prevBucket !== "biltmorecardsched"){
           setOut("actionNote","Ready to schedule (no appointment within a week) (previously: " + (prevNote || prevBucket) + ")");
         } else {
           setOut("actionNote","Ready to schedule (no appointment within a week)");
@@ -1505,22 +1681,22 @@
         return "p5_careteam1";
       }
     },
-    p5_careteam1: { kind:"yesno", source:"Athena Quickview - Care Team + Intake Task Details", part:5,
+    p5_careteam1: { kind:"yesno", source:"Athena Quickview - Care Team + Valerie Task Details", part:5,
       warning:"A provider can be listed as both Referring Provider and PCP at the same time - adding one doesn't mean removing the other. Never delete an existing Care Team entry that's already there.",
-      text:"Check Care Team in Quickview - does the referring provider's address there match what's recorded in the intake system for this task? Mark this complete.",
+      text:"Check Care Team in Quickview - does the referring provider's address there match what's recorded on Valerie for this task? Mark this complete.",
       short:"Referring provider on Care Team, address matches?",
       yes:function(s){ setOut("careTeamReferring","already listed"); return "p5_pcp_existing"; },
       no:function(s){ return "p5_careteam1a"; }
     },
-    p5_careteam1a: { kind:"yesno3", source:"Athena Quickview - Care Team + Intake Task Details", part:5,
-      text:"Check whether they're missing from Care Team entirely (not just an address mismatch against what's in the intake system), then mark this complete.",
+    p5_careteam1a: { kind:"yesno3", source:"Athena Quickview - Care Team + Valerie Task Details", part:5,
+      text:"Check whether they're missing from Care Team entirely (not just an address mismatch against what's on Valerie), then mark this complete.",
       short:"Missing from Care Team entirely?",
       thirdLabel:"Not in Athena's database at all",
       yes:function(s){ setOut("careTeamReferring","add them; address must match referring location"); return "p5_pcp_existing"; },
       no:function(s){ setOut("careTeamReferring","address mismatch or missing - note: Referring provider address does not match (or is missing) in the care team: Referring Provider, NPI, Referring Address."); return "p5_pcp_existing"; },
       third:function(s){
-        setOut("careTeamReferring","referring provider not in Athena's database - chart note added, moved to specialty-scheduling");
-        setOut("bucket","specialty-scheduling");
+        setOut("careTeamReferring","referring provider not in Athena's database - chart note added, moved to sscardio");
+        setOut("bucket","sscardio");
         setOut("actionNote","Referring provider not in database");
         return "p5_pcp_existing";
       }
@@ -1544,7 +1720,7 @@
       short:"Address on file & matches insurance?",
       thirdLabel:"On file but doesn't match insurance",
       yes:function(s){ setOut("addressNote","on file, matches insurance subscriber address"); return "p5_email"; },
-      no:function(s){ setOut("addressNote","Please Obtain, Zip: 00000"); return "p5_email"; },
+      no:function(s){ setOut("addressNote","Please Obtain, Zip: 85026"); return "p5_email"; },
       third:function(s){ setOut("addressNote","on file but doesn't match insurance subscriber address - update it from the referral"); return "p5_email"; }
     },
     p5_email: { kind:"yesno", source:"Athena Full Registration", part:5,
@@ -1561,8 +1737,8 @@
     },
     p5_insurance1: { kind:"auto", part:5,
       run:function(s){
-        if (s.isPrimarySiteReferral === true) return "p5_va_gate";
-        if (s.isPrimarySiteReferral === false){
+        if (s.isCamelbackReferral === true) return "p5_va_gate";
+        if (s.isCamelbackReferral === false){
           setOut("insurancePath","in chart only - do not check eligibility/auth");
           setOut("referralObjNote","n/a"); setOut("authObjNote","n/a"); setOut("outboundExport","no");
           return "__DONE__";
@@ -1571,8 +1747,8 @@
       }
     },
     p5_insurance1_ask: { kind:"yesno", source:"Athena - receiving provider's location", part:5,
-      text:"Is the receiving provider at Northgate?",
-      short:"Receiving provider at Northgate?",
+      text:"Is the receiving provider at Camelback?",
+      short:"Receiving provider at Camelback?",
       yes:function(s){ return "p5_va_gate"; },
       no:function(s){ setOut("insurancePath","in chart only - do not check eligibility/auth");
                       setOut("referralObjNote","n/a"); setOut("authObjNote","n/a"); setOut("outboundExport","no");
@@ -1609,7 +1785,7 @@
           s.crumbs.push({ short:"Insurance listed in Athena? (auto)", answer:"Yes - plan already identified when checking contracting" });
           return "p5_va_ask_gate";
         }
-        if (et === "Regional Health Plan" || et === "Other (not VA or Regional Health Plan)"){
+        if (et === "Mercy" || et === "Other (not VA or Mercy)"){
           s.crumbs.push({ short:"Insurance listed in Athena? (auto)", answer:"Yes - payer already identified as " + et });
           return "p5_va_ask_gate";
         }
@@ -1625,7 +1801,7 @@
     p5_va_ask_gate: { kind:"auto", part:5,
       run:function(s){
         var t = s.out.edgeCaseInsuranceType;
-        if (t === "Regional Health Plan" || t === "Other (not VA or Regional Health Plan)"){
+        if (t === "Mercy" || t === "Other (not VA or Mercy)"){
           s.crumbs.push({ short:"VA coverage? (auto)", answer:"No - already established by edge-case type (" + t + ")" });
           return "p5_insurance2";
         }
@@ -1674,8 +1850,8 @@
       },
       no:function(s){ return "p5_insurance_mismatch"; }
     },
-    p5_insurance_mismatch: { kind:"yesno", source:"Athena Quickview - Insurance + Intake Task Details", part:5,
-      text:"Is there an existing insurance on file that doesn't match the most recent insurance recorded in the intake system for this task?",
+    p5_insurance_mismatch: { kind:"yesno", source:"Athena Quickview - Insurance + Valerie Task Details", part:5,
+      text:"Is there an existing insurance on file that doesn't match the most recent insurance recorded on Valerie for this task?",
       short:"Existing insurance doesn't match most recent?",
       yes:function(s){
         setOut("insurancePath",'existing insurance does not match most recent - deactivate reason "Wrong type.", then add-without-card flow (verify with team if a different reason applies)');
@@ -1683,13 +1859,13 @@
         setOut("engineeringIssueCategory","Existing insurance doesn't match most recent insurance provided");
         return "p5_engineering_desc";
       },
-      no:function(s){ return "p5_tribal_gate"; }
+      no:function(s){ return "p5_pimc_gate"; }
     },
-    p5_tribal_gate: { kind:"auto", part:5,
+    p5_pimc_gate: { kind:"auto", part:5,
       run:function(s){
-        if (s.out.edgeCaseInsuranceType === "Regional Health Plan"){
+        if (s.out.edgeCaseInsuranceType === "Mercy"){
           setOut("insurancePath","self-pay / none / not eligible - flag on output");
-          s.crumbs.push({ short:"Tribal Health Program coverage? (auto)", answer:"No - already established as Regional Health Plan" });
+          s.crumbs.push({ short:"PIMC coverage? (auto)", answer:"No - already established as Mercy" });
           return "p5_referral_needed";
         }
         return "p5_insurance6";
@@ -1701,10 +1877,10 @@
       placeholder:"Describe the discrepancy",
       next:"p5_referral_needed"
     },
-    p5_insurance6: { kind:"yesno", source:"Referral document - Tribal Health Program referral format", part:5,
-      text:"Is this Tribal Health Program coverage?",
-      short:"Tribal Health Program coverage?",
-      yes:function(s){ setOut("insurancePath","Tribal Health Program - case policy TRIBAL HEALTH - REFERRED CARE + Tribal Health Program member ID"); return "p5_referral_needed"; },
+    p5_insurance6: { kind:"yesno", source:"Referral document - PIMC referral format", part:5,
+      text:"Is this PIMC coverage?",
+      short:"PIMC coverage?",
+      yes:function(s){ setOut("insurancePath","PIMC - case policy PIMC - PURCHASE REFERRED CARE + PIMC member ID"); return "p5_referral_needed"; },
       no:function(s){ setOut("insurancePath","self-pay / none / not eligible - flag on output"); return "p5_referral_needed"; }
     },
     p5_referral_needed: { kind:"auto", part:5,
@@ -1789,7 +1965,7 @@
       no:function(s){ setOut("chkOnce","No - check the chart for a duplicate document"); return "p5_export_note"; }
     },
     p5_export_note: { kind:"yesno", source:"Athena - patient chart notes", part:5,
-      text:"Did you add the chart note \"Referral Ops: Referral Authorization Requested [date]\" to the patient chart?",
+      text:"Did you add the chart note \"Valerie Health: Referral Authorization Requested [date]\" to the patient chart?",
       short:"Added Referral Authorization Requested chart note?",
       yes:function(s){ setOut("chkNote","Yes"); return finalizeOutboundExport(s); },
       no:function(s){ setOut("chkNote","No - add the chart note"); return finalizeOutboundExport(s); }
@@ -2048,19 +2224,19 @@
   // Scheduling restrictions are read off the roster rather than matched by name
   // substring, so the flags and the displayed notes cannot drift apart. The two
   // restrictions are distinct: inClinicOnly providers ARE schedulable through
-  // the intake system (clinic-scheduling, just no manual outreach), while
-  // nonAutoScheduling providers are not (routed to specialty-scheduling).
+  // Valerie (biltmorecardsched, just no manual outreach), while
+  // nonValerieScheduling providers are not (routed to sscardio).
   function providerFlag(name, flag){
     var p = PROVIDER_LOOKUP[name];
     return !!(p && p[flag]);
   }
   function providerIsInClinicOnly(name){ return providerFlag(name, "inClinicOnly"); }
-  function providerIsNonAuto(name){ return providerFlag(name, "nonAutoScheduling"); }
+  function providerIsNonValerie(name){ return providerFlag(name, "nonValerieScheduling"); }
   function isRestrictedProvider(name){
-    return providerIsInClinicOnly(name) || providerIsNonAuto(name);
+    return providerIsInClinicOnly(name) || providerIsNonValerie(name);
   }
   function restrictionLabel(name){
-    if (providerIsNonAuto(name)) return " - not schedulable through the intake system";
+    if (providerIsNonValerie(name)) return " - not schedulable through Valerie";
     if (providerIsInClinicOnly(name)) return " - schedulable, but no manual outreach";
     return "";
   }
@@ -2078,7 +2254,7 @@
         if (isRestrictedProvider(p.name)) return 3;
         var deptShort = deptShortName(state.out.location);
         if (deptShort && p.locations.some(function(loc){ return locMatches(loc, deptShort); })) return 0;
-        if (!deptShort && p.locations.some(function(loc){ return locMatches(loc, "Northgate"); })) return 0;
+        if (!deptShort && p.locations.some(function(loc){ return locMatches(loc, "Camelback"); })) return 0;
         return 1;
       }
       return rank(a) - rank(b);
@@ -2134,7 +2310,7 @@
     var end = new Date();
     end.setFullYear(end.getFullYear() + 1);
     var endStr = String(end.getMonth()+1).padStart(2,"0") + "/" + String(end.getDate()).padStart(2,"0") + "/" + end.getFullYear();
-    return "VA - case policy VA Community Care Network + Veteran ICN + eligibility. Refer to the referral document first for the number of visits authorized; if not specified there, default to 12 visits, with the authorization window running one year from today's date (through " + endStr + ").";
+    return "VA - case policy Optum - VA Community Care Network + Veteran ICN + eligibility. Refer to the referral document first for the number of visits authorized; if not specified there, default to 12 visits, with the authorization window running one year from today's date (through " + endStr + ").";
   }
   function providerAthenaCode(){
     var p = state.out.provider;
@@ -2176,7 +2352,7 @@
     // Drop the action segment when there is none (manual review) instead of
     // leaving a dangling "- -" in a note staff paste into Athena.
     var actionShort = shortActionNote(o.actionNote);
-    var segs = ["Reviewed by Referral Ops (" + dateStr + ")", providerShort];
+    var segs = ["Reviewed by Valerie Health (" + dateStr + ")", providerShort];
     if (actionShort && actionShort !== "-") segs.push(actionShort);
     else if (state.manualReview) segs.push("Manual review required");
     return segs.join(" - ") + urgencyText;
@@ -2199,14 +2375,14 @@
     var o = state.out;
     if (!isInsuranceIneligible()) return "";
     var reason = o.contractedGrid === "No"
-      ? "Ineligible Insurance - plan not contracted with Example Cardiology"
+      ? "Ineligible Insurance - plan not contracted with Biltmore"
       : "Insurance not eligible - " + (o.insurancePath || "see insurance path");
     return "Patient: " + (o.patientName || " - ") + " | Task ID: " + (o.taskId || " - ") + " | Issue: " + reason;
   }
   function buildEngineeringEscalationNote(){
     if (!state.needsEngineeringEscalation) return "";
     var o = state.out;
-    var url = o.taskId ? "https://referrals.example.com/tasks/" + o.taskId : " - ";
+    var url = o.taskId ? "https://tpr.valeriehealth.com/tasks/" + o.taskId : " - ";
     var issue = (o.engineeringIssueCategory || "Insurance listed incorrectly in Athena") +
       " - " + (o.engineeringIssueDesc || "no description provided");
     issue += " (URL: " + url + ")";
@@ -2241,7 +2417,7 @@
   function buildAuthChartNote(){
     var o = state.out;
     if (o.outboundExport && o.outboundExport.indexOf("yes") === 0){
-      return "Referral Ops: Referral Authorization Requested " + (o.referralDate || "[date]");
+      return "Valerie Health: Referral Authorization Requested " + (o.referralDate || "[date]");
     }
     return o.authObjNote ? "n/a" : "";
   }
@@ -2258,7 +2434,7 @@
     var o = state.out;
     var authGood = !!o.authObjNote && o.authObjNote.toLowerCase().indexOf("pending") === -1;
     var referralGood = !!o.referralObjNote && o.referralObjNote.toLowerCase().indexOf("pending") === -1;
-    var inSchedBucket = o.bucket === "clinic-scheduling";
+    var inSchedBucket = o.bucket === "biltmorecardsched";
     return (state.hasUpcomingAppt && authGood && referralGood && inSchedBucket) ? "Closed" : "Review";
   }
   function buildWhyPath(){
@@ -2591,7 +2767,7 @@
     var name = state.out.patientName;
     var task = state.out.taskId;
     if (!name && !task){
-      sub.innerHTML = 'Example Cardiology';
+      sub.innerHTML = '<em>- Based on Updated Notion</em> · Biltmore Cardiology';
       return;
     }
     var bits = [];
@@ -3233,6 +3409,24 @@
   stageBadge = document.getElementById("stageBadge");
   document.getElementById("headerReset").addEventListener("click", reset);
   document.getElementById("pauseBtn").addEventListener("click", togglePause);
+
+  // ---- theme toggle. Nothing is persisted, by design: this tool stores no state,
+  // so the choice lasts for the tab and the system preference is the default. ----
+  var themeBtn = document.getElementById("themeBtn");
+  function currentTheme(){
+    var explicit = document.documentElement.getAttribute("data-theme");
+    if (explicit) return explicit;
+    return (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) ? "dark" : "light";
+  }
+  function applyTheme(t){
+    document.documentElement.setAttribute("data-theme", t);
+    if (themeBtn) themeBtn.textContent = (t === "dark") ? "\u25d1" : "\u25d0";
+  }
+  if (themeBtn){
+    applyTheme(currentTheme());
+    themeBtn.addEventListener("click", function(){ applyTheme(currentTheme() === "dark" ? "light" : "dark"); });
+  }
+
   document.getElementById("logBtn").addEventListener("click", function(){
     viewMode = (viewMode === "log") ? "flow" : "log";
     render();
