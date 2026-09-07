@@ -435,6 +435,13 @@
 
   /* Flagging a question is uncommon, so the closed state is only a quiet line of
      text - no panel, no border, low emphasis. The card appears once it is opened. */
+  .time-overall{
+    display:flex; align-items:baseline; justify-content:space-between;
+    gap:12px; margin:6px 0 2px; padding-bottom:8px; border-bottom:1px solid var(--line);
+  }
+  .time-overall-label{ font-size:0.9375rem; font-weight:700; color:var(--ink); }
+  .time-overall-val{ font-size:1.375rem; font-weight:700; font-variant-numeric:tabular-nums; color:var(--teal-dark-ink); }
+  .time-overall-sub{ font-size:0.6875rem; color:var(--ink-soft); margin:6px 0 10px; }
   .feedback-box{ margin:8px 0 0; padding:0; background:none; border:0; }
   .feedback-box summary{
     cursor:pointer; font-size:0.6875rem; color:var(--ink-soft);
@@ -2450,10 +2457,19 @@
     if (!p || p === "FIND LOCATION FIRST" || p === "MANUAL REVIEW") return "";
     return (PROVIDER_LOOKUP[p] && PROVIDER_LOOKUP[p].specialty) ? PROVIDER_LOOKUP[p].specialty : "";
   }
+  // The ICD code and the [Specialty] tag are internal: the code identifies the
+  // entry, the tag lets an unlisted diagnosis still match a provider. Neither
+  // belongs in anything staff read out or paste into a chart.
+  function cleanDiagnosisLabel(dx){
+    return String(dx || "")
+      .replace(/\s*\[[^\]]*\]\s*$/, "")
+      .replace(/\s*\([^)]*\)\s*$/, "")
+      .trim();
+  }
   function buildUrgentReasonText(){
     var o = state.out;
     if (o.urgent !== "YES") return "";
-    if (o.urgentReason === "diagnosis") return "Diagnosis: " + (o.diagnosisText || " - ");
+    if (o.urgentReason === "diagnosis") return "Diagnosis: " + (cleanDiagnosisLabel(o.diagnosisText) || " - ");
     return "Per provider (fax marked Urgent)";
   }
   // Spec D4: the label Athena expects on the referral document itself. Established
@@ -2463,6 +2479,63 @@
     if (!st) return "";
     return (st === "Established") ? "Established Patient Referral" : "New Patient Referral";
   }
+  // The action note is the internal note's fuller sibling: same composition and
+  // same order, but every slot is stated rather than omitted. The internal note
+  // is what goes into Athena and stays terse; this one is the complete record,
+  // so "nothing outstanding" is said explicitly instead of inferred from silence.
+  function buildActionNote(){
+    var o = state.out;
+    if (!o.status) return "";
+
+    var rawDate = o.referralDate;
+    if (!rawDate){
+      var td = new Date();
+      rawDate = String(td.getMonth()+1).padStart(2,"0") + "/" + String(td.getDate()).padStart(2,"0") + "/" + td.getFullYear();
+    }
+    var dateStr = rawDate.replace(/\//g, ".");
+
+    var providerShort = o.provider || "";
+    if (providerShort === "FIND LOCATION FIRST" || providerShort === "MANUAL REVIEW") providerShort = "";
+    if (!providerShort) providerShort = "Provider not determined";
+
+    var actionShort = shortActionNote(o.actionNote);
+    var disposition = (actionShort && actionShort !== "-") ? actionShort
+      : (state.manualReview ? "Manual review required" : "No routing exception");
+
+    var urgency = "Not urgent";
+    if (o.urgent === "YES"){
+      urgency = (o.urgentReason === "diagnosis")
+        ? "Urgent for " + (cleanDiagnosisLabel(o.diagnosisText) || "diagnosis")
+        : "Urgent per provider";
+    }
+
+    var path = (o.insurancePath || "").toLowerCase();
+    var ins;
+    if (o.contractedGrid === "No") ins = "Ineligible insurance - plan not contracted";
+    else if (path.indexOf("self-pay") !== -1) ins = "Self-pay";
+    else if (path.indexOf("va - case policy") !== -1 || path.indexOf("va community care") !== -1) ins = "VA";
+    else if (path.indexOf("tribal") !== -1) ins = "Tribal Health";
+    else if (path.indexOf("do not check") !== -1) ins = "Insurance not checked - non-Camelback referral";
+    else if (o.contractedGrid === "Yes") ins = "Contracted";
+    else ins = "Insurance not established";
+
+    var missing = [];
+    if (o.phoneDisposition) missing.push(o.phoneDisposition);
+    if ((o.addressNote || "").indexOf("Please Obtain") !== -1) missing.push("Awaiting patient address");
+    if (o.careTeamMismatch === "yes") missing.push("Referring provider address mismatch");
+    var missingText = missing.length ? missing.join("; ") : "Nothing outstanding";
+
+    var auths;
+    if ((o.outboundExport || "").indexOf("yes") === 0) auths = "Referral authorization requested";
+    else if ((o.authObjNote || "").toLowerCase().indexOf("pending") !== -1) auths = "Auth pending";
+    else if ((o.authObjNote || "").toLowerCase().indexOf("not required") !== -1) auths = "No authorization required";
+    else if (o.authObjNote) auths = toTitleCase(o.authObjNote);
+    else auths = "No authorization recorded";
+
+    return ["Reviewed By Valerie Health (" + dateStr + ")", providerShort, disposition,
+            urgency, ins, missingText, auths].join(" - ");
+  }
+
   function buildInternalNote(){
     var o = state.out;
     if (!o.status) return "";
@@ -2479,10 +2552,7 @@
       if (o.urgentReason === "diagnosis"){
         // Strip both the ICD code in parentheses and the [Specialty] tag staff
         // add when a diagnosis is not on the list - neither belongs in a chart note.
-        var dxLabel = (o.diagnosisText || "diagnosis")
-          .replace(/\s*\[[^\]]*\]\s*$/, "")
-          .replace(/\s*\([^)]*\)\s*$/, "")
-          .trim();
+        var dxLabel = cleanDiagnosisLabel(o.diagnosisText) || "diagnosis";
         urgencyText = "Urgent for " + dxLabel;
       } else {
         urgencyText = "Urgent Per Provider";
@@ -2649,9 +2719,17 @@
     var rows = top.map(function(t){
       return '<div class="time-row"><span class="time-label">' + escapeHtml(t.short) + '</span><span class="time-val">' + formatDuration(t.ms) + '</span></div>';
     }).join("");
+    // The total was a parenthetical on the subheading, which is the number most
+    // worth seeing; it now leads the card in its own right.
     return '<div class="card time-breakdown-card">' +
       '<span class="step-label">Time Breakdown</span>' +
-      '<h3>Slowest steps <span class="time-total">(total: ' + formatDuration(total) + ')</span></h3>' +
+      '<div class="time-overall">' +
+        '<span class="time-overall-label">Total time</span>' +
+        '<span class="time-overall-val">' + formatDuration(total) + '</span>' +
+      '</div>' +
+      '<div class="time-overall-sub">' + timings.length + ' timed step' + (timings.length === 1 ? '' : 's') +
+        ' - the clock starts once the patient name is entered</div>' +
+      '<h3>Slowest steps</h3>' +
       rows +
       '</div>';
   }
@@ -2726,7 +2804,7 @@
     var L = [];
     L.push("NOTES");
     L.push("INTERNAL NOTE: " + ft(buildInternalNote()));
-    L.push("ACTION NOTE: " + ft(o.actionNote));
+    L.push("ACTION NOTE: " + buildActionNote());
     if (o.patientNote) L.push("PATIENT NOTE: " + ft(o.patientNote));
     if (o.locationChartNote) L.push("LOCATION CHART NOTE: " + toTitleCase(o.locationChartNote));
     L.push("");
@@ -2796,7 +2874,7 @@
 
     items.push({ sec:"Notes" });
     items.push({ label:"Internal note", value:ft(buildInternalNote()) });
-    items.push({ label:"Action note", value:ft(o.actionNote) });
+    items.push({ label:"Action note", value:buildActionNote() });
     if (o.patientNote) items.push({ label:"Patient note", value:ft(o.patientNote) });
     if (o.locationChartNote) items.push({ label:"Location chart note", value:toTitleCase(o.locationChartNote) });
 
@@ -3044,6 +3122,12 @@
     }).map(function(c){ return c.short + ": " + c.answer; });
     return parts.length ? parts.join(" \u2192 ") : "";
   }
+  var OUTPUT_CARD_NODE = {
+    kind:"output",
+    short:"Output card",
+    text:"The finished output card - notes, fields and copied text.",
+    partLabel:"Output card"
+  };
   function feedbackBoxHtml(node){
     if (!node || node.kind === "auto") return "";
     return '<details class="feedback-box">' +
@@ -3070,7 +3154,7 @@
         nodeId: state.node,
         short: node.short || "(unlabelled)",
         text: node.text || "",
-        part: PART_LABELS[node.part] || ("Part " + node.part),
+        part: node.partLabel || PART_LABELS[node.part] || ("Part " + node.part),
         path: buildWhyPathRedacted(),
         note: note,
         at: new Date()
@@ -3737,7 +3821,8 @@
       '</div>' +
       '</div>' +
       outputSectionHtml() +
-      timeBreakdownHtml();
+      timeBreakdownHtml() +
+      feedbackBoxHtml(OUTPUT_CARD_NODE);
     stage.innerHTML = html;
     document.getElementById("startOverBtn2").addEventListener("click", reset);
     document.getElementById("nextPatientBtn").addEventListener("click", exitCurrentRun);
@@ -3745,6 +3830,7 @@
     wireEngineeringEscalationButton();
     wireBackButton();
     wireOutputSection();
+    wireFeedbackBox(OUTPUT_CARD_NODE);
   }
 
   function renderDone(){
@@ -3760,13 +3846,15 @@
       '</div>' +
       '</div>' +
       outputSectionHtml() +
-      timeBreakdownHtml();
+      timeBreakdownHtml() +
+      feedbackBoxHtml(OUTPUT_CARD_NODE);
     stage.innerHTML = html;
     document.getElementById("startOverBtn2").addEventListener("click", reset);
     document.getElementById("nextPatientBtn").addEventListener("click", exitCurrentRun);
     wireEngineeringEscalationButton();
     wireBackButton();
     wireOutputSection();
+    wireFeedbackBox(OUTPUT_CARD_NODE);
   }
 
   // ---- init ----
