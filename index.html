@@ -213,7 +213,9 @@
     font-family:Roboto,"Roboto Regular","Helvetica Neue",Helvetica,Arial,sans-serif; font-size:1.125rem;
     margin:0; font-weight:600; letter-spacing:0.2px; white-space:nowrap;
   }
-  header.top .sub{ font-size:0.75rem; color:var(--k15f); margin-top:2px; }
+  /* The block is sized by the title, which never wraps, so centring the second
+     line centres it under the title regardless of how long the name is. */
+  header.top .sub{ font-size:0.75rem; color:var(--k15f); margin-top:2px; text-align:center; }
   button.startover{
     flex-shrink:0; background:transparent; border:1px solid var(--k16b); color:var(--k17f);
     padding:7px 12px; border-radius:7px; font-size:0.8125rem; cursor:pointer;
