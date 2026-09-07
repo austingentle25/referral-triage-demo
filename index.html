@@ -3688,7 +3688,7 @@
       '<div class="feedback-hint">Captures this question and the path that led here. The ' +
         'patient name and every typed field are removed first.' +
         (FEEDBACK_RELAY_URL
-          ? ' <b>This is sent to the issue tracker - describe the question, not the patient.</b>'
+          ? ' <b>Auto Feedback sends this to the issue tracker - describe the question, not the patient.</b>'
           : '') + '</div>' +
       '<button type="button" class="continue-btn feedback-btn" id="feedbackSubmit">Add to feedback</button>' +
       '</details>';
@@ -3768,7 +3768,7 @@
       .sort(function(a,b){ return counts[b] - counts[a]; });
 
     var L = [];
-    L.push("REFERRAL SYNC HELPER - FEEDBACK REPORT");
+    L.push("REFERRAL SYNC HELPER - AUTO FEEDBACK REPORT");
     L.push("Generated " + new Date().toLocaleString());
     L.push(feedbackLog.length + " report" + (feedbackLog.length === 1 ? "" : "s") +
            " across " + order.length + " task" + (order.length === 1 ? "" : "s"));
@@ -3796,15 +3796,15 @@
   }
 
   function renderFeedback(){
-    stageBadge.textContent = "Feedback";
+    stageBadge.textContent = "Auto Feedback";
     var html;
     if (!feedbackLog.length){
-      html = '<div class="card"><h2>Feedback</h2>' +
+      html = '<div class="card"><h2>Auto Feedback</h2>' +
         '<p>Nothing flagged yet. On any question, open <b>"Something wrong with this question? Flag it"</b> ' +
         'and describe the problem - the question and the full path that led to it are captured with it.</p>' +
         '<p style="font-size:0.75rem;color:var(--ink-soft);">' +
         (FEEDBACK_RELAY_URL
-          ? 'Each report is sent to the issue tracker as you submit it, and also kept here so you can copy the lot out. If a send fails you will be told, and it can be retried.'
+          ? 'Auto Feedback opens a tracked issue for each report as you submit it, and keeps a copy here so you can read the lot back. If a send fails you are told, and it can be retried - nothing is dropped quietly.'
           : 'Reports live in this page only and are cleared when the tab closes. Copy them out before you finish.') +
         '</p>' +
         '<div class="btnrow-continue"><button class="continue-btn" id="fbBackBtn">Back to task</button></div>' +
@@ -3812,7 +3812,7 @@
     } else {
       var tasks = {};
       feedbackLog.forEach(function(f){ tasks[f.taskId] = 1; });
-      html = '<div class="card"><h2>Feedback</h2>' +
+      html = '<div class="card"><h2>Auto Feedback</h2>' +
         '<p style="color:var(--ink-soft);">' + feedbackLog.length + ' report' +
         (feedbackLog.length === 1 ? "" : "s") + ' across ' + Object.keys(tasks).length +
         ' task' + (Object.keys(tasks).length === 1 ? "" : "s") + '.</p>' +

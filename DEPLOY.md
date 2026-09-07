@@ -1,4 +1,4 @@
-# Deploying the feedback relay
+# Auto Feedback - deploying the relay
 
 Feedback submitted in Referral Sync Helper currently lives in the page and dies
 with the tab. This relay sends each report to a GitHub Issue so it becomes a
