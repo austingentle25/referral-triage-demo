@@ -442,6 +442,15 @@
   .time-overall-label{ font-size:0.9375rem; font-weight:700; color:var(--ink); }
   .time-overall-val{ font-size:1.375rem; font-weight:700; font-variant-numeric:tabular-nums; color:var(--teal-dark-ink); }
   .time-overall-sub{ font-size:0.6875rem; color:var(--ink-soft); margin:6px 0 10px; }
+  .dx-suggestion-inactive{
+    opacity:.55; cursor:not-allowed; display:flex; justify-content:space-between;
+    align-items:baseline; gap:10px;
+  }
+  .dx-suggestion-inactive:hover{ background:none; }
+  .inactive-tag{
+    font-size:0.625rem; font-weight:700; letter-spacing:.03em; text-transform:uppercase;
+    color:var(--review); white-space:nowrap;
+  }
   .reviewer-note-card{ margin-top:12px; }
   .reviewer-note-card h3{ font-size:0.9375rem; margin:4px 0 8px; }
   .feedback-box{ margin:8px 0 0; padding:0; background:none; border:0; }
@@ -712,26 +721,26 @@
     // Seen on the practice's own public directory 2023-2025 but not yet confirmed
     // in Athena. Specialty and locations are unknown, so the tool asks for the
     // specialty the first time one is used rather than guessing.
-    { name:"Madhavagopal Cherukuri, MD", specialty:"", locations:[], unverified:true, npi:"1104860337" },
-    { name:"Merick Kirshner, MD", specialty:"", locations:[], unverified:true, npi:"1831183870" },
-    { name:"Kristen Jensen, NP", specialty:"", locations:[], unverified:true, npi:"1770834798" },
-    { name:"Stephanie Pinchera, NP", specialty:"", locations:[], unverified:true, npi:"1699962563" },
-    { name:"Amarnauth Singh, MD", specialty:"", locations:[], unverified:true, npi:"1639170764" },
-    { name:"Oday Al-Rabadi, MD", specialty:"", locations:[], unverified:true, npi:"1972779643" },
-    { name:"John Morgan, MD", specialty:"", locations:[], unverified:true, npi:"1407890353" },
-    { name:"Kevin Murphy, MD", specialty:"", locations:[], unverified:true, npi:"1881777613" },
-    { name:"Gregory Spayde, MD", specialty:"", locations:[], unverified:true, npi:"1083608913" },
-    { name:"Desiree Little, NP", specialty:"", locations:[], unverified:true, npi:"1326678319" },
-    { name:"Amilee Cooper, NP", specialty:"", locations:[], unverified:true, npi:"1699852053" },
-    { name:"Aye Thandar Win, MD", specialty:"", locations:[], unverified:true, npi:"1245251941" },
-    { name:"Basil Al-Khatib, MD", specialty:"", locations:[], unverified:true, npi:"1083977599" },
-    { name:"Demetrios Mavroidis, MD", specialty:"", locations:[], unverified:true, npi:"1184602914" },
-    { name:"Ethan Meyer, MD", specialty:"", locations:[], unverified:true, npi:"1932532322" },
-    { name:"Jacob Pfetsch, MD", specialty:"", locations:[], unverified:true, npi:"1639756356" },
-    { name:"Joshua Price, MD", specialty:"", locations:[], unverified:true, npi:"1386106391" },
-    { name:"Kristen Franco, NP", specialty:"", locations:[], unverified:true, npi:"1932399870" },
-    { name:"Sherry Caforio, NP", specialty:"", locations:[], unverified:true, npi:"1609363159" },
-    { name:"Sunshine Borawski, NP", specialty:"", locations:[], unverified:true, npi:"1831761444" },
+    { name:"Madhavagopal Cherukuri, MD", specialty:"", locations:[], inactive:true, npi:"1104860337" },
+    { name:"Merick Kirshner, MD", specialty:"", locations:[], inactive:true, npi:"1831183870" },
+    { name:"Kristen Jensen, NP", specialty:"", locations:[], inactive:true, npi:"1770834798" },
+    { name:"Stephanie Pinchera, NP", specialty:"", locations:[], inactive:true, npi:"1699962563" },
+    { name:"Amarnauth Singh, MD", specialty:"", locations:[], inactive:true, npi:"1639170764" },
+    { name:"Oday Al-Rabadi, MD", specialty:"", locations:[], inactive:true, npi:"1972779643" },
+    { name:"John Morgan, MD", specialty:"", locations:[], inactive:true, npi:"1407890353" },
+    { name:"Kevin Murphy, MD", specialty:"", locations:[], inactive:true, npi:"1881777613" },
+    { name:"Gregory Spayde, MD", specialty:"", locations:[], inactive:true, npi:"1083608913" },
+    { name:"Desiree Little, NP", specialty:"", locations:[], inactive:true, npi:"1326678319" },
+    { name:"Amilee Cooper, NP", specialty:"", locations:[], inactive:true, npi:"1699852053" },
+    { name:"Aye Thandar Win, MD", specialty:"", locations:[], inactive:true, npi:"1245251941" },
+    { name:"Basil Al-Khatib, MD", specialty:"", locations:[], inactive:true, npi:"1083977599" },
+    { name:"Demetrios Mavroidis, MD", specialty:"", locations:[], inactive:true, npi:"1184602914" },
+    { name:"Ethan Meyer, MD", specialty:"", locations:[], inactive:true, npi:"1932532322" },
+    { name:"Jacob Pfetsch, MD", specialty:"", locations:[], inactive:true, npi:"1639756356" },
+    { name:"Joshua Price, MD", specialty:"", locations:[], inactive:true, npi:"1386106391" },
+    { name:"Kristen Franco, NP", specialty:"", locations:[], inactive:true, npi:"1932399870" },
+    { name:"Sherry Caforio, NP", specialty:"", locations:[], inactive:true, npi:"1609363159" },
+    { name:"Sunshine Borawski, NP", specialty:"", locations:[], inactive:true, npi:"1831761444" },
   ];
 
   // Derives Athena's "AMG_LASTNAME_FIRSTINITIAL" provider code from a roster name.
@@ -753,7 +762,8 @@
     var display = p.specialty ? (p.name + " - " + p.specialty + " (" + p.locations.join(", ") + ")") : p.name;
     if (code) display = code + " - " + display;
     PROVIDER_LOOKUP[p.name] = { specialty:p.specialty, locations:p.locations, display:display, notes:p.notes || "", athenaCode:code,
-      inClinicOnly:!!p.inClinicOnly, nonValerieScheduling:!!p.nonValerieScheduling };
+      inClinicOnly:!!p.inClinicOnly, nonValerieScheduling:!!p.nonValerieScheduling,
+      inactive:!!p.inactive, npi:p.npi || "" };
     return { value:p.name, label:display };
   });
   PROVIDER_LOOKUP["Unknown provider"] = { specialty:"", locations:[], display:"Unknown provider", notes:"", athenaCode:"" };
@@ -818,13 +828,13 @@
       };
     }).filter(function(g){ return g.options.length > 0; });
 
-    var unverified = PROVIDER_DATA.filter(function(p){ return p.unverified; });
-    var staff = PROVIDER_DATA.filter(function(p){ return !p.locations.length && !p.unverified; });
+    var inactiveProviders = PROVIDER_DATA.filter(function(p){ return p.inactive; });
+    var staff = PROVIDER_DATA.filter(function(p){ return !p.locations.length && !p.inactive; });
     if (staff.length){
       groups.push({ label:"Other / Staff", options: staff.map(function(p){ return { value:p.name, label:PROVIDER_LOOKUP[p.name].display }; }) });
     }
-    if (unverified.length){
-      groups.push({ label:"Not verified - confirm specialty before using", options: unverified.map(function(p){
+    if (inactiveProviders.length){
+      groups.push({ label:"Not active - listed for reference, cannot be selected", options: inactiveProviders.map(function(p){
         return { value:p.name, label:PROVIDER_LOOKUP[p.name].display };
       }) });
     }
@@ -3697,7 +3707,8 @@
       g.options.forEach(function(opt){
         if (seenProvider[opt.value]) return;
         seenProvider[opt.value] = true;
-        flat.push({ value:opt.value, label:opt.label, groupLabel:g.label });
+        flat.push({ value:opt.value, label:opt.label, groupLabel:g.label,
+                    inactive: !!(PROVIDER_LOOKUP[opt.value] && PROVIDER_LOOKUP[opt.value].inactive) });
       });
     });
     var selectedValue = null;
@@ -3766,7 +3777,14 @@
         suggestionsEl.style.display = "block";
         return;
       }
+      // Inactive providers are shown so a name on a referral can still be
+      // recognised, but they carry no data-val, so nothing binds a click to them
+      // and they cannot be chosen.
       suggestionsEl.innerHTML = matches.map(function(f){
+        if (f.inactive){
+          return '<div class="dx-suggestion dx-suggestion-inactive" aria-disabled="true">' +
+            escapeHtml(f.label) + '<span class="inactive-tag">not active - do not select</span></div>';
+        }
         return '<div class="dx-suggestion" data-val="' + escapeHtml(f.value) + '">' + escapeHtml(f.label) + '</div>';
       }).join("");
       suggestionsEl.style.display = "block";
