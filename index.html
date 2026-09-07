@@ -1927,7 +1927,7 @@
     },
     p5_careteam1: { kind:"yesno", source:"Athena Quickview - Care Team + Valerie Task Details", part:5,
       warning:"A provider can be listed as both Referring Provider and PCP at the same time - adding one doesn't mean removing the other. Never delete an existing Care Team entry that's already there.",
-      text:"In Quickview \u2192 Care Team, is the referring provider listed with the same address as the referral?",
+      text:"In Quickview \u2192 Care Team, is the referring provider listed with the same address and fax number as the referral?",
       short:"Referring provider listed with matching address?",
       yes:function(s){ setOut("careTeamReferring","already listed"); return "p5_pcp_existing"; },
       no:function(s){ return "p5_careteam1a"; }
@@ -1937,7 +1937,7 @@
       text:"Which of these is the case?",
       short:"Referring provider status on Care Team",
       yesLabel:"Not on the Care Team \u2014 add them",
-      noLabel:"On the Care Team, but the address is wrong",
+      noLabel:"On the Care Team, but the address or fax number is wrong",
       thirdLabel:"Not in Athena's database at all",
       yes:function(s){ setOut("careTeamReferring","add them; address must match referring location"); return "p5_pcp_existing"; },
       no:function(s){ return "p5_ct_name"; },
@@ -1951,31 +1951,34 @@
     // The chart note names the referring provider, NPI and address, so those
     // values have to be collected rather than left as field labels. Each is
     // optional: what is on the referral is what goes in the note.
-    p5_ct_name: { kind:"text", source:"Referral document / Athena Care Team", part:5, field:"referringProviderName", optional:true,
-      text:"What's the referring provider's name as it should read in the care team? Leave blank if unavailable.",
-      short:"Referring provider name",
-      placeholder:"Leave blank if unavailable",
-      next:"p5_ct_npi"
-    },
-    p5_ct_npi: { kind:"text", source:"Referral document / Athena Care Team", part:5, field:"referringProviderNPI", optional:true,
-      text:"What's their NPI? Leave blank if unavailable.",
-      short:"Referring provider NPI",
-      placeholder:"Leave blank if unavailable",
-      next:"p5_ct_address"
-    },
-    p5_ct_address: { kind:"text", source:"Referral document / Athena Care Team", part:5, field:"referringProviderAddress", optional:true,
-      text:"What's the referring address exactly as it appears on the referral? Leave blank if unavailable.",
-      short:"Referring provider address",
-      placeholder:"Leave blank if unavailable",
-      afterSubmit:function(s){
-        var parts = [];
-        if (s.out.referringProviderName && s.out.referringProviderName.trim()) parts.push(s.out.referringProviderName.trim());
-        if (s.out.referringProviderNPI && s.out.referringProviderNPI.trim()) parts.push(s.out.referringProviderNPI.trim());
-        if (s.out.referringProviderAddress && s.out.referringProviderAddress.trim()) parts.push(s.out.referringProviderAddress.trim());
-        setOut("careTeamReferring", "Referring provider address does not match in the care team: " +
-          (parts.length ? parts.join(", ") : "Referring Provider, NPI, Referring Address") + ".");
-        setOut("careTeamMismatch", "yes");
-      },
+    // Name, NPI, address and fax all come off the same referral, so they are
+    // collected on one screen. The fax number was added at the practice's
+    // request: a care-team entry that matches on address but not fax is still
+    // wrong, and the note has to say so.
+    p5_ct_name: { kind:"form", source:"Referral document / Athena Care Team", part:5,
+      text:"Enter what the referral shows for the referring provider.",
+      short:"Referring provider details",
+      definition:"Each is optional - what is on the referral is what goes in the note. Leave blank anything the referral does not show.",
+      fields:[
+        { kind:"text", field:"referringProviderName", short:"Referring provider name", optional:true,
+          label:"Name, as it should read in the care team", placeholder:"Leave blank if unavailable" },
+        { kind:"text", field:"referringProviderNPI", short:"Referring provider NPI", optional:true,
+          label:"NPI", placeholder:"Leave blank if unavailable" },
+        { kind:"text", field:"referringProviderAddress", short:"Referring provider address", optional:true,
+          label:"Address, exactly as it appears on the referral", placeholder:"Leave blank if unavailable" },
+        { kind:"text", field:"referringProviderFax", short:"Referring provider fax", optional:true,
+          label:"Fax number", placeholder:"Leave blank if unavailable",
+          afterSubmit:function(s){
+            var parts = [];
+            if (s.out.referringProviderName && s.out.referringProviderName.trim()) parts.push(s.out.referringProviderName.trim());
+            if (s.out.referringProviderNPI && s.out.referringProviderNPI.trim()) parts.push(s.out.referringProviderNPI.trim());
+            if (s.out.referringProviderAddress && s.out.referringProviderAddress.trim()) parts.push(s.out.referringProviderAddress.trim());
+            if (s.out.referringProviderFax && s.out.referringProviderFax.trim()) parts.push("fax " + s.out.referringProviderFax.trim());
+            setOut("careTeamReferring", "Referring provider details do not match in the care team: " +
+              (parts.length ? parts.join(", ") : "Referring Provider, NPI, Referring Address, Fax") + ".");
+            setOut("careTeamMismatch", "yes");
+          } }
+      ],
       next:"p5_pcp_existing"
     },
     p5_pcp_existing: { kind:"yesno", source:"Athena Quickview - Care Team", part:5,
@@ -2004,11 +2007,14 @@
           no:function(s){ setOut("addressNote","not in the chart or on the referral - Please Obtain, Zip: 85026"); },
           third:function(s){ setOut("addressNote","on file but doesn't match insurance subscriber address - update it from the referral"); } },
         { kind:"yesno", short:"Email on file?",
-          label:"Check Full Registration for an email on file.",
-          yes:function(s){ setOut("emailNote","on file"); },
-          no:function(s){ setOut("emailNote","check No Email"); } },
+          label:"Do we have an email address for this patient?",
+          definition:"Check Full Registration and the referral. If Athena has none but the referral does, that is not missing - take it from the referral and add it. Only tick No Email when neither has one.",
+          yesLabel:"Yes - in Athena or on the referral",
+          noLabel:"No - missing from both",
+          yes:function(s){ setOut("emailNote","available - on file or taken from the referral"); },
+          no:function(s){ setOut("emailNote","none in the chart or on the referral - check No Email"); } },
         { kind:"yesno", short:"Phone available in chart or referral?",
-          label:"Is a phone number available in either place - on file in Athena, or on the referral?",
+          label:"Do we have a phone number for this patient?",
           definition:"Missing Information is only raised when the detail is absent from BOTH the patient chart AND the referral. If either one has it, it is not missing - take it from whichever source has it.",
           yesLabel:"Yes - in at least one",
           noLabel:"No - missing from both",
@@ -2111,6 +2117,15 @@
         var t = s.out.edgeCaseInsuranceType;
         if (t === "Mercy" || t === "Other (not VA or Mercy)"){
           s.crumbs.push({ short:"VA coverage? (auto)", answer:"No - already established by edge-case type (" + t + ")" });
+          return "p5_insurance2";
+        }
+        // VA is one of the edge-case insurance types, and the edge-case toggle is
+        // where it gets declared. Answering the contracted grid straight means the
+        // plan was found there and is not an edge case - so it is not VA, and
+        // asking again just walks the reviewer back over a plan they identified.
+        var cg = s.out.contractedGrid || "";
+        if (cg === "Yes" || cg === "No"){
+          s.crumbs.push({ short:"VA coverage? (auto)", answer:"No - plan identified in the contracting grid, not an edge case" });
           return "p5_insurance2";
         }
         return "p5_insurance_va";
@@ -2399,17 +2414,26 @@
       }
 
       if (node.kind === "form"){
-        // The form wrote one crumb per field, so resume reads that many steps
-        // back off the path before moving to the next node.
-        if (i + node.fields.length > parsed.length) return { ok:false, error:"Stopped at step " + (i+1) + " - the path ends inside a multi-field step." };
+        // The form writes one crumb per field, except an optional field left
+        // blank, which writes none. So resume matches on the field's label and
+        // consumes a step only when the path actually carries one - counting
+        // fields instead would run off the end of a form with blanks in it.
         historyStack.push(JSON.parse(JSON.stringify(state)));
         recordStepTime(node);
+        var cursor = i;
         for (var fi = 0; fi < node.fields.length; fi++){
-          var ff = node.fields[fi], fstep = parsed[i + fi];
-          if (fstep.short !== ff.short) return { ok:false, error:"Stopped at step " + (i+fi+1) + " - expected \"" + ff.short + "\" but the path has \"" + fstep.short + "\"." };
-          if (!applyFormField(ff, fstep.answer)) return { ok:false, error:"Stopped at step " + (i+fi+1) + " - couldn't match answer \"" + fstep.answer + "\" to \"" + ff.short + "\"." };
+          var ff = node.fields[fi];
+          var fstep = parsed[cursor];
+          if (fstep && fstep.short === ff.short){
+            if (!applyFormField(ff, fstep.answer)) return { ok:false, error:"Stopped at step " + (cursor+1) + " - couldn't match answer \"" + fstep.answer + "\" to \"" + ff.short + "\"." };
+            cursor++;
+          } else if (ff.kind === "text" && ff.optional){
+            applyFormField(ff, "");
+          } else {
+            return { ok:false, error:"Stopped at step " + (cursor+1) + " - the path is missing \"" + ff.short + "\"." };
+          }
         }
-        i += node.fields.length - 1;
+        i = cursor - 1;
         gotoResolve((typeof node.next === "function") ? node.next(state) : node.next);
         continue;
       }
