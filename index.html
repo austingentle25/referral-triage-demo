@@ -613,7 +613,7 @@
   <div id="stage"></div>
 </div>
 
-<footer class="note">Click through every determination, then update Athena wherever necessary using the output card.</footer>
+<footer class="note" id="footerNote">Click through every determination, then update Athena wherever necessary using the output card.</footer>
 
 <script>
 (function(){
@@ -1091,7 +1091,10 @@
       text:"The upcoming appointments are with different providers. Do you know who the patient saw most recently, or who their usual provider is?",
       short:"Know most-recent/usual provider?",
       yes:function(s){ return "p1_name_recentusual"; },
-      no:function(s){ return "p1_name_manual"; }
+      // Spec A1.1a: if the usual/most-recent provider does not resolve, this is a
+      // human decision. Guessing here would silently pick one of several providers
+      // who each already have an upcoming appointment with the patient.
+      no:function(s){ return stopManual("Multiple upcoming appointments name different providers, and the most-recent / usual provider could not be identified.",1); }
     },
     p1_name_manual: { kind:"select", source:"Quickview → Scheduling → View Patient Appointments", part:1, field:"provider", groups:PROVIDER_OPTION_GROUPS,
       definition:"Usual / most consistent provider = the provider seen most often among qualifying appointments in the last 3 years.",
@@ -1747,8 +1750,8 @@
       }
     },
     p5_insurance1_ask: { kind:"yesno", source:"Athena - receiving provider's location", part:5,
-      text:"Is the receiving provider at Camelback?",
-      short:"Receiving provider at Camelback?",
+      text:"Is the receiving department for this referral Camelback?",
+      short:"Camelback referral?",
       yes:function(s){ return "p5_va_gate"; },
       no:function(s){ setOut("insurancePath","in chart only - do not check eligibility/auth");
                       setOut("referralObjNote","n/a"); setOut("authObjNote","n/a"); setOut("outboundExport","no");
@@ -2328,6 +2331,13 @@
     if (o.urgentReason === "diagnosis") return "Diagnosis: " + (o.diagnosisText || " - ");
     return "Per provider (fax marked Urgent)";
   }
+  // Spec D4: the label Athena expects on the referral document itself. Established
+  // and New are the same determination as the patient type, so it is derived, not asked.
+  function buildDocumentLabel(){
+    var st = state.out.status;
+    if (!st) return "";
+    return (st === "Established") ? "Established Patient Referral" : "New Patient Referral";
+  }
   function buildInternalNote(){
     var o = state.out;
     if (!o.status) return "";
@@ -2348,11 +2358,15 @@
         urgencyText = " - Urgent Per Provider";
       }
     }
-    var providerShort = (o.provider || "-").replace(/,\s*(MD|DO|DNP)\s*$/i, "");
+    // A manual-review stop can end before a provider is settled; the placeholder
+    // values are internal, so say so plainly rather than emitting an empty segment.
+    var providerShort = o.provider || "";
+    if (providerShort === "FIND LOCATION FIRST" || providerShort === "MANUAL REVIEW") providerShort = "";
+    if (!providerShort) providerShort = "Provider not determined";
     // Drop the action segment when there is none (manual review) instead of
     // leaving a dangling "- -" in a note staff paste into Athena.
     var actionShort = shortActionNote(o.actionNote);
-    var segs = ["Reviewed by Valerie Health (" + dateStr + ")", providerShort];
+    var segs = ["Reviewed By Valerie Health (" + dateStr + ")", providerShort];
     if (actionShort && actionShort !== "-") segs.push(actionShort);
     else if (state.manualReview) segs.push("Manual review required");
     return segs.join(" - ") + urgencyText;
@@ -2562,6 +2576,7 @@
     L.push("");
     L.push("URGENT: " + f(o.urgent));
     if (o.urgent === "YES") L.push("URGENT REASON: " + ft(buildUrgentReasonText()));
+    if (buildDocumentLabel()) L.push("DOCUMENT LABEL: " + buildDocumentLabel());
     L.push("DOCUMENT DATE: " + f(o.referralDate));
     L.push("INTERNAL NOTE: " + ft(buildInternalNote()));
     if (o.patientNote) L.push("PATIENT NOTE: " + ft(o.patientNote));
@@ -2629,6 +2644,7 @@
     items.push({ sec:"Document" });
     items.push({ label:"Urgent", value:f(o.urgent), cls: o.urgent === "YES" ? "urgent-yes" : "" });
     if (o.urgent === "YES") items.push({ label:"Urgent reason", value:ft(buildUrgentReasonText()), cls:"urgent-yes" });
+    if (buildDocumentLabel()) items.push({ label:"Document label", value:buildDocumentLabel() });
     items.push({ label:"Document date", value:f(o.referralDate) });
     items.push({ label:"Internal note", value:ft(buildInternalNote()) });
     if (o.patientNote) items.push({ label:"Patient note", value:ft(o.patientNote) });
@@ -2761,6 +2777,14 @@
     stageBadge.textContent = PART_LABELS[partNum];
   }
 
+  function updateFooterNote(){
+    var el = document.getElementById("footerNote");
+    if (!el) return;
+    var t = state.out.taskId;
+    el.textContent = t
+      ? "Working " + t + " - click through every determination, then update Athena wherever necessary using the output card."
+      : "Click through every determination, then update Athena wherever necessary using the output card.";
+  }
   function updateHeaderSub(){
     var sub = document.getElementById("headerSub");
     if (!sub) return;
@@ -2841,7 +2865,7 @@
         'or when you exit one part-way through.</p>' +
         '<p style="font-size:12px;color:var(--ink-soft);">This log lives in the page only. Refreshing or ' +
         'closing the tab clears it, so no patient name is ever saved to this computer.</p>' +
-        '<div class="btnrow-continue"><button class="continue-btn" id="logBackBtn">Back to determination</button></div>' +
+        '<div class="btnrow-continue"><button class="continue-btn" id="logBackBtn">Back to task</button></div>' +
         '</div>';
     } else {
       var complete = sessionLog.filter(function(e){ return e.outcome === "Complete"; }).length;
@@ -2855,7 +2879,7 @@
       html = '<div class="card"><h2>Session log</h2>' +
         '<div class="log-summary-bar">' + escapeHtml(bits.join(" · ")) + '</div>' +
         '<div class="btnrow-continue">' +
-          '<button class="continue-btn" id="logBackBtn">Back to determination</button>' +
+          '<button class="continue-btn" id="logBackBtn">Back to task</button>' +
           '<button class="again" id="logNextBtn">Start next patient</button>' +
         '</div>' +
         '<div class="log-actions" style="margin-top:12px;">' +
@@ -2921,6 +2945,7 @@
     updateStageBadge();
     updateProgress();
     updateHeaderSub();
+    updateFooterNote();
     updateLiveTimer();
     updateLogButton();
 
@@ -3384,7 +3409,7 @@
 
   function renderDone(){
     var html = '<div class="card done-card">' +
-      '<span class="tag">DETERMINATIONS COMPLETE</span>' +
+      '<span class="tag">' + escapeHtml(state.out.taskId ? state.out.taskId + ' COMPLETE' : 'DETERMINATIONS COMPLETE') + '</span>' +
       '<h2>All set</h2>' +
       '<p>Update Athena wherever necessary using the output card below.</p>' +
       engineeringEscalationButtonHtml() +
