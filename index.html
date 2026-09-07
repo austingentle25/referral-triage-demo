@@ -451,6 +451,10 @@
     font-size:0.625rem; font-weight:700; letter-spacing:.03em; text-transform:uppercase;
     color:var(--review); white-space:nowrap;
   }
+  .log-entry.is-pending{ border-left-color:var(--location); }
+  .log-entry.is-pending .log-outcome{ background:var(--location-bg); color:var(--location); }
+  .log-pending{ font-size:0.6875rem; color:var(--location); margin-top:3px; font-weight:700; }
+  .reopen-btn{ padding:6px 12px; font-size:0.75rem; }
   .reviewer-note-card{ margin-top:12px; }
   .reviewer-note-card h3{ font-size:0.9375rem; margin:4px 0 8px; }
   .feedback-box{ margin:8px 0 0; padding:0; background:none; border:0; }
@@ -2412,8 +2416,9 @@
   function logCurrentRun(outcomeOverride){
     if (!state || !state.runId) return;
     var o = state.out || {};
+    var pendingOn = outstandingItems();
     var outcome = outcomeOverride || (state.node === "__STOP__" ? "Manual review"
-                                    : state.node === "__DONE__" ? "Complete"
+                                    : state.node === "__DONE__" ? (pendingOn.length ? "Pending" : "Complete")
                                     : "Exited early");
     var entry = {
       runId: state.runId, seq: state.runSeq, at: new Date(),
@@ -2423,7 +2428,7 @@
       urgent: o.urgent === "YES", outcome: outcome,
       schedulingStatus: computeSchedulingStatus(),
       ms: (state.stepTimings || []).reduce(function(sum, t){ return sum + t.ms; }, 0),
-      reviewerNote: o.reviewerNote || "",
+      reviewerNote: o.reviewerNote || "", pendingOn: pendingOn,
       output: buildOutputText(), why: buildWhyPath()
     };
     for (var i = 0; i < sessionLog.length; i++){
@@ -2684,6 +2689,21 @@
   // Requested by the practice: the patient-facing note is slash-separated and
   // carries the receiving provider and the disposition only - not the urgency,
   // insurance or missing-information detail that the internal note collects.
+  // What the SOP treats as missing information: a blank yellow demographic field,
+  // no home address, no phone number - plus the two states that leave a
+  // determination waiting on somebody else, a pending authorization and an
+  // unconfirmed payor. Any of these means the referral is not finished.
+  function outstandingItems(){
+    var o = state.out, out = [];
+    if (o.phoneDisposition) out.push("Patient phone number");
+    if ((o.addressNote || "").indexOf("Please Obtain") !== -1) out.push("Patient home address");
+    if ((o.docLabelApplied || "").indexOf("no") === 0) out.push("Document label not applied");
+    if (state.awaitingInfo) out.push("Payor eligibility unconfirmed");
+    if ((o.authObjNote || "").toLowerCase().indexOf("pending") !== -1) out.push("Referral authorization pending");
+    if (o.careTeamMismatch === "yes") out.push("Referring provider address");
+    return out;
+  }
+
   function buildPatientNote(){
     var o = state.out;
     if (!o.status) return "";
@@ -3252,7 +3272,9 @@
   }
 
   function logEntryHtml(e){
-    var cls = e.outcome === "Manual review" ? " is-review" : (e.outcome === "Exited early" ? " is-exited" : "");
+    var cls = e.outcome === "Manual review" ? " is-review"
+      : (e.outcome === "Exited early" ? " is-exited"
+      : (e.outcome === "Pending" ? " is-pending" : ""));
     var meta = [];
     if (e.taskId) meta.push("Task " + e.taskId);
     if (e.provider) meta.push(e.provider);
@@ -3267,12 +3289,15 @@
           '<span class="log-outcome">' + escapeHtml(e.outcome) + '</span>' +
         '</div>' +
         '<div class="log-meta">' + escapeHtml(meta.join(" · ")) + '</div>' +
+        ((e.pendingOn && e.pendingOn.length)
+          ? '<div class="log-pending">Waiting on: ' + escapeHtml(e.pendingOn.join(", ")) + '</div>' : "") +
       '</summary>' +
       '<div class="log-body">' +
         '<div class="log-out">' + escapeHtml(e.output) + '</div>' +
         '<div class="log-actions">' +
           '<button type="button" data-act="copy-output" data-run="' + escapeHtml(e.runId) + '">Copy output card</button>' +
-          '<button type="button" data-act="copy-why" data-run="' + escapeHtml(e.runId) + '">Copy path (resumable)</button>' +
+          '<button type="button" class="continue-btn reopen-btn" data-act="reopen" data-run="' + escapeHtml(e.runId) + '">Reopen this determination</button>' +
+        '<button type="button" data-act="copy-why" data-run="' + escapeHtml(e.runId) + '">Copy path (resumable)</button>' +
           '<button type="button" class="danger-btn" data-act="remove" data-run="' + escapeHtml(e.runId) + '">Remove</button>' +
         '</div>' +
       '</div>' +
@@ -3568,6 +3593,19 @@
         if (act === "remove"){
           sessionLog = sessionLog.filter(function(e){ return e.runId !== run; });
           updateLogButton(); renderLog(); return;
+        }
+        if (act === "reopen"){
+          // Replays the stored path, so a determination left waiting on missing
+          // information can be picked up where it was rather than redone.
+          var res = resumeFromWhyPathText(entry.why);
+          if (!res.ok){
+            btn.textContent = "Could not reopen - copy the path instead";
+            setTimeout(function(){ btn.textContent = "Reopen this determination"; }, 2600);
+            return;
+          }
+          viewMode = "flow";
+          render();
+          return;
         }
         var label = btn.textContent;
         doCopy(act === "copy-why" ? entry.why : entry.output, function(){
