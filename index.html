@@ -482,7 +482,7 @@
     { name:"Liam Rutherford, MD", specialty:"General", locations:["HVI"] },
     { name:"Maya Sinclair, MD", specialty:"General, Interventional", locations:["Northgate"] },
     { name:"Noah Kingsley, MD", specialty:"General", locations:["Northgate"] },
-    { name:"Olivia Trent, MD", specialty:"General", locations:["Northgate"], notes:"Exception: also sees Pure hypercholesterolemia, unspecified" },
+    { name:"Olivia Trent, MD", specialty:"General, Interventional", locations:["Northgate"], notes:"Exception: also sees Pure hypercholesterolemia, unspecified" },
     { name:"Priya Nakagawa, MD", specialty:"General", locations:["Eastfield","Ridge"] },
     { name:"Quinn Ashford, MD", specialty:"Electrophysiology", locations:["Westbrook","Brookside","Northgate"], nonAutoScheduling:true, notes:"Not scheduled through the intake system - route to specialty-scheduling" },
     { name:"Rosa Lindqvist, DO", specialty:"General, Interventional", locations:["Brookside","Harborview"] },
@@ -1191,7 +1191,7 @@
           return "p3_usual_location_ask";
         }
         s.crumbs.push({ short:"Provider practices at that dept? (auto)", answer:"No - no matching location, including Northgate" });
-        return stopManual("Provider and location cannot be reconciled - Northgate is not one of their locations (provider list shows: " + info.locations.join(", ") + ").",3);
+        return stopManual("Provider and location cannot be reconciled - " + (deptShortName(s.out.location) || "that department") + " is not one of their locations (provider list shows: " + info.locations.join(", ") + ").",3);
       }
     },
     p3_pick_location_no_ref: { kind:"select", source:"Referral document / Athena - provider practice locations", part:3, field:"location",
@@ -1247,7 +1247,7 @@
       text:"Is Northgate one of their practice locations?",
       short:"Northgate is one of their locations?",
       yes:function(s){ setOut("location","Northgate (101)"); setOut("agree","defaulted Northgate"); return "p4_q1"; },
-      no:function(s){ return stopManual("Provider and location cannot be reconciled - Northgate is not one of their locations.",3); }
+      no:function(s){ return stopManual("Provider and location cannot be reconciled - " + (deptShortName(s.out.location) || "that department") + " is not one of their locations.",3); }
     },
 
     // ---- PART 4 - DISPOSITION ----
@@ -1465,6 +1465,13 @@
           }
           var prevBucket = s.out.bucket;
           var prevNote = s.out.actionNote;
+          // Never resurrect a case already ruled ineligible. The bucket is what
+          // actually drives routing, so overwriting it here would send a rejected
+          // referral to scheduling with the reason surviving only as prose.
+          if (prevBucket === "specialty-scheduling" || /ineligible/i.test(prevNote || "")){
+            s.crumbs.push({ short:"Urgent - appt within 1 week? (auto)", answer:"No - case already ineligible, routing left unchanged" });
+            return "p5_careteam1";
+          }
           setOut("bucket","clinic-scheduling");
           if (prevBucket && prevBucket !== "clinic-scheduling"){
             setOut("actionNote","Ready to schedule (no appointment within a week) (previously: " + (prevNote || prevBucket) + ")");
@@ -1486,6 +1493,9 @@
         if (s.isPrimarySiteReferral !== true) return "p5_careteam1";
         var prevBucket = s.out.bucket;
         var prevNote = s.out.actionNote;
+        // Same guard as the auto gate: an already-ineligible case must keep its
+        // routing rather than being flipped into the scheduling bucket.
+        if (prevBucket === "specialty-scheduling" || /ineligible/i.test(prevNote || "")) return "p5_careteam1";
         setOut("bucket","clinic-scheduling");
         if (prevBucket && prevBucket !== "clinic-scheduling"){
           setOut("actionNote","Ready to schedule (no appointment within a week) (previously: " + (prevNote || prevBucket) + ")");
@@ -2145,7 +2155,14 @@
   function buildInternalNote(){
     var o = state.out;
     if (!o.status) return "";
-    var dateStr = (o.referralDate || "DATE").replace(/\//g, ".");
+    // A manual-review stop never reaches Part 5, so referralDate is unset. Fall back
+    // to today rather than emitting the literal placeholder "(DATE)".
+    var rawDate = o.referralDate;
+    if (!rawDate){
+      var td = new Date();
+      rawDate = String(td.getMonth()+1).padStart(2,"0") + "/" + String(td.getDate()).padStart(2,"0") + "/" + td.getFullYear();
+    }
+    var dateStr = rawDate.replace(/\//g, ".");
     var urgencyText = "";
     if (o.urgent === "YES"){
       if (o.urgentReason === "diagnosis"){
@@ -2156,7 +2173,13 @@
       }
     }
     var providerShort = (o.provider || "-").replace(/,\s*(MD|DO|DNP)\s*$/i, "");
-    return "Reviewed by Referral Ops (" + dateStr + ") - " + providerShort + " - " + shortActionNote(o.actionNote) + urgencyText;
+    // Drop the action segment when there is none (manual review) instead of
+    // leaving a dangling "- -" in a note staff paste into Athena.
+    var actionShort = shortActionNote(o.actionNote);
+    var segs = ["Reviewed by Referral Ops (" + dateStr + ")", providerShort];
+    if (actionShort && actionShort !== "-") segs.push(actionShort);
+    else if (state.manualReview) segs.push("Manual review required");
+    return segs.join(" - ") + urgencyText;
   }
   // Action notes read as "Summary - detail clause", where the trailing clause
   // starts lowercase ("Ready to schedule - do not manually outreach"). Only that
@@ -2345,7 +2368,7 @@
     if (isInsuranceIneligible()) L.push("ERROR / ESCALATION NOTE: " + buildInsuranceErrorNote());
     if (state.needsEngineeringEscalation) L.push("ENGINEERING ESCALATION: " + buildEngineeringEscalationNote());
     L.push("");
-    L.push("STATUS: " + f(o.status));
+    L.push("PATIENT TYPE: " + f(o.status));
     L.push("PROVIDER: " + f(o.provider));
     if (providerSpecialty()) L.push("SPECIALTY: " + providerSpecialty());
     if (providerAthenaCode()) L.push("ATHENA PROVIDER CODE: " + providerAthenaCode());
@@ -2411,7 +2434,7 @@
     if (isInsuranceIneligible()) items.push({ label:"Error / escalation note", value:buildInsuranceErrorNote(), cls:"urgent-yes" });
 
     items.push({ sec:"Core" });
-    items.push({ label:"Status", value:f(o.status) });
+    items.push({ label:"Patient type", value:f(o.status) });
     items.push({ label:"Provider", value:f(o.provider) });
     if (providerSpecialty()) items.push({ label:"Specialty", value:providerSpecialty() });
     if (providerAthenaCode()) items.push({ label:"Athena provider code", value:providerAthenaCode() });
