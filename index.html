@@ -2665,7 +2665,7 @@
     return "Additional Scheduling Information Required";
   }
 
-  // Action Note: short, provider-free, routing reason only, slash-separated.
+  // Action Note: short, provider-free, routing reason only, hyphen-separated.
   // It is display guidance for the reviewer - nothing here writes to Athena.
   function buildActionNote(){
     var o = state.out;
@@ -2686,9 +2686,6 @@
     return "Reviewed By Valerie Health (" + rawDate.replace(/\//g, ".") + ") - " + label;
   }
 
-  // Requested by the practice: the patient-facing note is slash-separated and
-  // carries the receiving provider and the disposition only - not the urgency,
-  // insurance or missing-information detail that the internal note collects.
   // What the SOP treats as missing information: a blank yellow demographic field,
   // no home address, no phone number - plus the two states that leave a
   // determination waiting on somebody else, a pending authorization and an
@@ -2704,6 +2701,10 @@
     return out;
   }
 
+  // Requested by the practice: the patient-facing note is hyphen-separated and
+  // carries the receiving provider and the disposition only - not the urgency,
+  // insurance or missing-information detail that the internal note collects.
+  // The post-launch doc specified slashes; the practice uses "-".
   function buildPatientNote(){
     var o = state.out;
     if (!o.status) return "";
@@ -2716,7 +2717,7 @@
     if (provider === "FIND LOCATION FIRST" || provider === "MANUAL REVIEW") provider = "";
     if (!provider) provider = "N/A";
     var disp = specDisposition() || (state.manualReview ? "Additional Scheduling Information Required" : "Ready for Scheduling");
-    return ["Reviewed By Valerie Health (" + rawDate.replace(/\//g, ".") + ")", provider, disp].join(" / ");
+    return ["Reviewed By Valerie Health (" + rawDate.replace(/\//g, ".") + ")", provider, disp].join(" - ");
   }
 
   function buildInternalNote(){
