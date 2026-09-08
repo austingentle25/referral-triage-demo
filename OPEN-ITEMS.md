@@ -39,6 +39,7 @@ repo so a decision is not rediscovered as new work later.
 | F5 | One auto check wrote three different crumb labels | **Fixed.** `Provider is Loli/Bahu?`, `Provider is Cataldo?` and `Provider is Loli/Bahu/Cataldo?` were one check. Feedback reports quote these paths verbatim, so the same step read as three across reports and any analysis keyed on step name split them |
 | F6 | The determination harness lived nowhere | **Committed.** `tools/walk-harness.js`. Every "no determination changed" claim in this repo's history was produced by it and none of it was reproducible by anyone else |
 | F7 | The tool asserted that a provider treats the diagnosis | **Fixed.** Three nodes set `providerTreatsDx = true` without checking, and that flag is what `p4_diag_entry` reads to skip the real check - so the assertion switched off the validation that would have caught a mismatch. `p2_diag_auto` and `p2_dept_closer` were the root: both answer "does this *location* have anyone", before any provider is chosen. Now only a confirmed match sets it |
+| F8 | Sixteen providers listed with no specialty on file | **Closed, no action.** All sixteen are `inactive:true` and cannot be selected, so the specialty gap is unreachable. Confirming them against Athena by NPI was never needed |
 
 ---
 
@@ -83,19 +84,13 @@ The rule includes "not Cancelled or No Show", which cannot apply to a future
 appointment. Should split into `is_qualifying_past` and `is_qualifying_upcoming`.
 No reported failure — a latent inconsistency, not a live bug.
 
-### 5. Sixteen names still listed but unselectable
-
-Of the original twenty-two, six turned out to be in the scheduling guide: two in
-scope and restored, four active as APPs. **The remaining sixteen appear nowhere in
-it.** Confirming them against Athena by NPI needs access I do not have.
-
-### 6. The last single-question trip back to the referral fax
+### 5. The last single-question trip back to the referral fax
 
 The referring provider's specialty question sits alone between Care Team and Full
 Registration, in 38% of walks. Folding it into a form would mean asking it on the
 62% that do not need it. **Leave it** — recorded so it is not rediscovered.
 
-### 7. The patient name sits in the header all session
+### 6. The patient name sits in the header all session
 
 Raised in the UX pass and **not changed**, because the default is a decision
 rather than a defect. Today `updateHeaderSub()` replaces "Based on Updated
@@ -115,7 +110,7 @@ Two options, both small:
 The name is only ever in memory either way - this is about what a passer-by
 sees, not about storage. Say which and it is a few lines.
 
-### 8. The diagnosis picker matches on bare substrings
+### 7. The diagnosis picker matches on bare substrings
 
 Found while measuring, not reported from the floor. Full write-up in
 `tools/FINDINGS-diagnosis-matching.md`.
@@ -136,7 +131,7 @@ substring picker makes precision worse, not better. Fixing it changes which
 suggestions appear on the diagnosis screen, so it needs your sign-off rather
 than being folded in quietly.
 
-### 9. The provider restriction shows on one picker and not the other
+### 8. The provider restriction shows on one picker and not the other
 
 `relevantProvidersListHtml` annotates a restricted provider "schedulable, but no
 manual outreach" and dims the row. `renderSelectNode`, used by `p2_name_here`
@@ -146,7 +141,7 @@ Nothing is lost - the output card still says `SMS eligible: No - in-clinic
 scheduling only` and the status is still Review - but the operator finds out
 about twenty questions after the choice rather than at it.
 
-### 10. The insurance questions deserve one systematic pass
+### 9. The insurance questions deserve one systematic pass
 
 The referral grid made existing questions redundant in **three separate places, found
 three separate ways** - one by hitting it, one by asking about it, one by a 15-walk sweep.
@@ -157,7 +152,7 @@ The remaining insurance questions should be checked against the 307 packages in 
 rather than waiting for a fourth accident. Measurement only - no code changes - so it can
 be done and read before anything is decided.
 
-### 11. Keep the rules in step
+### 10. Keep the rules in step
 
 `TPR-RULES.md` in the private docs repo is the rules of record. The fifteen-step
 structure has landed and its structure section has not been updated to match.
