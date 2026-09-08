@@ -2710,8 +2710,13 @@
       yes:function(s){ setOut("pcpNote","add referring provider as PCP"); return "p5_registration"; },
       no:function(s){ setOut("pcpNote","referring provider is not FM/IM/FNP - no PCP action"); return "p5_registration"; }
     },
-    p5_registration: { kind:"form", source:"Athena Full Registration", part:6,
-      text:"In Full Registration, fill in all three.",
+    // Reported from the floor: not all three of these are in Full Registration,
+    // and some of them do not have to be. The field notes underneath already
+    // said so - "absent from BOTH the patient chart AND the referral" - while
+    // the heading above them named one screen, so the instruction contradicted
+    // its own definitions. It now names every place these can come from.
+    p5_registration: { kind:"form", source:"Athena Full Registration, the patient chart, and the referral", part:6,
+      text:"Fill in all three - from Full Registration, the patient chart, or the referral.",
       short:"Full Registration sweep",
       fields:[
         { kind:"yesno3", short:"Address on file & matches insurance?",
@@ -2723,7 +2728,7 @@
           third:function(s){ setOut("addressNote","on file but doesn't match insurance subscriber address - update it from the referral"); } },
         { kind:"yesno", short:"Email on file?",
           label:"Do we have an email address for this patient?",
-          definition:"Check Full Registration and the referral. If Athena has none but the referral does, that is not missing - take it from the referral and add it. Only tick No Email when neither has one.",
+          definition:"Check the patient chart and the referral, not only Full Registration. If Athena has none but the referral does, that is not missing - take it from the referral and add it. Only tick No Email when neither has one.",
           yesLabel:"Yes - in Athena or on the referral",
           noLabel:"No - missing from both",
           yes:function(s){ setOut("emailNote","available - on file or taken from the referral"); },
