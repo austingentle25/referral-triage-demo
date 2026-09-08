@@ -1906,8 +1906,27 @@
     p4_edge_case_mercy_check: { kind:"yesno", source:"Referral document / insurance card", part:10, context:"Insurance Check",
       text:"Does this Mercy plan require a referral from the PCP?",
       short:"Mercy plan requires PCP referral?",
-      yes:function(s){ s.pendingBanner = "Mercy Plan requires a referral from PCP - make sure Special Notes captures this."; return s._afterEdgeCase; },
+      yes:function(s){ s.pendingBanner = "Mercy Plan requires a referral from PCP - make sure Special Notes captures this."; return "p10_pcp_letter"; },
       no:function(s){ return s._afterEdgeCase; }
+    },
+    // Step 10. The plan requiring a PCP referral is not the same as having one.
+    // If the letter is in hand the referral authorization can be created from
+    // it; if it is not, the fax has to go out first and somebody has to send it.
+    p10_pcp_letter: { kind:"yesno", source:"Referral document / Athena - patient chart documents", part:10, context:"Insurance Check",
+      text:"Do we have a letter from the PCP?",
+      short:"PCP letter on file?",
+      definition:"Check the referral and the chart documents. A plan requiring a PCP referral does not mean one has been received - this is whether the letter itself is there.",
+      yesLabel:"Yes - letter is on file",
+      noLabel:"No - not on file",
+      yes:function(s){
+        setOut("pcpLetter","on file - create the edge-case referral authorization from it");
+        return s._afterEdgeCase;
+      },
+      no:function(s){
+        setOut("pcpLetter","not on file - send an outbound fax to the PCP requesting it, then create the referral authorization when it arrives");
+        s.pendingBanner = "No PCP letter on file - an outbound fax has to go to the PCP before the referral authorization can be created.";
+        return s._afterEdgeCase;
+      }
     },
     p4_q2: { kind:"yesno", source:"In the toolbox", part:9, context:"Insurance Check", edgeCaseToggle:true, selfPayToggle:true,
       text:"Is this plan contracted with Biltmore?",
@@ -2209,6 +2228,7 @@
         if (s.isCamelbackReferral === false){
           setOut("insurancePath","in chart only - do not check eligibility/auth");
           setOut("referralObjNote","n/a"); setOut("authObjNote","n/a"); setOut("outboundExport","no");
+          markStepsNotNeeded(s, "non-Camelback receiving assignment");
           return "__DONE__";
         }
         return "p5_insurance1_ask";
@@ -2752,6 +2772,18 @@
 
   // Records the current run, replacing any earlier entry for the same run so
   // that going Back and finishing again updates in place instead of duplicating.
+  // The reference workflow shows a skipped step as "Not needed" with a reason
+  // rather than leaving a gap. A non-Camelback receiving assignment ends the
+  // run early, and these are the steps it ends - named here so the path says
+  // what was not done and why, instead of simply stopping.
+  var STEPS_SKIPPED_NON_CAMELBACK = [8, 9, 10, 11, 12, 14];
+
+  function markStepsNotNeeded(s, reason){
+    STEPS_SKIPPED_NON_CAMELBACK.forEach(function(n){
+      s.crumbs.push({ short: PART_LABELS[n] + " (auto)", answer: "Not needed - " + reason });
+    });
+  }
+
   function logCurrentRun(outcomeOverride){
     if (!state || !state.runId) return;
     var o = state.out || {};
@@ -3454,6 +3486,7 @@
     }
 
     items.push({ sec:"Auth / referral objects" });
+    if (o.pcpLetter) items.push({ label:"PCP letter", value:ft(o.pcpLetter) });
     items.push({ label:"Referral", value:ft(o.referralObjNote) });
     items.push({ label:"Auth", value:ft(o.authObjNote) });
     items.push({ label:"Outbound export", value:ft(o.outboundExport) });
