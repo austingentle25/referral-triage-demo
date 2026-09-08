@@ -638,6 +638,12 @@
   .step-badge{ display:inline-block; font-size:0.6875rem; font-weight:700; letter-spacing:0.02em;
     color:var(--teal-dark-ink); background:var(--k31b); border:1px solid var(--k32b);
     border-radius:20px; padding:4px 12px; margin-bottom:10px; }
+  .about-lede{ font-size:0.95rem; color:var(--k03f); line-height:1.55; margin-bottom:4px; }
+  .about-sec{ margin-top:20px; padding-top:16px; border-top:1px solid var(--line); }
+  .about-sec h3{ font-size:0.9375rem; margin:0 0 8px; }
+  .about-sec p{ font-size:0.875rem; line-height:1.55; margin:0 0 8px; }
+  .about-sec ul{ margin:0; padding-left:20px; }
+  .about-sec li{ font-size:0.875rem; line-height:1.5; margin-bottom:6px; }
   .log-transfer{ margin-top:12px; border:1px solid var(--line); border-radius:10px; padding:12px; }
   .log-transfer-hint{ font-size:0.75rem; color:var(--k03f); margin-bottom:8px; line-height:1.45; }
   .log-transfer textarea{ width:100%; font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
@@ -680,6 +686,7 @@
       <button class="logbtn" id="feedbackBtn">Feedback (0)</button>
       <button class="logbtn" id="logBtn">Log (0)</button>
       <button class="startover" id="headerReset">Start over</button>
+      <button class="logbtn" id="aboutBtn" title="What this tool is and what it does">About</button>
     </div>
   </div>
   <div class="progress-wrap">
@@ -709,6 +716,34 @@
   // notes) and 14 (close the document when there is an upcoming appointment)
   // are computed at the end rather than asked - 14 is the Closed / Review
   // scheduling status.
+  // What the referral grid says about a payor, keyed by the payor ID as it
+  // appears in Athena. Empty until the Abrazo insurance grid is loaded in, and
+  // that is deliberate: with no entries the tool asks exactly what it asked
+  // before, so nothing changes until there is something real to look up.
+  //
+  // Each entry:
+  //   name              what to show back, so the reviewer can confirm it is right
+  //   contracted        "Yes" | "No"
+  //   referralRequired  "Yes" | "No" | "Conditional"
+  //   authRequired      "Yes" | "No" | "Conditional"
+  //   edgeCase          "VA (Veteran)" | "Mercy" | "Other (not VA or Mercy)" | null
+  //   note              anything the grid says verbatim that a reviewer needs
+  //   verify            true when the grid flags the row as needing verification
+  //
+  // A "Conditional" answer is never auto-applied - the grid says it depends, so
+  // the reviewer is still asked.
+  var PAYOR_TABLE = {};
+
+  function payorLookup(id){
+    var key = String(id || "").trim().toUpperCase();
+    if (!key) return null;
+    return PAYOR_TABLE[key] || null;
+  }
+
+  // Answers collected for a payor the table does not know, so they can be sent
+  // back and folded into the table rather than re-looked-up every time.
+  var payorCaptured = [];
+
   var PART_LABELS = {
     0:"Start - patient & task",
     1:"Step 1 - Resolve receiving location & provider",
@@ -1798,7 +1833,7 @@
       definition:"All four must match, not just the payer: plan name, subscriber ID, group number, and responsible payor. Any one of them differing counts as a mismatch. Missing Information is only raised when the detail is absent from BOTH the patient chart AND the referral. If either one has it, it is not missing - take it from whichever source has it.",
       text:"Does Valerie and Athena match on insurance?",
       short:"Valerie/Athena insurance match?",
-      yes:function(s){ return "p4_q2"; },
+      yes:function(s){ return "p9_payor_id"; },
       no:function(s){ return "p4_ins_which"; }
     },
     // Ops update: a primary that needs rerunning is Engineering's to redo; a
@@ -1815,7 +1850,7 @@
       no:function(s){
         setOut("insuranceVerifyFlag","secondary added manually - no rerun needed");
         s.pendingBanner = "Secondary insurance can be added by hand - no escalation needed. Continuing below.";
-        return "p4_q2";
+        return "p9_payor_id";
       },
       third:function(s){ return "p4_ins_mismatch_type"; }
     },
@@ -1855,13 +1890,13 @@
         setOut("insuranceVerifyFlag","Awaiting Info - payor called to confirm eligibility");
         setOut("bucket","biltmorecardreferral");
         s.awaitingInfo = true;
-        return "p4_q2";
+        return "p9_payor_id";
       },
       no:function(s){
         setOut("insuranceVerifyFlag","Awaiting Info - payor still to be called");
         setOut("bucket","biltmorecardreferral");
         s.awaitingInfo = true;
-        return "p4_q2";
+        return "p9_payor_id";
       }
     },
     p4_valerie_athena_desc: { kind:"text", source:"Athena Quickview - Insurance + Valerie Task Details", part:5, field:"engineeringIssueDesc", context:"Insurance Check",
@@ -1929,6 +1964,54 @@
         setOut("pcpLetter","not on file - send an outbound fax to the PCP requesting it, then create the referral authorization when it arrives");
         s.pendingBanner = "No PCP letter on file - an outbound fax has to go to the PCP before the referral authorization can be created.";
         return s._afterEdgeCase;
+      }
+    },
+    // Asked before the grid questions so a known payor can answer them without
+    // the reviewer looking anything up, and so an edge case announces itself
+    // rather than relying on somebody recognising the name.
+    p9_payor_id: { kind:"text", source:"Athena Quickview - Insurance", part:9, context:"Insurance Check",
+      field:"payorId", optional:true,
+      text:"What's the insurance payor ID?",
+      short:"Payor ID",
+      placeholder:"Leave blank if it is not visible",
+      definition:"The payor ID on the insurance in Athena. If the grid already covers this payor the contracting questions are answered from it and you will see what was applied; if not, you will be asked as usual and the answers recorded against this ID.",
+      afterSubmit:function(s){
+        var hit = payorLookup(s.out.payorId);
+        if (!hit){
+          if (String(s.out.payorId || "").trim()) setOut("payorNote","not in the referral grid - answered by hand");
+          return;
+        }
+        setOut("payorNote", hit.name + " - from the referral grid" + (hit.verify ? " (grid flags this row as needing verification)" : ""));
+        if (hit.contracted === "Yes" || hit.contracted === "No") setOut("contractedGrid", hit.contracted);
+        if (hit.referralRequired === "Yes" || hit.referralRequired === "No") setOut("referralRequiredGrid", hit.referralRequired);
+        if (hit.authRequired === "Yes" || hit.authRequired === "No") setOut("referralAuthRequiredGrid", hit.authRequired);
+        if (hit.edgeCase) setOut("edgeCaseInsuranceType", hit.edgeCase);
+        if (hit.note) setOut("payorGridNote", hit.note);
+      },
+      next:function(s){
+        var hit = payorLookup(s.out.payorId);
+        if (!hit) return "p4_q2";
+        var bits = [];
+        if (hit.contracted) bits.push("Contracted: " + hit.contracted);
+        if (hit.referralRequired) bits.push("Referral required: " + hit.referralRequired);
+        if (hit.authRequired) bits.push("Auth required: " + hit.authRequired);
+        s.pendingBanner = hit.name + " - " + bits.join(" \u00b7 ") +
+          (hit.edgeCase ? ". Edge case: " + hit.edgeCase + "." : "") +
+          (hit.verify ? " The grid flags this row as needing verification - check before scheduling." : "");
+        s.crumbs.push({ short:"Referral grid (auto)", answer: hit.name + " - " + bits.join("; ") });
+        // A grid answer of Conditional is not an answer, so those questions are
+        // still asked. Not contracted ends it here, exactly as answering No does.
+        if (hit.contracted === "No"){
+          setOut("bucket","sscardio");
+          setOut("actionNote","Ineligible for Scheduling - Ineligible Insurance");
+          return "p5_referral_date";
+        }
+        if (hit.edgeCase === "VA (Veteran)") return "p4_edge_case_va_check";
+        if (hit.edgeCase === "Mercy") return "p4_edge_case_mercy_check";
+        if (hit.contracted !== "Yes") return "p4_q2";
+        if (hit.referralRequired !== "Yes" && hit.referralRequired !== "No") return "p4_referral_required";
+        if (hit.authRequired !== "Yes" && hit.authRequired !== "No") return "p4_referral_auth";
+        return "p4_diag_entry";
       }
     },
     p4_q2: { kind:"yesno", source:"In the toolbox", part:9, context:"Insurance Check", edgeCaseToggle:true, selfPayToggle:true,
@@ -3871,6 +3954,97 @@
     return L.join("\n");
   }
 
+  // A plain description of the tool, for somebody who has just been handed it.
+  // Kept in the tool rather than in a document because that is where it will be
+  // read, and because a description that lives elsewhere goes stale unnoticed.
+  function renderAbout(){
+    stageBadge.textContent = "About";
+    var f = function(title, body){
+      return '<div class="about-sec"><h3>' + title + '</h3>' + body + '</div>';
+    };
+    stage.innerHTML = '<div class="card">' +
+      '<h2>Referral Sync Helper</h2>' +
+      '<p class="about-lede">A checklist for working a TPR referral in Athena. It asks one ' +
+      'question at a time, decides where the referral goes, and hands you the exact text to ' +
+      'paste into the chart. It does not touch Athena itself - you do that.</p>' +
+
+      f('What it is for',
+        '<p>Every referral needs the same judgements made in the same order: who the receiving ' +
+        'provider is, which location, whether the insurance is contracted, whether an ' +
+        'authorization is needed, and what to write. This walks that, so two people working the ' +
+        'same referral reach the same answer, and so a determination can be explained afterwards.</p>') +
+
+      f('How a referral runs through it',
+        '<ul>' +
+        '<li><b>Fifteen steps.</b> The same fifteen the production automation uses, so a ' +
+        'conversation about "step 9" means the same thing to everyone. Each screen says which ' +
+        'step it belongs to and where in Athena to look.</li>' +
+        '<li><b>It skips what does not apply</b> and says so. A non-Camelback referral marks ' +
+        'steps 8 to 12 and 14 "Not needed", with the reason, rather than silently ending.</li>' +
+        '<li><b>Some screens ask several things at once</b> when they all come from the same ' +
+        'place in Athena, so you are not opening Full Registration three times.</li>' +
+        '<li><b>Back works</b> at every question, and re-answering updates the determination.</li>' +
+        '</ul>') +
+
+      f('What you get at the end',
+        '<ul>' +
+        '<li><b>Three notes</b>, ready to copy: the internal note, the action note and the ' +
+        'patient note. Each in its own box - tap to copy.</li>' +
+        '<li><b>The bucket and scheduling status</b>, worked out from the answers.</li>' +
+        '<li><b>SMS eligibility</b>, which is not the same as being schedulable - Loli and Bahu ' +
+        'are scheduled but never texted.</li>' +
+        '<li><b>A reviewer note</b> you can add for anything that belongs to the determination ' +
+        'but not to the chart. It is never written to Athena.</li>' +
+        '<li><b>Why this path</b> - every question and answer that led there. Paste it back in ' +
+        'later to pick the determination up where you left it.</li>' +
+        '</ul>') +
+
+      f('Pending, and picking work back up',
+        '<p>A referral that reaches the end still waiting on something is logged <b>Pending</b>, ' +
+        'not Complete, with what it is waiting on named - a missing phone number, an address to ' +
+        'obtain, an unconfirmed payor, an authorization still pending. <b>Reopen</b> on the log ' +
+        'entry replays it so you carry on from where it stopped rather than starting again.</p>') +
+
+      f('The session log',
+        '<p>Every determination you finish is listed, with the time it took. The log lives in ' +
+        'this page only. <b>Copy log for transfer</b> and <b>Paste a log in</b> carry your list ' +
+        'across to a new version of the tool - transferred rows are identified by Task ID, and ' +
+        'no patient name travels with them.</p>') +
+
+      f('Auto Feedback',
+        '<p>Anything wrong with a question - wording, ordering, a missing option - flag it on ' +
+        'the screen where you hit it. It opens a tracked issue automatically, carrying the ' +
+        'question, the step and the path that led there, so it can be reproduced. The patient ' +
+        'name, dates and long numbers are stripped before it leaves the page. <b>Describe the ' +
+        'question, not the patient.</b></p>' +
+        '<p><b>Flag to Engineering</b> is the other one: it drafts a message with the task URL ' +
+        'for you to paste into Slack.</p>') +
+
+      f('What it does with patient information',
+        '<ul>' +
+        '<li>Everything is held in the page for as long as the tab is open. Nothing is written ' +
+        'to this computer, and refreshing clears it.</li>' +
+        '<li>The only things that leave the page are the ones you send: an Auto Feedback report ' +
+        '(redacted), an Engineering message you paste yourself, and a log you copy across.</li>' +
+        '<li>The provider roster comes from the practice\'s own scheduling guide. Providers who ' +
+        'are not on it are listed but cannot be selected, so a name on a referral is still ' +
+        'recognisable without being assignable.</li>' +
+        '</ul>') +
+
+      f('Worth knowing',
+        '<ul>' +
+        '<li>The clock starts after the patient name, and pauses with the <b>Pause</b> button.</li>' +
+        '<li>The step numbers do not always run in order. The workflow is a checklist that can ' +
+        'be worked in any order; this is a wizard whose order is fixed by what depends on what. ' +
+        'The progress bar follows how far in you are, not the step number.</li>' +
+        '<li>If you have the page open when a new version ships, reload to get it.</li>' +
+        '</ul>') +
+
+      '<div class="btnrow-continue"><button class="continue-btn" id="aboutBackBtn">Back to task</button></div>' +
+      '</div>';
+    document.getElementById("aboutBackBtn").addEventListener("click", function(){ viewMode = "flow"; render(); });
+  }
+
   function renderFeedback(){
     stageBadge.textContent = "Auto Feedback";
     var html;
@@ -4142,6 +4316,7 @@
     updateLogButton();
 
     updateFeedbackButton();
+    if (viewMode === "about"){ renderAbout(); return; }
     if (viewMode === "feedback"){ renderFeedback(); return; }
     if (viewMode === "log"){ renderLog(); return; }
     if (state.node === "__STOP__"){ renderStop(); return; }
@@ -4904,6 +5079,10 @@
 
   document.getElementById("logBtn").addEventListener("click", function(){
     viewMode = (viewMode === "log") ? "flow" : "log";
+    render();
+  });
+  document.getElementById("aboutBtn").addEventListener("click", function(){
+    viewMode = (viewMode === "about") ? "flow" : "about";
     render();
   });
   setInterval(updateLiveTimer, 500);
