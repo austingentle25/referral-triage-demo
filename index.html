@@ -1515,7 +1515,14 @@
   ];
 
   function specialtiesForDiagnosis(dxText){
-    var text = (dxText || "").toLowerCase();
+    // Brackets become spaces before matching. ICD-10 descriptions put a
+    // qualifier in the middle of the term - "Nonrheumatic aortic (valve)
+    // insufficiency" - and the keyword is "valve insufficiency", which the
+    // brackets split. The words are all still there and in order; only the
+    // punctuation was in the way. The content is kept, so "Essential (primary)
+    // hypertension" still reads as three words and still matches hypertension
+    // rather than Interventional's "pulmonary hypertension".
+    var text = (dxText || "").toLowerCase().replace(/[()]/g, " ").replace(/\s+/g, " ").trim();
     if (!text) return [];
 
     // Record every keyword hit with its span, then discard any hit that sits
@@ -1620,7 +1627,8 @@
     // live matcher and resolves to exactly one sensible specialty.
     "Essential (primary) hypertension","Mixed hyperlipidemia","Endocarditis, valve unspecified",
     "Hyperlipidemia, unspecified","Heart failure, unspecified","Chest pain, unspecified",
-    "Cardiac arrhythmia, unspecified","Atrial fibrillation, unspecified"
+    "Cardiac arrhythmia, unspecified","Atrial fibrillation, unspecified",
+    "Nonrheumatic aortic (valve) insufficiency","Elevated blood-pressure reading, without diagnosis of hypertension"
   ];
 
   // Returns true/false if we can determine it, or null if the diagnosis or

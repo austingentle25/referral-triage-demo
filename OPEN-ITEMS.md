@@ -57,6 +57,7 @@ repo so a decision is not rediscovered as new work later.
 | G7 | ICD-10 phrasings found nothing (#21) | **Fixed.** Eight added, each checked against the live matcher. Also fixed a fault it exposed: a shared qualifier like "unspecified" could carry a match on its own, so "Chest pain, unspecified" was answered with endocarditis |
 | G8 | Peter Maki's specialty | **General only**, decided by Austin. Kevin Murphy inherits |
 | G9 | A loop before the insurance question (#17) | **Closed against G1.** Not reproducible on its own - the attached path runs straight through. Same task and same two-week appointment as #19; the tool kept resolving the wrong provider from an appointment that should not have counted |
+| G10 | Two more ICD-10 phrasings (#24) | **Fixed.** And a fault they exposed: brackets split a keyword, so "Nonrheumatic aortic (valve) insufficiency" matched nothing at all even though "valve insufficiency" is a Structural keyword. Brackets become spaces before matching, which every parenthesised ICD-10 description needed |
 
 ---
 
