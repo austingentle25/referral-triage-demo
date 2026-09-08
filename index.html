@@ -230,7 +230,15 @@
     padding:7px 12px; border-radius:7px; font-size:0.8125rem; cursor:pointer;
   }
   button.startover:hover{background:var(--k18b);}
-  .header-btns{ display:flex; gap:8px; align-items:center; flex-shrink:0; }
+  /* Wraps. There are nine controls up here now - two clocks, pause, Notion,
+     theme, Feedback, Log, the reviewer chip, Start over and About - and with
+     flex-shrink:0 and no wrap the row simply ran off the right edge at any width
+     between a phone and a wide window, taking About and half the reviewer's name
+     with it. */
+  .header-btns{
+    display:flex; gap:8px; align-items:center; flex-wrap:wrap;
+    justify-content:flex-end; min-width:0;
+  }
   .live-timer{
     font-variant-numeric:tabular-nums; font-size:0.8125rem; font-weight:700; color:var(--k19f);
     text-align:center; letter-spacing:.2px; display:block;
@@ -247,8 +255,11 @@
   /* Always on screen, because attribution nobody can see is attribution nobody
      corrects - two people on one workstation would never notice. */
   button.reviewerchip{
-    flex-shrink:0; background:transparent; border:1px dashed var(--k16b); color:var(--k17f);
+    background:transparent; border:1px dashed var(--k16b); color:var(--k17f);
     padding:7px 12px; border-radius:7px; font-size:0.75rem; cursor:pointer; font-family:inherit;
+    /* "Melany Suarez-Rojas" is a long chip. It gives way rather than pushing the
+       controls after it off the edge; the full name is in the title attribute. */
+    max-width:230px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
   }
   button.reviewerchip:hover{ background:var(--k18b); }
   button.reviewerchip b{ font-weight:700; }
@@ -756,16 +767,15 @@
   .log-summary-bar{ font-size:0.75rem; color:var(--ink-soft); margin:0 0 12px; }
   .danger-btn{ border-color:var(--k48b) !important; color:var(--review) !important; }
 
-  /* The header carries four controls once the log button is added, which is
-     enough to squeeze the title into a column on a phone. Below 560px the title
-     takes its own row and the buttons sit beneath it. */
-  header.top .row > div:first-child{ min-width:0; }
+  /* The title always takes its own row. The header column is 640px to line up
+     with the cards, and the nine controls come to about 800px, so they were
+     never going to share a line with a title at any window size - the old
+     breakpoint keyed on the viewport when the constraint is the column. */
+  header.top .row > div:first-child{ min-width:0; flex:1 1 100%; }
+  .header-btns{ width:100%; justify-content:flex-start; }
   @media (max-width:560px){
-    header.top .row{ flex-wrap:wrap; }
-    header.top .row > div:first-child{ flex:1 1 100%; }
     header.top h1{ font-size:1.0625rem; }
-    .header-btns{ width:100%; justify-content:flex-end; }
-    button.logbtn, button.pausebtn, button.startover{ padding:6px 10px; font-size:0.75rem; }
+    button.logbtn, button.pausebtn, button.startover, button.reviewerchip{ padding:6px 10px; font-size:0.75rem; }
   }
 </style>
 </head>
@@ -787,7 +797,7 @@
       <button class="themebtn" id="themeBtn" aria-label="Toggle dark mode" title="Toggle dark mode">◐</button>
       <button class="logbtn" id="feedbackBtn">Feedback (0)</button>
       <button class="logbtn" id="logBtn">Log (0)</button>
-      <button class="reviewerchip" id="reviewerChip" hidden title="Who this tab is reporting as. Click to change.">Reviewer: <b id="reviewerChipName"></b></button>
+      <button class="reviewerchip" id="reviewerChip" hidden title="Who this tab is reporting as - your name is attached to anything you report. Click to change."><b id="reviewerChipName"></b></button>
       <button class="startover" id="headerReset">Start over</button>
       <button class="logbtn" id="aboutBtn" title="What this tool is and what it does">About</button>
     </div>
