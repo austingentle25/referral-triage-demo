@@ -3,7 +3,7 @@
 Everything outstanding on Referral Sync Helper, and what has closed. Kept in the
 repo so a decision is not rediscovered as new work later.
 
-**Last updated:** 7 September 2026, after the fifteen-step restructure went live.
+**Last updated:** 7 September 2026, after the third round of grid-redundancy removals.
 
 ---
 
@@ -19,6 +19,9 @@ repo so a decision is not rediscovered as new work later.
 | C1 | Milette / Sturm / Thayer | **Done.** Sturm and Thayer are APPs and are selectable, along with Jensen, Murphy, Franco and Ning. Milette appears nowhere in the scheduling guide and is removed |
 | — | Not-needed states | **Live.** A non-Camelback assignment now names the six steps it skips rather than stopping silently |
 | — | Eckhardt and Homes | **Restored.** Both are in scope per the guide; they had been wrongly unselectable |
+| D1 | Escalation branch skipped the payor picker | **Fixed.** `p4_valerie_athena_desc` still pointed at the old manual contracting question, so every Engineering escalation hand-answered contracting, referral and authorization. 12 of 120 walks took that route |
+| D2 | Self-pay was asked about referral and authorization | **Fixed.** Self-pay now answers both, with the reason named on the output card. The three sites that set self-pay - payor screen, contracting toggle, resume - share one function so they cannot drift |
+| D3 | Payor crumb recorded below the auto-crumb derived from it | **Fixed.** The trail read conclusion-then-evidence on Mercy packages. Paths saved by the old build still resume, and are rewritten into the new order |
 
 ---
 
@@ -75,7 +78,18 @@ The referring provider's specialty question sits alone between Care Team and Ful
 Registration, in 38% of walks. Folding it into a form would mean asking it on the
 62% that do not need it. **Leave it** — recorded so it is not rediscovered.
 
-### 7. Keep the rules in step
+### 7. The insurance questions deserve one systematic pass
+
+The referral grid made existing questions redundant in **three separate places, found
+three separate ways** - one by hitting it, one by asking about it, one by a 15-walk sweep.
+That is a pattern, not three coincidences: every question the grid can now answer was
+written before the grid existed, and there is no list of which ones those are.
+
+The remaining insurance questions should be checked against the 307 packages in one pass
+rather than waiting for a fourth accident. Measurement only - no code changes - so it can
+be done and read before anything is decided.
+
+### 8. Keep the rules in step
 
 `TPR-RULES.md` in the private docs repo is the rules of record. The fifteen-step
 structure has landed and its structure section has not been updated to match.

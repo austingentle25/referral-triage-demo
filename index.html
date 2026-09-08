@@ -2292,7 +2292,12 @@
           : "Valerie and Athena don't match on insurance");
         s.pendingBanner = "Flagged to Engineering to rerun the insurance. Assuming it's resolved - continuing into the normal workflow below.";
       },
-      next:"p4_q2"
+      // The payor picker, not the old manual contracting question. When the
+      // referral grid landed, the two sibling branches out of the insurance
+      // mismatch moved onto p9_payor_id and this one was missed, so every
+      // Engineering escalation hand-answered contracting, referral required and
+      // authorization required - all three of which the grid answers.
+      next:"p9_payor_id"
     },
     p4_edge_case_type: { kind:"select", source:"Referral document / insurance card", part:5, field:"edgeCaseInsuranceType", context:"Insurance Check",
       options:["VA (Veteran)","Mercy","Other (not VA or Mercy)","Not sure"],
@@ -2820,7 +2825,9 @@
       run:function(s){
         if (s.out.referralRequiredGrid === "Yes") return "p5_referral_auto";
         if (s.out.referralRequiredGrid === "No"){
-          setOut("referralObjNote","Not required (confirmed via toolbox eligibility check)");
+          setOut("referralObjNote", isSelfPay(s)
+            ? "Not required - self-pay, so there is no payor to require one"
+            : "Not required (confirmed via toolbox eligibility check)");
           return "p5_auth_needed";
         }
         return "p5_referral_needed_ask";
@@ -2842,7 +2849,9 @@
       run:function(s){
         if (s.out.referralAuthRequiredGrid === "Yes") return "p5_auth_chart_check";
         if (s.out.referralAuthRequiredGrid === "No"){
-          setOut("authObjNote","Not required (confirmed via toolbox eligibility check)");
+          setOut("authObjNote", isSelfPay(s)
+            ? "Not required - self-pay, so there is no payor to authorize anything"
+            : "Not required (confirmed via toolbox eligibility check)");
           setOut("outboundExport","no");
           return "__DONE__";
         }
@@ -3031,8 +3040,7 @@
       if (node.selfPayToggle && step.answer === "Self-pay (skipped contracted question)"){
         historyStack.push(JSON.parse(JSON.stringify(state)));
         recordStepTime(node);
-        setOut("contractedGrid","N/A - self-pay");
-        setOut("insurancePath","self-pay - no insurance to bill, proceed accordingly");
+        applySelfPay();
         state.crumbs.push({ short: node.short, answer: step.answer });
         gotoResolve("p4_diag_entry");
         continue;
@@ -3082,7 +3090,6 @@
         historyStack.push(JSON.parse(JSON.stringify(state)));
         recordStepTime(node);
         var pr = applyPayorChoice(node, pid, manualAns);
-        state.crumbs.push({ short: node.short, answer: pr.answer });
         gotoResolve(pr.next);
         continue;
       }
@@ -4880,8 +4887,7 @@
       selfPayBtn.addEventListener("click", function(){
         historyStack.push(JSON.parse(JSON.stringify(state)));
         recordStepTime(node);
-        setOut("contractedGrid","N/A - self-pay");
-        setOut("insurancePath","self-pay - no insurance to bill, proceed accordingly");
+        applySelfPay();
         state.crumbs.push({ short: node.short, answer: "Self-pay (skipped contracted question)" });
         gotoResolve("p4_diag_entry");
       });
@@ -5220,8 +5226,29 @@
   // plan name, because a reviewer may have either in front of them. The two
   // fixed options are always offered: they are real answers, not failures, and
   // burying them would push somebody into typing a guess.
+  // Self-pay is settled in three places - the payor screen's manual fallback,
+  // and the contracting question's toggle both live and on resume. All three
+  // have to write the same thing or a resumed run diverges from the run it came
+  // from, so they share one function rather than repeating it.
+  //
+  // Referral and authorization are answered here rather than left open. There is
+  // no payor, so there is no grid row to look up and nothing for the reviewer to
+  // read; leaving the fields blank sent the step 11 gates on to ask "does the
+  // grid say a referral is required?" about a plan that does not exist.
+  function applySelfPay(){
+    setOut("contractedGrid","N/A - self-pay");
+    setOut("insurancePath","self-pay - no insurance to bill, proceed accordingly");
+    setOut("referralRequiredGrid","No");
+    setOut("referralAuthRequiredGrid","No");
+  }
+
+  function isSelfPay(s){
+    return (s.out.contractedGrid || "").indexOf("self-pay") !== -1;
+  }
+
   function applyPayorChoice(node, id, manual){
     var answer, next;
+    var recordPayor = function(a){ state.crumbs.push({ short: node.short, answer: a }); };
     if (id === PAYOR_NOT_IN_DOC || id === PAYOR_NOT_IN_DB){
       // manual is {contracted, referral, auth} collected on the payor screen
       var m = manual || {};
@@ -5232,13 +5259,13 @@
                " - Contracted: " + m.contracted +
                (m.referral ? "; Referral: " + m.referral : "") +
                (m.auth ? "; Auth: " + m.auth : "");
+      recordPayor(answer);
       if (m.contracted === "Edge case"){
         setOut("contractedGrid","N/A - edge case (see type-specific check)");
         state._afterEdgeCase = "p4_diag_entry";
         next = "p4_edge_case_type";
       } else if (m.contracted === "Self-pay"){
-        setOut("contractedGrid","N/A - self-pay");
-        setOut("insurancePath","self-pay - no insurance to bill, proceed accordingly");
+        applySelfPay();
         next = "p4_diag_entry";
       } else if (m.contracted === "No"){
         setOut("contractedGrid","No");
@@ -5255,6 +5282,7 @@
       setOut("payorId", id);
       var hit = PAYOR_TABLE[id];
       answer = id + " - " + hit.name;
+      recordPayor(answer);
       setOut("payorNote", hit.name + " - from the referral grid" + (hit.verify ? " (grid flags this row as needing verification)" : ""));
       if (hit.contracted) setOut("contractedGrid", hit.contracted);
       // The payor ID settles referral and authorization, so they are not asked
@@ -5380,7 +5408,6 @@
       historyStack.push(JSON.parse(JSON.stringify(state)));
       recordStepTime(node);
       var r = applyPayorChoice(node, id, manual);
-      state.crumbs.push({ short: node.short, answer: r.answer });
       gotoResolve(r.next);
     }
 
