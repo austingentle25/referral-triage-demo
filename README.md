@@ -7,19 +7,14 @@ Open `index.html` in a browser. No build step, no dependencies, no server.
 
 ## How it works
 
-One question per screen, across a 110-node decision graph in six parts:
+One question per screen, across a 120-node decision graph. Each node is tagged
+with the step it maps to in the fifteen-step Notion reference workflow, shown in
+the header chip. The wizard asks in dependency order, so those steps can run out
+of sequence - the progress bar tracks position on the path, not the step number.
 
-| Part | Purpose |
-|---|---|
-| 0 | Patient, task ID, patient type |
-| 1 | Determine the receiving provider |
-| 2 | Determine the location / department |
-| 3 | Reconcile provider against location |
-| 4 | Scheduling eligibility (insurance, contracting, referral & authorization) |
-| 5 | Writes & objects (care team, registration, auth, chart export) |
-
-Questions come in five interactive kinds (`yesno`, `yesno3`, `text`, `select`,
-`diagnosis`) plus `auto` nodes that resolve silently and record an `(auto)`
+Questions come in seven interactive kinds (`yesno`, `yesno3`, `text`, `select`,
+`diagnosis`, `form` for a multi-field screen, and `payor` for the insurance grid
+lookup) plus `auto` nodes that resolve silently and record an `(auto)`
 breadcrumb, so the flow only asks when the answer isn't already derivable.
 
 ## Features
@@ -39,8 +34,14 @@ breadcrumb, so the flow only asks when the answer isn't already derivable.
   overrides it. Every visible text node meets WCAG AA (4.5:1) in both themes.
 - **Fluid typography.** All sizes are `rem`, driven by one clamped root size, so
   the interface scales with the viewport.
-- **Session log, live timer and pause**, plus a one-tap engineering escalation
-  note.
+- **Session log, two live timers and pause.** One clock for the question on
+  screen and one for the referral as a whole; both are wall-clock, so a
+  backgrounded tab cannot lose handle time.
+- **Insurance grid lookup.** 307 packages from the Abrazo referral grid. Entering
+  the payor ID answers contracting, referral and authorization from the grid
+  rather than asking, and says on the output card where the answers came from.
+- **Report a problem**, in two channels that name their destinations: one files
+  to the issue tracker, one copies a Slack message for you to paste.
 - **Notion link** in the header, available throughout.
 
 ## Privacy

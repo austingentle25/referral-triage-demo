@@ -3,7 +3,7 @@
 Everything outstanding on Referral Sync Helper, and what has closed. Kept in the
 repo so a decision is not rediscovered as new work later.
 
-**Last updated:** 7 September 2026, after the third round of grid-redundancy removals.
+**Last updated:** 7 September 2026, after the UX and accessibility pass.
 
 ---
 
@@ -22,6 +22,16 @@ repo so a decision is not rediscovered as new work later.
 | D1 | Escalation branch skipped the payor picker | **Fixed.** `p4_valerie_athena_desc` still pointed at the old manual contracting question, so every Engineering escalation hand-answered contracting, referral and authorization. 12 of 120 walks took that route |
 | D2 | Self-pay was asked about referral and authorization | **Fixed.** Self-pay now answers both, with the reason named on the output card. The three sites that set self-pay - payor screen, contracting toggle, resume - share one function so they cannot drift |
 | D3 | Payor crumb recorded below the auto-crumb derived from it | **Fixed.** The trail read conclusion-then-evidence on Mercy packages. Paths saved by the old build still resume, and are rewritten into the new order |
+| E1 | Provider picker was one ungrouped scroll of 29 | **Fixed.** Type-ahead filter over name, specialty and location, plus location headings on top of the existing rank order. Same providers, same order within a group |
+| E2 | Two step chips, one of them hardcoded to 15 | **Fixed.** They were one PART_LABELS table read twice, not two taxonomies. The duplicate is gone; the survivor names itself as the Notion workflow step |
+| E3 | Provider question asked two things over three interaction models | **Fixed.** One instruction over the list, with "Not in this list - open the full picker" and "No provider treats this diagnosis". Both branch targets unchanged |
+| E4 | Progress measured against the whole graph | **Fixed.** "Question N of about M on this path", M measured from 300 seeded walks per question. Bar keeps its monotonic clamp |
+| E5 | Accessibility: comboboxes, button names, live regions, focus | **Fixed.** All three type-aheads are real comboboxes with arrow keys; 29 provider rows have accessible names; the field warning and the paused banner leave the accessibility tree when not showing; one focus-visible rule covers everything tabbable |
+| E6 | Enter did nothing on the multi-field forms | **Fixed.** Enter clicks Continue, inheriting its validation. The single text questions already submitted on Enter and were re-tested |
+| E7 | Timer reset mid-walk, and its scope was unstated | **Fixed.** render() runs on every view switch and reset the clock each time, so a look at the log lost the question's time. Two labelled clocks now: question and referral |
+| E8 | Green Yes / red No on neutral questions | **Fixed.** Both neutral, same border, told apart by position and label. --picked-solid and --review-solid keep their meaning elsewhere |
+| E9 | Two report channels, neither naming its destination | **Fixed.** One "Report a problem" group; each summary says what it is for and whether anything is transmitted |
+| E10 | Feedback reports could not be matched to what the reviewer saw | **Fixed.** Step label, question and node ID on their own labelled lines, in the same words as the chip on screen |
 
 ---
 
@@ -78,7 +88,27 @@ The referring provider's specialty question sits alone between Care Team and Ful
 Registration, in 38% of walks. Folding it into a form would mean asking it on the
 62% that do not need it. **Leave it** — recorded so it is not rediscovered.
 
-### 7. The insurance questions deserve one systematic pass
+### 7. The patient name sits in the header all session
+
+Raised in the UX pass and **not changed**, because the default is a decision
+rather than a defect. Today `updateHeaderSub()` replaces "Based on Updated
+Notion · Biltmore Cardiology" with "<name> · Task-1234" and leaves it there for
+the whole run, which in a shared workspace is a patient name on screen
+continuously.
+
+Two options, both small:
+
+- **Initials.** "A.G. · Task-1234". Nothing to click, nothing to learn, and the
+  operator can still tell which patient they are on. Two initials collide often
+  enough that the Task ID is doing the identifying anyway.
+- **Click to reveal.** Show "Task-1234" with the name behind a tap that hides
+  itself again on the next question. Exact when wanted, absent the rest of the
+  time; one more thing to know about.
+
+The name is only ever in memory either way - this is about what a passer-by
+sees, not about storage. Say which and it is a few lines.
+
+### 8. The insurance questions deserve one systematic pass
 
 The referral grid made existing questions redundant in **three separate places, found
 three separate ways** - one by hitting it, one by asking about it, one by a 15-walk sweep.
@@ -89,7 +119,7 @@ The remaining insurance questions should be checked against the 307 packages in 
 rather than waiting for a fourth accident. Measurement only - no code changes - so it can
 be done and read before anything is decided.
 
-### 8. Keep the rules in step
+### 9. Keep the rules in step
 
 `TPR-RULES.md` in the private docs repo is the rules of record. The fifteen-step
 structure has landed and its structure section has not been updated to match.
