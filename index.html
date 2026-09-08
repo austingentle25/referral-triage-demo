@@ -351,6 +351,18 @@
     font-size:0.6875rem; font-weight:700; text-transform:uppercase; letter-spacing:.4px;
     color:var(--teal-dark-ink); margin-bottom:8px;
   }
+  .rp-filter-row{ position:relative; margin-bottom:10px; }
+  .rp-filter-row .text-input{ font-size:0.8438rem; padding:9px 12px; }
+  .rp-count{ font-size:0.6875rem; color:var(--ink-soft); margin-top:6px; }
+  /* Location headings sit on top of the existing rank order - they group the
+     rows, they never reorder them. */
+  .rp-group-title{
+    font-size:0.6875rem; font-weight:700; text-transform:uppercase; letter-spacing:.4px;
+    color:var(--ink-soft); margin:12px 0 2px; padding-top:10px; border-top:1px solid var(--line);
+  }
+  .rp-group:first-of-type .rp-group-title{ margin-top:2px; padding-top:0; border-top:none; }
+  .rp-group-title .rp-group-here{ color:var(--teal-dark-ink); }
+  .rp-empty{ font-size:0.8125rem; color:var(--ink-soft); padding:10px 6px; }
   .relevant-provider-row{
     display:flex; flex-direction:column; padding:9px 6px; border-top:1px solid var(--line); gap:1px;
     width:100%; text-align:left; background:transparent; border-left:none; border-right:none; border-bottom:none;
@@ -359,6 +371,10 @@
   .relevant-provider-row:first-of-type{ border-top:none; }
   .relevant-provider-row:hover{ background:var(--k35b); }
   .relevant-provider-row:active{ background:var(--k36b); }
+  .relevant-provider-row:focus-visible{
+    background:var(--k35b); outline:2px solid var(--teal); outline-offset:-2px;
+    box-shadow:inset 3px 0 0 var(--teal-dark-ink);
+  }
   .rp-name{ font-size:0.8438rem; font-weight:700; color:var(--ink); }
   .rp-meta{ font-size:0.75rem; color:var(--ink-soft); }
   .relevant-provider-row.rp-blocked{ opacity:0.6; }
@@ -3369,6 +3385,104 @@
   function isRestrictedProvider(name){
     return providerIsInClinicOnly(name) || providerIsNonValerie(name);
   }
+  // One keyboard controller for every type-ahead in the tool - the diagnosis
+  // search, the payor search and the provider filter. Written once because three
+  // hand-rolled arrow-key handlers are three chances to get it wrong, and two of
+  // them already were: Enter took the first row however far down you had arrowed.
+  //
+  // Two modes, because the two lists are honestly different things. A list of
+  // plain rows is a listbox and the input keeps focus, tracking the active row
+  // through aria-activedescendant. A list of real buttons is not a listbox - the
+  // buttons are already tabbable - so there the arrows move DOM focus instead of
+  // claiming a role the markup does not have.
+  function makeTypeahead(input, listEl, opts){
+    opts = opts || {};
+    var rowSel = opts.rowSelector || ".dx-suggestion[data-val]";
+    var roving = opts.mode === "roving";
+    var idBase = opts.idBase || ("ta" + Math.random().toString(36).slice(2, 8));
+    var active = -1;
+
+    if (!roving){
+      input.setAttribute("role", "combobox");
+      input.setAttribute("aria-autocomplete", "list");
+      input.setAttribute("aria-expanded", "false");
+      input.setAttribute("aria-controls", listEl.id);
+      listEl.setAttribute("role", "listbox");
+    } else {
+      // The filter describes the list it filters; it does not own it.
+      input.setAttribute("aria-controls", listEl.id);
+    }
+
+    function rows(){ return Array.prototype.slice.call(listEl.querySelectorAll(rowSel)); }
+
+    function paint(){
+      var rs = rows();
+      rs.forEach(function(r, i){
+        if (!r.id) r.id = idBase + "-opt-" + i;
+        if (!roving){
+          r.setAttribute("role", "option");
+          r.setAttribute("aria-selected", i === active ? "true" : "false");
+        }
+        r.classList.toggle("ta-active", i === active);
+      });
+      if (!roving){
+        var open = rs.length > 0 && listEl.style.display !== "none";
+        input.setAttribute("aria-expanded", open ? "true" : "false");
+        if (active >= 0 && rs[active]) input.setAttribute("aria-activedescendant", rs[active].id);
+        else input.removeAttribute("aria-activedescendant");
+      }
+    }
+
+    function move(delta){
+      var rs = rows();
+      if (!rs.length) return;
+      if (roving){
+        var here = rs.indexOf(document.activeElement);
+        var next = here === -1 ? (delta > 0 ? 0 : rs.length - 1) : (here + delta + rs.length) % rs.length;
+        rs[next].focus();
+        return;
+      }
+      active = active === -1 ? (delta > 0 ? 0 : rs.length - 1) : (active + delta + rs.length) % rs.length;
+      paint();
+      if (rs[active] && rs[active].scrollIntoView) rs[active].scrollIntoView({ block: "nearest" });
+    }
+
+    input.addEventListener("keydown", function(e){
+      if (e.key === "ArrowDown"){ e.preventDefault(); move(1); return; }
+      if (e.key === "ArrowUp"){ e.preventDefault(); move(-1); return; }
+      if (e.key === "Escape"){
+        e.preventDefault();
+        if (opts.onEscape) opts.onEscape();
+        active = -1; paint();
+        return;
+      }
+      if (e.key === "Enter"){
+        e.preventDefault();
+        var rs = rows();
+        if (!roving && active >= 0 && rs[active]){ rs[active].click(); return; }
+        if (opts.onEnterNoActive) opts.onEnterNoActive(rs);
+      }
+    });
+
+    if (roving){
+      // Arrows keep working once focus is inside the list, and Escape returns to
+      // the filter rather than stranding the user among 29 buttons.
+      listEl.addEventListener("keydown", function(e){
+        if (e.key === "ArrowDown"){ e.preventDefault(); move(1); }
+        else if (e.key === "ArrowUp"){ e.preventDefault(); move(-1); }
+        else if (e.key === "Escape"){ e.preventDefault(); input.focus(); }
+      });
+    }
+
+    return {
+      // Called after the rows are re-rendered: re-ids them and drops an active
+      // index that no longer points at anything.
+      sync: function(){ active = -1; paint(); },
+      reset: function(){ active = -1; paint(); },
+      rows: rows
+    };
+  }
+
   function restrictionLabel(name){
     if (providerIsNonValerie(name)) return " - not schedulable through Valerie";
     if (providerIsInClinicOnly(name)) return " - schedulable, but no manual outreach";
@@ -3393,21 +3507,101 @@
       }
       return rank(a) - rank(b);
     });
-    var rows = matches.map(function(p){
+    // Grouping sits on top of the sort above and never reorders within a group.
+    // Each provider lands in exactly one group, so the membership of the list is
+    // unchanged - the same people, once each. Restricted providers keep their own
+    // group at the end because the sort already ranks them last, wherever they
+    // practise; folding them into a location group would move them up.
+    var here = deptShortName(state.out.location) || "Camelback";
+    function groupFor(p){
+      if (isRestrictedProvider(p.name)) return "\u0000restricted";
+      if (p.locations.some(function(loc){ return locMatches(loc, here); })) return here;
+      return p.locations.length ? p.locations[0] : "No location on file";
+    }
+    var order = [], buckets = {};
+    matches.forEach(function(p){
+      var g = groupFor(p);
+      if (!buckets[g]){ buckets[g] = []; order.push(g); }
+      buckets[g].push(p);
+    });
+    order.sort(function(a, b){
+      if (a === b) return 0;
+      if (a === here) return -1;
+      if (b === here) return 1;
+      if (a === "\u0000restricted") return 1;
+      if (b === "\u0000restricted") return -1;
+      return a.localeCompare(b);
+    });
+
+    function rowHtml(p){
       var loc = p.locations.length ? p.locations.join(", ") : "no location on file";
       var restricted = isRestrictedProvider(p.name);
-      return '<button type="button" class="relevant-provider-row' + (restricted ? " rp-blocked" : "") + '" data-provider="' + escapeHtml(p.name) + '">' +
+      return '<button type="button" class="relevant-provider-row' + (restricted ? " rp-blocked" : "") + '"' +
+        ' data-provider="' + escapeHtml(p.name) + '"' +
+        ' data-search="' + escapeHtml((p.name + " " + p.specialty + " " + loc).toLowerCase()) + '">' +
         '<span class="rp-name">' + escapeHtml(p.name) + '</span>' +
         '<span class="rp-meta">' + escapeHtml(p.specialty) + ' - ' + escapeHtml(loc) + escapeHtml(restrictionLabel(p.name)) + '</span>' +
         '</button>';
+    }
+    var groupsHtml = order.map(function(g){
+      var title = g === "\u0000restricted"
+        ? "Restricted - read the note before selecting"
+        : (g === here ? escapeHtml(g) + ' <span class="rp-group-here">- receiving location</span>' : escapeHtml(g));
+      return '<div class="rp-group" data-group="' + escapeHtml(g) + '">' +
+        '<div class="rp-group-title">' + title + '</div>' +
+        buckets[g].map(rowHtml).join("") +
+        '</div>';
     }).join("");
+
     return '<div class="relevant-providers">' +
-      '<div class="relevant-providers-title">Providers who treat ' + escapeHtml(dxText || "this diagnosis") + ' - tap to select</div>' +
-      rows +
+      '<div class="relevant-providers-title">Providers who treat ' + escapeHtml(dxText || "this diagnosis") + '</div>' +
+      '<div class="rp-filter-row dx-picker">' +
+        '<input type="text" class="text-input" id="providerFilter" autocomplete="off"' +
+          ' placeholder="Filter by name, specialty or location\u2026"' +
+          ' aria-label="Filter the provider list by name, specialty or location">' +
+        '<div class="rp-count" id="providerFilterCount" role="status" aria-live="polite"></div>' +
+      '</div>' +
+      '<div id="relevantProvidersList">' + groupsHtml +
+        '<div class="rp-empty" id="providerFilterEmpty" style="display:none;">No provider matches that filter.</div>' +
+      '</div>' +
       '</div>';
   }
   function wireRelevantProvidersList(node){
     if (!node.showRelevantProviders) return;
+    var filter = document.getElementById("providerFilter");
+    var listEl = document.getElementById("relevantProvidersList");
+    if (filter && listEl){
+      var countEl = document.getElementById("providerFilterCount");
+      var emptyEl = document.getElementById("providerFilterEmpty");
+      var total = listEl.querySelectorAll(".relevant-provider-row").length;
+      var ta = makeTypeahead(filter, listEl, {
+        mode: "roving",
+        rowSelector: ".relevant-provider-row:not([hidden])",
+        idBase: "rp",
+        onEscape: function(){ if (filter.value){ filter.value = ""; applyFilter(); } },
+        onEnterNoActive: function(rs){ if (rs.length === 1) rs[0].click(); }
+      });
+      var applyFilter = function(){
+        var q = filter.value.trim().toLowerCase();
+        var shown = 0;
+        listEl.querySelectorAll(".relevant-provider-row").forEach(function(r){
+          var hit = !q || (r.getAttribute("data-search") || "").indexOf(q) !== -1;
+          r.hidden = !hit;
+          if (hit) shown++;
+        });
+        // A heading with nothing under it reads as an empty location.
+        listEl.querySelectorAll(".rp-group").forEach(function(g){
+          g.hidden = !g.querySelector(".relevant-provider-row:not([hidden])");
+        });
+        if (emptyEl) emptyEl.style.display = shown ? "none" : "block";
+        if (countEl) countEl.textContent = q
+          ? (shown + " of " + total + " providers match")
+          : (total + " provider" + (total === 1 ? "" : "s") + " - type to filter");
+        ta.sync();
+      };
+      filter.addEventListener("input", applyFilter);
+      applyFilter();
+    }
     var rows = document.querySelectorAll(".relevant-provider-row");
     rows.forEach(function(row){
       row.addEventListener("click", function(){
