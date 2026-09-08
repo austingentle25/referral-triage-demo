@@ -244,6 +244,14 @@
     font-size:0.5625rem; font-weight:700; text-transform:uppercase; letter-spacing:.4px;
     color:var(--ink-soft); line-height:1.2;
   }
+  /* Always on screen, because attribution nobody can see is attribution nobody
+     corrects - two people on one workstation would never notice. */
+  button.reviewerchip{
+    flex-shrink:0; background:transparent; border:1px dashed var(--k16b); color:var(--k17f);
+    padding:7px 12px; border-radius:7px; font-size:0.75rem; cursor:pointer; font-family:inherit;
+  }
+  button.reviewerchip:hover{ background:var(--k18b); }
+  button.reviewerchip b{ font-weight:700; }
   button.pausebtn{
     flex-shrink:0; background:transparent; border:1px solid var(--k16b); color:var(--k17f);
     padding:7px 12px; border-radius:7px; font-size:0.8125rem; cursor:pointer;
@@ -774,6 +782,7 @@
       <button class="themebtn" id="themeBtn" aria-label="Toggle dark mode" title="Toggle dark mode">◐</button>
       <button class="logbtn" id="feedbackBtn">Feedback (0)</button>
       <button class="logbtn" id="logBtn">Log (0)</button>
+      <button class="reviewerchip" id="reviewerChip" hidden title="Who this tab is reporting as. Click to change.">Reviewer: <b id="reviewerChipName"></b></button>
       <button class="startover" id="headerReset">Start over</button>
       <button class="logbtn" id="aboutBtn" title="What this tool is and what it does">About</button>
     </div>
@@ -1598,6 +1607,18 @@
   // The clock does not run on this step: staff often open the tool before they
   // have the referral in front of them.
   var TIMER_STARTS_AFTER = "p_patient_name";
+  // Held for the tab's lifetime only, like everything else here - no storage, and
+  // it goes when the tab does.
+  var sessionReviewer = null;
+  // Set only while a pasted path is being replayed. Whether the reviewer step
+  // appears in a trail depends on the tab that produced it - asked on the first
+  // referral of a session, carried as an auto step after that, and absent
+  // altogether from anything saved before the question existed. The replay must
+  // not stop to ask a question the trail cannot answer.
+  var resumingRun = false;
+  // Seeded with the names we have; anyone else types theirs and it is kept for
+  // the rest of the tab just the same.
+  var REVIEWERS = ["Austin", "Jingyi"];
   var stepStartTime = null;
   // Which question the clock is currently timing, so a re-render of the same
   // question does not restart it.
@@ -1618,6 +1639,22 @@
     updatePauseUI();
     updateLiveTimer();
   }
+  function updateReviewerChip(){
+    var chip = document.getElementById("reviewerChip");
+    if (!chip) return;
+    chip.hidden = !sessionReviewer;
+    var nameEl = document.getElementById("reviewerChipName");
+    if (nameEl) nameEl.textContent = sessionReviewer || "";
+  }
+  // Clearing it drops back to the question at the start of the next referral,
+  // rather than editing the name of a run already under way and leaving the
+  // trail disagreeing with the output card.
+  function changeReviewer(){
+    sessionReviewer = null;
+    updateReviewerChip();
+    reset();
+  }
+
   function updatePauseUI(){
     var btn = document.getElementById("pauseBtn");
     if (btn){
@@ -1783,6 +1820,7 @@
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         note: scrubForRelay(item.note, item.patientName),
+        reviewer: item.reviewer,
         short: item.short,
         part: item.part,
         nodeId: item.nodeId,
@@ -1816,7 +1854,7 @@
   function freshState(){
     runCounter++;
     return { runId:"run-" + runCounter + "-" + Date.now(), runSeq:runCounter,
-             node:"p_patient_name", crumbs:[], out:{}, stepTimings:[], manualReview:false, manualReviewReason:null,
+             node:"p_reviewer_entry", crumbs:[], out:{}, stepTimings:[], manualReview:false, manualReviewReason:null,
              manualReviewPart:0, lastPart:0, pendingBanner:null, part1Result:null, part1Reason:null,
              progressHigh:0, providerTreatsDx:false, hasUpcomingAppt:false, awaitingInfo:false, isCamelbackReferral:null, needsEngineeringEscalation:false, isLoliBahu:false, pendingEdgeCase:false, pendingSelfPay:false,
              _afterDiag:null, _afterDiag2:null, _afterDiag3:null };
@@ -1841,6 +1879,40 @@
   var NODES = {
 
     // ---- PART 0 ----
+    // Who is working the referral. Asked so a feedback report has a name on it -
+    // "some of these should be after insurance" is worth a lot more when you can
+    // go and ask the person who wrote it what they meant.
+    //
+    // Asked once per tab, not once per referral. The name is held in memory for
+    // the tab's lifetime and carried into later runs with an auto step, because
+    // an extra screen on every referral is a real cost and the answer does not
+    // change between them. It is shown in the header throughout and can be
+    // changed there, so a shared workstation can correct it.
+    p_reviewer_entry: { kind:"auto", part:0,
+      run:function(s){
+        if (sessionReviewer){
+          setOut("reviewer", sessionReviewer);
+          s.crumbs.push({ short:"Reviewer (auto)", answer: sessionReviewer + " - carried from this session" });
+          return "p_patient_name";
+        }
+        if (resumingRun){
+          s.crumbs.push({ short:"Reviewer (auto)", answer:"Not recorded on the pasted path" });
+          return "p_patient_name";
+        }
+        return "p_reviewer_name";
+      }
+    },
+    p_reviewer_name: { kind:"select", source:"You", part:0, field:"reviewer",
+      text:"Who is working this referral?",
+      short:"Reviewer",
+      definition:"Asked once per browser tab, then carried into every referral you work in it. It is attached to anything you report so somebody can come back to you about it, and it never leaves the tab otherwise.",
+      placeholder:"Pick your name\u2026",
+      otherLabel:"Type your name",
+      options:REVIEWERS,
+      otherAllowed:true,
+      afterSubmit:function(s){ sessionReviewer = s.out.reviewer; updateReviewerChip(); },
+      next:"p_patient_name"
+    },
     p_patient_name: { kind:"text", source:"Referral fax / task queue", part:0, field:"patientName", showResumeBox:true,
       text:"What's the patient's name?", short:"Patient name",
       placeholder:"Patient name",
@@ -3120,6 +3192,26 @@
     var parsed = parseWhyPathText(text);
     if (!parsed) return { ok:false, error:"Couldn't read that - paste the full \"Why this path\" text." };
 
+    // Take the reviewer off the pasted path, in whichever form that tab wrote it,
+    // and set the session to match before replaying - then the gate resolves the
+    // same way the original run did and the step is not asked again mid-replay.
+    var revMatch = String(text || "").match(/(?:^|\u2192)\s*Reviewer(?: \(auto\))?:\s*([^\u2192]+)/);
+    if (revMatch){
+      sessionReviewer = revMatch[1].trim().replace(/ - carried from this session$/, "");
+      updateReviewerChip();
+      parsed = parsed.filter(function(st){ return st.short !== "Reviewer"; });
+    }
+    // One exit point for the flag: seven returns below, and a missed one would
+    // leave the tool permanently unable to ask the reviewer question.
+    resumingRun = true;
+    try {
+      return replayParsedPath(parsed, adopt);
+    } finally {
+      resumingRun = false;
+    }
+  }
+
+  function replayParsedPath(parsed, adopt){
     state = freshState();
     // Reopening an existing determination keeps that run's identity so it is
     // updated in the log rather than logged again alongside itself.
@@ -3130,6 +3222,10 @@
     historyStack = [];
     isPaused = false; pauseStartedAt = null; pausedMsForCurrentStep = 0;
     stepStartTime = null; timerNodeId = null;
+    // Resolve the entry gate before replaying. The first node is an auto step
+    // now, and the loop below dispatches on node kind - it would meet "auto" and
+    // stop with "unexpected question type" on the very first step.
+    gotoResolve(state.node);
 
     for (var i = 0; i < parsed.length; i++){
       if (state.node === "__STOP__" || state.node === "__DONE__") break;
@@ -3258,7 +3354,10 @@
     stepStartTime = null; timerNodeId = null;
     viewMode = "flow";
     updatePauseUI();
-    render();
+    // gotoResolve, not render: the first node is now an auto step that decides
+    // whether the reviewer still has to be asked, and render() does not resolve
+    // auto nodes - it only draws whatever state.node already points at.
+    gotoResolve(state.node);
   }
 
   function hasProgress(){
@@ -4662,6 +4761,7 @@
     var url = o.taskId ? "https://tpr.valeriehealth.com/tasks/" + o.taskId : "(no task ID yet)";
     var step = (node && node.short) ? node.short : "(unknown step)";
     return "Engineering flag - " + task + "\n" +
+           "From: " + (o.reviewer || sessionReviewer || "(not given)") + "\n" +
            "URL: " + url + "\n" +
            "Patient: " + (o.patientName || "-") + "\n" +
            "Step: " + step + "\n" +
@@ -4728,6 +4828,9 @@
         n: feedbackSeq,
         runId: state.runId,
         taskId: state.out.taskId || "(no task ID yet)",
+        // Staff, not patient - sent deliberately, so a report has somebody to go
+        // back to. Never redacted.
+        reviewer: state.out.reviewer || sessionReviewer || "(not given)",
         // Held only so it can be scrubbed out of what is sent. Never transmitted.
         patientName: state.out.patientName || "",
         nodeId: state.node,
@@ -4811,6 +4914,7 @@
         // screen, the node id is what somebody triaging the report needs to find
         // the question in the file. Neither on its own maps one to the other.
         L.push("[" + f.n + "]");
+        L.push("Reported by: " + (f.reviewer || "(not given)"));
         L.push("Notion step: " + f.part);
         L.push("Question:    " + f.short);
         L.push("Node ID:     " + f.nodeId);
@@ -4917,7 +5021,8 @@
             status = '<div class="fb-sent">Sending\u2026</div>';
           }
           return '<div class="log-entry">' +
-            '<div class="le-top"><b>' + escapeHtml(f.taskId) + '</b> - ' + escapeHtml(f.part) + '</div>' +
+            '<div class="le-top"><b>' + escapeHtml(f.taskId) + '</b> - ' + escapeHtml(f.part) +
+              (f.reviewer ? ' - ' + escapeHtml(f.reviewer) : '') + '</div>' +
             '<div class="le-mid">' + escapeHtml(f.short) + ' <span class="fb-nodeid">' + escapeHtml(f.nodeId) + '</span></div>' +
             '<div class="le-note">' + escapeHtml(f.note) + '</div>' +
             status +
@@ -5143,6 +5248,7 @@
   }
 
   function render(){
+    updateReviewerChip();
     updateStageBadge();
     updateProgress();
     updateHeaderSub();
@@ -6211,6 +6317,7 @@
   stageBadge = document.getElementById("stageBadge");
   document.getElementById("headerReset").addEventListener("click", reset);
   document.getElementById("pauseBtn").addEventListener("click", togglePause);
+  document.getElementById("reviewerChip").addEventListener("click", changeReviewer);
   document.getElementById("feedbackBtn").addEventListener("click", function(){ viewMode = (viewMode === "feedback") ? "flow" : "feedback"; render(); });
 
   // ---- theme toggle. Nothing is persisted, by design: this tool stores no state,

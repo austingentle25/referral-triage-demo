@@ -53,6 +53,12 @@ cd worker && wrangler deploy
 
 The secret and the KV binding persist; only the code is replaced.
 
+Node comes from nvm and is not on the PATH by default:
+
+```bash
+export NVM_DIR="$HOME/.nvm" && . "$NVM_DIR/nvm.sh" && nvm use --lts && cd worker && npx wrangler deploy
+```
+
 ## What is redacted before anything is sent
 
 Every typed field in the graph was audited - 17 of them. The rule is by field,
@@ -69,6 +75,7 @@ Patient name: [redacted] -> Task ID: Task-2041 -> Established (3 yrs)?: Yes -> .
 | Mismatch detail, Block reason, VA setup notes, "what's wrong with insurance" | **Redacted** - free text, anything could be typed there |
 | Referring provider name / NPI / address / fax | **Redacted** - a named individual |
 | Task ID | **Kept** - internal reference, and what makes a report actionable |
+| Reviewer name | **Kept** - staff, not patient. A report nobody can be asked about cannot be followed up, which is the reason the question exists. It leads the issue title so triage order can be decided from the list |
 | Diagnosis | **Kept** - not identifying alone, and the most useful field for a routing complaint |
 | Everything selected from a list | Kept - no free text to leak |
 

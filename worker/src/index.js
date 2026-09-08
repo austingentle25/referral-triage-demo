@@ -71,13 +71,18 @@ function fence(text) {
 }
 
 function buildIssue(item) {
-  // Title: where it happened, then enough of the report to recognise it in a list.
+  // Title: who reported it, where it happened, then enough of the report to
+  // recognise it in a list. The name leads because triage order depends on it,
+  // and the issue list is the only place that decision gets made.
   const where = item.part || item.short || "Referral Sync Helper";
   let gist = item.note.replace(/\s+/g, " ").trim();
   if (gist.length > 60) gist = gist.slice(0, 60).replace(/\s+\S*$/, "") + "...";
-  const title = (where + ": " + gist).slice(0, 240);
+  const who = item.reviewer ? "[" + item.reviewer + "] " : "";
+  const title = (who + where + ": " + gist).slice(0, 240);
 
   const lines = [];
+  lines.push("**Reported by:** " + (item.reviewer || "(not given)"));
+  lines.push("");
   lines.push("**Step:** " + (item.part || "-") + (item.short ? " - " + item.short : ""));
   lines.push("");
   lines.push("**Question shown:**");
@@ -101,8 +106,10 @@ function buildIssue(item) {
   lines.push(
     "<sub>Opened automatically by the feedback relay. The patient name and every " +
       "other free-text field that could carry patient information are redacted " +
-      "before sending; the Task ID is kept deliberately as an internal reference. " +
-      "No visitor identifying information is collected.</sub>"
+      "before sending; the Task ID and the name of the staff member reporting are " +
+      "kept deliberately - the first as an internal reference, the second so " +
+      "somebody can come back to them. No visitor identifying information is " +
+      "collected.</sub>"
   );
   return { title: title, body: lines.join("\n") };
 }
@@ -122,7 +129,7 @@ function buildIssue(item) {
 const DEDUPE_TTL_S = 60;
 
 function fingerprint(item) {
-  const s = [item.note, item.nodeId, item.taskId].join("|");
+  const s = [item.note, item.nodeId, item.taskId, item.reviewer].join("|");
   let h = 5381;
   for (let i = 0; i < s.length; i++) h = ((h * 33) ^ s.charCodeAt(i)) >>> 0;
   return h.toString(36) + ":" + s.length;
@@ -202,6 +209,9 @@ async function handle(request, env) {
 
     const item = {
       note: redact(clean(payload.note, MAX_NOTE)),
+      // Staff, not patient. Deliberately kept and never redacted - a report with
+      // nobody's name on it cannot be followed up, which is why it is asked.
+      reviewer: clean(payload.reviewer, MAX_FIELD),
       short: clean(payload.short, MAX_FIELD),
       part: clean(payload.part, MAX_FIELD),
       nodeId: clean(payload.nodeId, MAX_FIELD),

@@ -301,3 +301,29 @@ const GOOD = JSON.stringify({
     print("FAILED: 0  - all relay checks pass");
   }
 })();
+
+// ---- the reviewer name: kept, never redacted, and visible in the list ----
+(function reviewerChecks(){
+  var b = __test.buildIssue({
+    note: "these should come after insurance",
+    reviewer: "Jingyi", part: "Step 6 - Review Full Registration",
+    short: "Full Registration sweep", nodeId: "p5_registration", taskId: "Task-1",
+    text: "In Full Registration", path: "Patient name: [removed]", at: "now"
+  });
+  check("title leads with the reviewer", b.title.indexOf("[Jingyi] ") === 0);
+  check("body names the reviewer", b.body.indexOf("**Reported by:** Jingyi") !== -1);
+
+  var anon = __test.buildIssue({
+    note: "no name on this one", part: "Step 1", short: "s", nodeId: "n",
+    taskId: "Task-2", text: "t", path: "p", at: "now"
+  });
+  check("no reviewer means no bracket", anon.title.indexOf("[") !== 0);
+  check("no reviewer is stated, not blank", anon.body.indexOf("**Reported by:** (not given)") !== -1);
+
+  // A staff name must survive - it is the point of asking. Only patient-shaped
+  // things are stripped.
+  check("a reviewer name is not redacted", __test.redact("Jingyi") === "Jingyi");
+  check("a reviewer name with a date beside it still loses the date",
+        __test.redact("Jingyi 01/02/1980").indexOf("Jingyi") === 0 &&
+        __test.redact("Jingyi 01/02/1980").indexOf("1980") === -1);
+})();
