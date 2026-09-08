@@ -548,6 +548,17 @@
     color:var(--teal-dark-ink); opacity:1;
   }
   .feedback-hint{ font-size:0.6875rem; color:var(--ink-soft); margin:6px 0 8px; }
+  .report-group{ margin:14px 0 0; }
+  .report-group-title{
+    font-size:0.6875rem; font-weight:700; text-transform:uppercase; letter-spacing:.4px;
+    color:var(--ink-soft); margin-bottom:2px;
+  }
+  /* The destination, on the summary itself, so the choice does not require
+     opening both to find out which one sends anything. */
+  .report-dest{
+    display:block; font-size:0.625rem; font-weight:600; text-transform:none; letter-spacing:0;
+    color:var(--ink-soft); margin-top:1px;
+  }
   .feedback-btn{ padding:8px 12px; font-size:0.8125rem; }
   .le-note{ font-size:0.8125rem; margin-top:4px; }
   .whypath-box{
@@ -4609,12 +4620,14 @@
   function engFlagBoxHtml(node){
     if (!node) return "";
     return '<details class="feedback-box engflag-box">' +
-      '<summary>Flag to Engineering</summary>' +
+      '<summary>The <b>referral or the data</b> is wrong<span class="report-dest">copies a Slack message for you to paste</span></summary>' +
       '<textarea id="engFlagInput" class="text-input textarea-input" rows="3" ' +
         'placeholder="What is wrong? Include anything Engineering needs to reproduce it."></textarea>' +
-      '<div class="feedback-hint">Drafts a Slack message with the task URL and copies it. ' +
-        'Nothing is sent - paste it into Slack yourself.</div>' +
-      '<button type="button" class="continue-btn feedback-btn" id="engFlagBtn">Draft message</button>' +
+      '<div class="feedback-hint">For a broken record, a sync failure, or anything Engineering has to look at ' +
+        'in this specific referral. Drafts a Slack message with the task URL and copies it to your clipboard. ' +
+        '<b>Nothing is sent - paste it into Slack yourself.</b> This one includes the patient name, ' +
+        'because Engineering needs it to find the record.</div>' +
+      '<button type="button" class="continue-btn feedback-btn" id="engFlagBtn">Copy Slack message</button>' +
       '</details>';
   }
   function buildEngFlagMessage(node, issue){
@@ -4646,18 +4659,35 @@
     });
   }
 
+  // The two channels sat side by side as "Flag a problem with this question" and
+  // "Flag to Engineering", which named neither destination and left the one real
+  // difference - whether anything leaves the page - to be guessed. They are now
+  // one titled group, and each summary says what it is for and where it goes.
+  // Both destinations and both wirings are unchanged.
+  function reportGroupOpenHtml(node){
+    if (!node || node.kind === "auto") return "";
+    return '<div class="report-group">' +
+      '<div class="report-group-title">Report a problem</div>';
+  }
+  function reportGroupCloseHtml(node){
+    if (!node || node.kind === "auto") return "";
+    return '</div>';
+  }
   function feedbackBoxHtml(node){
     if (!node || node.kind === "auto") return "";
     return '<details class="feedback-box">' +
-      '<summary>Flag a problem with this question</summary>' +
+      '<summary>The <b>question</b> is wrong<span class="report-dest">' +
+        (FEEDBACK_RELAY_URL ? "sends to the issue tracker" : "kept in this tab") + '</span></summary>' +
       '<textarea id="feedbackInput" class="text-input textarea-input" rows="3" ' +
         'placeholder="What is wrong, or what should it have asked?"></textarea>' +
-      '<div class="feedback-hint">Captures this question and the path that led here. The ' +
+      '<div class="feedback-hint">For wording, ordering, or a question that should not have been asked. ' +
+        'Captures this question and the path that led here. The ' +
         'patient name and every typed field are removed first.' +
         (FEEDBACK_RELAY_URL
-          ? ' <b>Auto Feedback sends this to the issue tracker - describe the question, not the patient.</b>'
-          : '') + '</div>' +
-      '<button type="button" class="continue-btn feedback-btn" id="feedbackSubmit">Add to feedback</button>' +
+          ? ' <b>Sent to the issue tracker when you press the button - describe the question, not the patient.</b>'
+          : ' <b>Nothing is sent anywhere - it stays in this tab and is copied out by hand.</b>') + '</div>' +
+      '<button type="button" class="continue-btn feedback-btn" id="feedbackSubmit">' +
+        (FEEDBACK_RELAY_URL ? "Send to the issue tracker" : "Add to feedback") + '</button>' +
       '</details>';
   }
   function wireFeedbackBox(node){
@@ -5211,7 +5241,7 @@
         '<div class="form-warn" id="formWarn"></div>' +
         '<div class="form-hint" id="formHint"' + (ready ? ' hidden' : '') + '>Answer every field to continue.</div>' +
       '</div>' +
-      whyPathBoxHtml() + feedbackBoxHtml(node) + engFlagBoxHtml(node);
+      whyPathBoxHtml() + reportGroupOpenHtml(node) + feedbackBoxHtml(node) + engFlagBoxHtml(node) + reportGroupCloseHtml(node);
     stage.innerHTML = html;
 
     function refreshFormReady(){
@@ -5310,7 +5340,7 @@
           (node.selfPayToggle ? '<button type="button" class="edge-case-toggle" id="selfPayToggleBtn">Is this self-pay? <b>(Yes)</b></button>' : '') +
         '</div>' : '') +
       '</div>' +
-      whyPathBoxHtml() + feedbackBoxHtml(node) + engFlagBoxHtml(node);
+      whyPathBoxHtml() + reportGroupOpenHtml(node) + feedbackBoxHtml(node) + engFlagBoxHtml(node) + reportGroupCloseHtml(node);
     stage.innerHTML = html;
     var edgeCaseBtn = document.getElementById("edgeCaseToggleBtn");
     if (edgeCaseBtn){
@@ -5398,7 +5428,7 @@
         '</div>' +
         resumeBoxHtml(node) +
       '</div>' +
-      whyPathBoxHtml() + feedbackBoxHtml(node) + engFlagBoxHtml(node);
+      whyPathBoxHtml() + reportGroupOpenHtml(node) + feedbackBoxHtml(node) + engFlagBoxHtml(node) + reportGroupCloseHtml(node);
     stage.innerHTML = html;
 
     var input = document.getElementById("textField");
@@ -5478,7 +5508,7 @@
           '<button class="continue-btn" id="submitBtn">Continue</button>' +
         '</div>' +
       '</div>' +
-      whyPathBoxHtml() + feedbackBoxHtml(node) + engFlagBoxHtml(node);
+      whyPathBoxHtml() + reportGroupOpenHtml(node) + feedbackBoxHtml(node) + engFlagBoxHtml(node) + reportGroupCloseHtml(node);
     stage.innerHTML = html;
 
     var searchInput = document.getElementById("providerSearch");
@@ -5629,7 +5659,7 @@
           '<button class="continue-btn" id="submitBtn">Continue</button>' +
         '</div>' +
       '</div>' +
-      whyPathBoxHtml() + feedbackBoxHtml(node) + engFlagBoxHtml(node);
+      whyPathBoxHtml() + reportGroupOpenHtml(node) + feedbackBoxHtml(node) + engFlagBoxHtml(node) + reportGroupCloseHtml(node);
     stage.innerHTML = html;
 
     var sel = document.getElementById("selectField");
@@ -5845,7 +5875,7 @@
         '</div>' +
         '<div class="btnrow-continue">' + backButtonHtml() + '</div>' +
       '</div>' +
-      whyPathBoxHtml() + feedbackBoxHtml(node) + engFlagBoxHtml(node);
+      whyPathBoxHtml() + reportGroupOpenHtml(node) + feedbackBoxHtml(node) + engFlagBoxHtml(node) + reportGroupCloseHtml(node);
     stage.innerHTML = html;
 
     var input = document.getElementById("payorSearch");
@@ -5975,7 +6005,7 @@
           '<button class="continue-btn" id="submitBtn">Continue</button>' +
         '</div>' +
       '</div>' +
-      whyPathBoxHtml() + feedbackBoxHtml(node) + engFlagBoxHtml(node);
+      whyPathBoxHtml() + reportGroupOpenHtml(node) + feedbackBoxHtml(node) + engFlagBoxHtml(node) + reportGroupCloseHtml(node);
     stage.innerHTML = html;
 
     var searchInput = document.getElementById("dxSearch");
