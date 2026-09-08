@@ -5013,7 +5013,8 @@
         'Recognises a Mercy or VA plan and goes to the questions those need.',
         'Shows the grid\'s wording where an insurer also has plans the practice is not contracted with, so you can check you have the right plan.',
         'Still asks where the grid says the answer depends on the plan.',
-        'Shows the payer\'s phone number and website where the grid lists them.'
+        'Shows the payer\'s phone number and website where the grid lists them.',
+        'Stops chasing an authorization once the referral is going to somebody else to schedule.'
       ]) +
 
       group('Providers', [
@@ -5021,6 +5022,7 @@
         'Works out the Athena provider code from the name, including multi-word surnames.',
         'Checks the diagnosis against the specialties the provider actually treats.',
         'Shows providers who have left, but will not let you select one.',
+        'Filters a long list of providers by name, specialty or location, and groups them by location with the receiving one first.',
         'Tracks whether a patient can be texted separately from whether the referral can be scheduled.'
       ]) +
 
@@ -5028,11 +5030,15 @@
         'Records a referral that is still waiting on something as Pending, and names what it is waiting on.',
         'Reopens a determination by replaying your answers, so you continue from where you stopped.',
         'Rebuilds a determination from the list of questions and answers, which you can copy out and paste back in.',
-        'Carries your session log into a new version of the tool.'
+        'Carries your session log into a new version of the tool.',
+        'Exports the log with the questions asked, the time spent on each, and anywhere you went back, so the flow can be checked against how referrals are really worked.'
       ]) +
 
       group('Reporting a problem', [
+        'Asks who you are on the first referral of the session and puts your name on anything you report, so somebody can come back to you about it.',
+        'Says where each report goes before you write it - one opens an issue, the other copies a Slack message for you to paste.',
         'Opens an issue when you flag a question, with the question, the step and the answers that led there.',
+        'Names the step and the question in each report, in the same words you saw on screen.',
         'Removes patient names, dates and long numbers before anything is sent.',
         'Tells you when a report could not be sent, keeps it, and lets you send it again.'
       ]) +
@@ -5041,7 +5047,11 @@
         'Marks the steps it skipped and why.',
         'Keeps the three chart notes separate, each copyable on its own.',
         'Stops and says what it could not resolve, rather than choosing for you.',
-        'Times the determination from after the patient name, and pauses on request.',
+        'Says which question you are on and roughly how many are left on the path you are taking, rather than how far through the whole thing you are.',
+        'Shows one step label, and says it is the step in the Notion workflow. The wizard asks in the order the answers depend on each other, so those numbers can run out of sequence.',
+        'Two clocks: one for the question on screen, one for the referral as a whole. Neither loses time while you are in Athena.',
+        'Works from the keyboard throughout. Arrow through a list of results, Enter to take one, and a visible focus ring at every stop.',
+        'Yes and No look the same as each other, because on most questions neither one is the right answer.',
         'Runs as one file in a browser. Nothing to install, and nothing kept once you close it.'
       ]) +
 
@@ -5055,8 +5065,9 @@
     var html;
     if (!feedbackLog.length){
       html = '<div class="card"><h2>Auto Feedback</h2>' +
-        '<p>Nothing flagged yet. On any question, open <b>"Something wrong with this question? Flag it"</b> ' +
-        'and describe the problem - the question and the full path that led to it are captured with it.</p>' +
+        '<p>Nothing flagged yet. On any question, open <b>Report a problem</b> and pick which kind it is - ' +
+        'the question being wrong, or the referral itself. The question and the full path that led to it are ' +
+        'captured with whichever you choose.</p>' +
         '<p style="font-size:0.75rem;color:var(--ink-soft);">' +
         (FEEDBACK_RELAY_URL
           ? 'Auto Feedback opens a tracked issue for each report as you submit it, and keeps a copy here so you can read the lot back. If a send fails you are told, and it can be retried - nothing is dropped quietly.'
