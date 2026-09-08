@@ -643,11 +643,10 @@
     background:var(--panel); color:var(--ink); cursor:pointer; font-family:inherit; font-weight:600; }
   .payor-out:hover{ border-color:var(--teal); color:var(--teal); }
   .payor-meta{ display:block; font-size:0.6875rem; color:var(--k03f); margin-top:2px; }
-  .about-table{ width:100%; border-collapse:collapse; }
-  .about-table td{ padding:7px 0; border-bottom:1px solid var(--line); font-size:0.84rem;
-    line-height:1.5; vertical-align:top; }
-  .about-table tr:last-child td{ border-bottom:none; }
-  .af-name{ width:38%; font-weight:700; padding-right:14px !important; }
+  ul.neat{ margin:0; padding-left:0; list-style:none; }
+  ul.neat li{ font-size:0.86rem; line-height:1.5; padding:7px 0; border-bottom:1px solid var(--line); }
+  ul.neat li:last-child{ border-bottom:none; }
+  ul.neat b{ display:block; }
   .about-lede{ font-size:0.95rem; color:var(--k03f); line-height:1.55; margin-bottom:4px; }
   .about-sec{ margin-top:20px; padding-top:16px; border-top:1px solid var(--line); }
   .about-sec h3{ font-size:0.9375rem; margin:0 0 8px; }
@@ -4338,67 +4337,52 @@
   // read, and because a description that lives elsewhere goes stale unnoticed.
   function renderAbout(){
     stageBadge.textContent = "About";
-    var sec = function(title, body){ return '<div class="about-sec"><h3>' + title + '</h3>' + body + '</div>'; };
+    var group = function(title, items){
+      return '<div class="about-sec"><h3>' + title + '</h3><ul class="neat">' +
+        items.map(function(x){ return '<li><b>' + x[0] + '</b> ' + x[1] + '</li>'; }).join("") +
+        '</ul></div>';
+    };
     stage.innerHTML = '<div class="card">' +
       '<h2>Referral Sync Helper</h2>' +
-      '<p class="about-lede">It works a TPR referral with you: asks what it needs, decides where the ' +
-      'referral goes, and writes the notes. What used to live in somebody\'s head is asked out loud, ' +
-      'in the same order, every time.</p>' +
+      '<p class="about-lede">Some of the things it does.</p>' +
 
-      sec('The problem it solves',
-        '<p>A referral takes a chain of judgements - who the receiving provider should be, at which ' +
-        'location, whether the plan is contracted, whether an authorization is needed, what to write ' +
-        'in the chart. Each one is knowable. The difficulty is that they depend on each other, the ' +
-        'rules live in several places, and the answer has to be the same whoever works it.</p>' +
-        '<p>So the tool holds the rules and asks the questions. You bring the judgement it cannot ' +
-        'make - what the fax actually says, what Athena actually shows.</p>') +
+      group('Insurance', [
+        ['307 insurance packages built in.', 'Type a package number and it answers contracted, referral required and authorization required.'],
+        ['Search by number or by name.', '"22796" and "mercy" both find Mercy Care.'],
+        ['Edge cases announce themselves.', 'A Mercy or VA plan says so before anyone has to recognise the name.'],
+        ['It warns about the sibling plan.', '99 packages belong to an insurer that also has plans the practice is not contracted with. It says so, and quotes the grid.'],
+        ['It will not turn a maybe into a yes.', 'Where the grid says it depends, you are still asked.'],
+        ['Payer phone and website.', 'Carried through for the rows that have them, so a "verify" does not start with a search.']
+      ]) +
 
-      sec('What it decides',
-        '<p>Given the answers, it works out the receiving provider and location and reconciles them ' +
-        'against each other; whether the diagnosis fits that provider\'s specialty; whether the plan ' +
-        'is contracted and what it requires; which bucket the referral belongs in; whether it can be ' +
-        'scheduled, and separately whether the patient can be texted, which is not the same thing.</p>' +
-        '<p>When it cannot decide, it stops and says why rather than guessing. That is the point of ' +
-        'it - a wrong determination made confidently is worse than one handed back.</p>') +
+      group('Providers', [
+        ['Fuzzy name search.', '"Kholgi" finds Khayyat Kholghi. "Strum" finds Sturm. It handles dropped letters and scrambled ones.'],
+        ['Athena codes derived automatically.', 'AMG_ALQAISI_S from "Saifuldeen Al Qaisi, MD" - multi-word surnames included.'],
+        ['Diagnosis matched to specialty.', 'By span containment, so "atrial fibrillation" does not match on "fibrillation" alone.'],
+        ['Providers who left are still findable.', 'Listed so a name on a referral is recognisable, but impossible to select.'],
+        ['Scheduling and texting are different questions.', 'Loli and Bahu are scheduled and never texted, and the tool knows the difference.']
+      ]) +
 
-      sec('What it knows',
-        '<p>The provider roster and who is in scope, from the practice scheduling guide. Which ' +
-        'diagnoses each provider treats. Every Biltmore location and department number. And 307 ' +
-        'insurance packages from the referral grid - so entering a package number answers the ' +
-        'contracting questions, names an edge case like Mercy or VA before anybody has to recognise ' +
-        'it, and warns when an insurer also has plans the practice is not contracted with.</p>' +
-        '<p>Where the grid says it depends, you are still asked. It does not turn a maybe into a yes.</p>') +
+      group('Not losing work', [
+        ['Pending is not Complete.', 'A referral still waiting on a phone number says so, and names what it is waiting on.'],
+        ['Reopen replays a determination.', 'You carry on from where it stopped; the answer that was waiting is the only one that changes.'],
+        ['The whole path is copyable.', 'Paste it back in and the determination rebuilds itself. No storage, no account.'],
+        ['Your log survives a new version.', 'Copy it out, paste it into the next build. Rows come back under their Task ID.']
+      ]) +
 
-      sec('What it produces',
-        '<p>Three notes ready to paste - internal, action and patient - plus the bucket, the ' +
-        'scheduling status, the document label, and the referral and authorization objects. Each is ' +
-        'a separate box you tap to copy, because the notes go to different places in Athena.</p>' +
-        '<p>Alongside them, the full path of questions and answers that led there. That is what makes ' +
-        'a determination explainable afterwards, and it is what you paste back in to pick one up ' +
-        'where you left it.</p>') +
+      group('Telling us it is wrong', [
+        ['One tap opens a real issue.', 'About a second, carrying the question, the step and the path that led there.'],
+        ['PHI is stripped on the way out.', 'Patient name, dates and long numbers, removed in the page and again on arrival.'],
+        ['Nothing is dropped quietly.', 'If a report cannot be sent you are told, it stays, and it can be retried.']
+      ]) +
 
-      sec('Work that is not finished',
-        '<p>A referral that reaches the end still waiting on something is not complete, and is not ' +
-        'recorded as complete. It is Pending, with what it is waiting on named - a phone number ' +
-        'missing from both the chart and the referral, an address to obtain, an authorization still ' +
-        'pending, a payor not yet confirmed. Reopening replays it so the answer that was waiting is ' +
-        'the only one that changes.</p>') +
-
-      sec('When it is wrong',
-        '<p>It will be. The rules move, the wording will not always fit the case in front of you, and ' +
-        'some of what it believes came from a spreadsheet that has since changed.</p>' +
-        '<p>So it can be told. Flagging a problem on the screen where you hit it opens a tracked ' +
-        'issue carrying the question, the step and the path, so it can be reproduced rather than ' +
-        'guessed at. Patient names, dates and long numbers are stripped before anything leaves the ' +
-        'page - describe the question, not the patient.</p>') +
-
-      sec('What it does not do',
-        '<ul>' +
-        '<li>It does not touch Athena. Nothing is written on your behalf; you paste what it produces.</li>' +
-        '<li>It does not keep anything. Everything lives in the page while the tab is open and is gone ' +
-        'when you close it. The only things that leave are ones you send.</li>' +
-        '<li>It does not decide anything it has not been told. Where the guide is silent, it asks.</li>' +
-        '</ul>') +
+      group('Small things that add up', [
+        ['Skipped steps say why.', '"Not needed - non-Camelback receiving assignment", rather than silently ending.'],
+        ['Three notes, three boxes.', 'Tap to copy. They go to different places in Athena, so they are kept apart.'],
+        ['It stops rather than guesses.', 'Two upcoming appointments with different providers, and it hands the case back.'],
+        ['A clock that pauses.', 'Starts after the patient name, so entering it is not counted.'],
+        ['One file, no install.', 'Opens in a browser, works on any machine, and keeps nothing when you close it.']
+      ]) +
 
       '<div class="btnrow-continue"><button class="continue-btn" id="aboutBackBtn">Back to task</button></div>' +
       '</div>';
