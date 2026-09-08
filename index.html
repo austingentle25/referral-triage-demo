@@ -500,6 +500,16 @@
   /* Hidden with the attribute, not a class, so it leaves the accessibility tree
      when it is not showing - it used to sit in the DOM after the field had been
      filled in, still saying the field was empty. */
+  .dupe-warn{
+    margin-top:10px; padding:10px 12px; border-radius:9px;
+    background:var(--review-bg); border:1px solid var(--k45b); border-left:4px solid var(--review-solid);
+    font-size:0.8125rem; color:var(--ink);
+  }
+  .dupe-warn[hidden]{ display:none; }
+  .dupe-warn b{ color:var(--review); display:block; margin-bottom:4px; }
+  .dupe-warn ul{ margin:0 0 6px; padding-left:18px; }
+  .dupe-warn li{ font-variant-numeric:tabular-nums; }
+  .dupe-note{ font-size:0.75rem; color:var(--ink-soft); }
   .field-warn{ color:var(--review); font-size:0.75rem; margin-top:6px; }
   .field-warn[hidden]{ display:none; }
 
@@ -1996,6 +2006,11 @@
     p_patient_name: { kind:"text", source:"Referral fax / task queue", part:0, field:"patientName", showResumeBox:true,
       text:"What's the patient's name?", short:"Patient name",
       placeholder:"Patient name",
+      duplicateCheck:true,
+      // Pasted names carry an MRN or a date of birth in brackets. It comes off
+      // here rather than only in the comparison, so it does not travel into the
+      // log, the chart notes or an escalation message.
+      afterSubmit:function(s){ s.out.patientName = stripParenthetical(s.out.patientName); },
       next:"p_task_id"
     },
     p_task_id: { kind:"text", source:"tpr.valeriehealth.com/tasks/", part:0, field:"taskId", prefix:"Task-",
@@ -4726,6 +4741,34 @@
     else sub.removeAttribute("title");
   }
 
+  // Names arrive pasted out of Valerie and Athena as often as they are typed,
+  // and they come with a parenthetical - "Baribeau, Kaytlyn Leah (10024417)" or
+  // "(DOB 04/11/1962)". The bracket is dropped: it is a different identifier
+  // every time the same patient is pasted from a different screen, so leaving it
+  // in would defeat the check it is supposed to feed, and it is one more piece
+  // of the record on screen than the tool needs.
+  function stripParenthetical(name){
+    return String(name || "").replace(/\([^)]*\)/g, " ").replace(/\s+/g, " ").trim();
+  }
+
+  // Tokens, sorted, lowercased, punctuation gone. "Baribeau, Kaytlyn" and
+  // "Kaytlyn Baribeau" are the same patient typed by two people, and the whole
+  // point of the check is to catch the second person before they redo the work.
+  function nameKey(name){
+    var t = stripParenthetical(name).toLowerCase().replace(/[^a-z0-9\s]/g, " ").split(/\s+/);
+    return t.filter(function(w){ return w.length > 1; }).sort().join(" ");
+  }
+
+  // Every earlier run in this session under the same name. Returns the entries
+  // themselves so the warning can say which task it was and how it ended.
+  function earlierRunsForName(name){
+    var key = nameKey(name);
+    if (!key) return [];
+    return sessionLog.filter(function(e){
+      return e.runId !== (state && state.runId) && nameKey(e.patientName) === key;
+    });
+  }
+
   function initialsOf(name){
     var parts = String(name || "").trim().split(/\s+/).filter(Boolean);
     if (!parts.length) return "";
@@ -5165,9 +5208,9 @@
       // deliberately: a list nobody prunes stops being read. Internal work does
       // not belong here - only what an operator would notice.
       group('Recent updates', [
+        '<b>8 Sep</b> - Typing a patient you have already worked this session brings up a warning naming the earlier task and how it ended. It matches the same patient however the name arrives - pasted last-name-first, in capitals, or with an MRN or date of birth in brackets, which is dropped rather than stored.',
         '<b>8 Sep</b> - The header shows the patient\'s initials and the Task ID rather than the full name, which used to sit on screen for the whole referral. The name is still on the question where you typed it, and on hover.',
-        '<b>8 Sep</b> - Every row in the session log has a <b>Mark complete</b> tick, so you can see what is left to do. It is your own tick and it does not change what the tool determined; it survives reopening a determination and travels with a transferred log.',
-        '<b>8 Sep</b> - The referral clock stops when the referral is finished, and holds after five minutes with nothing happening. A trip to Athena still counts; a tab left open no longer does. The label says which - <i>done</i> or <i>idle</i>.'
+        '<b>8 Sep</b> - Every row in the session log has a <b>Mark complete</b> tick, so you can see what is left to do. It is your own tick and it does not change what the tool determined; it survives reopening a determination and travels with a transferred log.'
       ]) +
 
       group('Insurance', [
@@ -5191,6 +5234,7 @@
 
       group('Work you have not finished', [
         'Records a referral that is still waiting on something as Pending, and names what it is waiting on.',
+        'Warns if you start a patient you have already worked this session, and says which task it was and how it ended.',
         'Reopens a determination by replaying your answers, so you continue from where you stopped.',
         'Rebuilds a determination from the list of questions and answers, which you can copy out and paste back in.',
         'Carries your session log into a new version of the tool.',
@@ -5817,6 +5861,7 @@
         '<div class="input-row' + (node.suggestions ? ' dx-picker' : '') + '">' +
           fieldTag +
           (node.suggestions ? '<div class="dx-suggestions" id="textSuggestions"></div>' : '') +
+          (node.duplicateCheck ? '<div class="dupe-warn" id="dupeWarn" role="status" hidden></div>' : '') +
           '<div class="field-warn" id="fieldWarn" role="alert" hidden>Please enter a value to continue.</div>' +
         '</div>' +
         '<div class="btnrow-continue">' +
@@ -5838,6 +5883,34 @@
     input.focus();
     if (node.defaultToday) input.select();
     input.addEventListener("input", clearFieldWarn);
+
+    // Warns, it does not block. Two referrals for the same patient in a day is
+    // normal - two people working the same one is what this is for - so it names
+    // the earlier task and gets out of the way.
+    if (node.duplicateCheck){
+      var dupeEl = document.getElementById("dupeWarn");
+      var checkDuplicate = function(){
+        if (!dupeEl) return;
+        var hits = earlierRunsForName(input.value);
+        if (!hits.length){ dupeEl.hidden = true; dupeEl.innerHTML = ""; return; }
+        var lines = hits.map(function(e){
+          var bits = [];
+          if (e.taskId) bits.push(escapeHtml(e.taskId));
+          bits.push(escapeHtml(e.outcome));
+          if (e.markedComplete) bits.push("marked complete");
+          bits.push(escapeHtml(e.at.toLocaleTimeString()));
+          return "<li>" + bits.join(" \u00b7 ") + "</li>";
+        }).join("");
+        dupeEl.innerHTML = "<b>Already done this session" +
+          (hits.length > 1 ? " (" + hits.length + " times)" : "") + "</b>" +
+          "<ul>" + lines + "</ul>" +
+          "<span class=\"dupe-note\">Carry on if this is a second referral for them. " +
+          "If it is the same one, it is in the log.</span>";
+        dupeEl.hidden = false;
+      };
+      input.addEventListener("input", checkDuplicate);
+      checkDuplicate();
+    }
     if (node.dateMask){
       input.addEventListener("input", function(){
         input.value = formatDateMask(input.value);
