@@ -2090,9 +2090,16 @@
       text:"Pick that prior qualifying-visit location's department.", short:"Prior qualifying-visit location",
       next:function(s){ return afterLocationPicked(s); }
     },
+    // One instruction over the list, and two named ways out of it. This used to
+    // read "Pick a provider who treats the diagnosis - do you have one to enter?"
+    // over a tap-to-select list and a Yes/No pair: two questions and three
+    // interaction models on one screen, with Yes meaning "open a different
+    // picker" and No meaning "stop this referral". Both targets are unchanged.
     p2_pick_provider_here: { kind:"yesno", source:"Provider list - specialty reference", part:1, showRelevantProviders:true,
-      text:"Pick a provider who treats the diagnosis - do you have one to enter?",
+      text:"Select the provider who will take this referral.",
       short:"Provider who treats dx?",
+      yesLabel:"Not in this list - open the full picker",
+      noLabel:"No provider treats this diagnosis",
       yes:function(s){ return "p2_name_here"; },
       no:function(s){ return stopManual("No provider available who treats the diagnosis.",2); }
     },
@@ -3118,8 +3125,20 @@
         if (step.answer === (node.yesLabel || "Yes")) kind = "yes";
         else if (step.answer === (node.noLabel || "No")) kind = "no";
         else if (node.kind === "yesno3" && step.answer === node.thirdLabel) kind = "third";
+        // A path saved before a question was given custom button labels carries
+        // the bare "Yes"/"No" it was answered with. Those paths still have to
+        // replay, so the plain words remain valid answers for any yes/no node.
+        else if (step.answer === "Yes") kind = "yes";
+        else if (step.answer === "No") kind = "no";
         if (!kind) return { ok:false, error:"Stopped at step " + (i+1) + " - couldn't match answer \"" + step.answer + "\" to \"" + step.short + "\"." };
-        answer(node, kind, step.answer);
+        // Record the node's current wording rather than the wording that was
+        // saved, so a resumed path reads exactly like a fresh run of the same
+        // answers and can be pasted back in again. For an unchanged label these
+        // are the same string.
+        var canonical = kind === "yes" ? (node.yesLabel || "Yes")
+                      : kind === "no" ? (node.noLabel || "No")
+                      : node.thirdLabel;
+        answer(node, kind, canonical);
       } else if (node.kind === "text" || node.kind === "select" || node.kind === "diagnosis"){
         submitText(node, step.answer);
       } else {
