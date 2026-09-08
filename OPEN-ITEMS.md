@@ -3,7 +3,7 @@
 Everything outstanding on Referral Sync Helper, and what has closed. Kept in the
 repo so a decision is not rediscovered as new work later.
 
-**Last updated:** 8 September 2026, after a second review pass.
+**Last updated:** 8 September 2026, after clearing the open list on judgement.
 
 ---
 
@@ -43,6 +43,11 @@ repo so a decision is not rediscovered as new work later.
 | F9 | The diagnosis picker matched inside words | **Fixed.** A query of four characters or fewer now has to land on a whole word, and a multi-word query matches on any of its words. `AS`, `PE`, `HTN`, `AR` and `ACS` stop offering something unrelated; `VT` and `MI` find the right diagnosis, which the substring match had been burying; `SOB on exertion` and `c/o chest pain` find something at all |
 | F10 | The restriction showed on one provider picker, not the other | **Fixed.** The search list carries the same annotation as the tap list, at the point of choosing rather than on the output card twenty questions later |
 | F11 | No release notes in the tool | **Live.** The About tab opens with the three most recent user-visible changes |
+| F12 | `is_qualifying` covered past and upcoming | **Split.** Attendance applies to a past encounter; an upcoming one only has to be still on the books. Both on-screen definitions and `TPR-RULES.md` say so now |
+| F13 | The patient name sat in the header all session | **Initials.** "K.L.B. · Task-1234", full name on hover and still on the screen where it was typed. The Task ID identifies the referral; the initials say which patient you are on |
+| F14 | APP specialties | **Keep as they are.** An APP sees the patients of the physician they work with, so inheriting that physician's specialties is the behaviour that matches the work. No sheet can settle it because none covers APPs, and the current rule has a reason rather than being an accident |
+| F15 | The insurance questions, one systematic pass | **Measured, and clean.** Over 400 walks, 183 consulted the grid and those runs ask a median of 3 insurance questions. Everything the grid answers is at zero: contracted, referral required and authorization required are never asked by hand. What survives is not redundant - whether Valerie and Athena agree (100%), whether the record synced and came back eligible (78%), and the mismatch branch. See below |
+| F16 | `TPR-RULES.md` out of step | **Updated.** Definitions split, and it now records the fifteen-step structure it claimed to describe |
 
 ---
 
@@ -60,16 +65,8 @@ Changing this alters which diagnoses route to him — a real determination chang
 so it is flagged rather than guessed. **Kevin Murphy, his APP, inherits whichever
 you decide.**
 
-### 2. APP specialties
 
-Each APP carries the specialty of the physician they work with, because that is
-whose patients they see. The Diagnosis → Specialty sheet covers physicians only,
-so no APP appears on it and the sheet cannot settle this.
-
-Franco therefore reads *General, Interventional, Structural* because Loli does.
-Right, or should an APP carry something narrower?
-
-### 3. The step numbering runs backwards
+### 2. The step numbering runs backwards
 
 By design, and stated plainly rather than hidden. The workflow is a checklist
 whose steps can be worked in any order; this is a wizard whose order is fixed by
@@ -81,55 +78,32 @@ only in the step name. **Option (b) remains available:** move the fax sweep afte
 registration and the commonest jump disappears. Small, provable against the
 120-seed baseline. Not taken.
 
-### 4. `is_qualifying` covers past and upcoming appointments
 
-The rule includes "not Cancelled or No Show", which cannot apply to a future
-appointment. Should split into `is_qualifying_past` and `is_qualifying_upcoming`.
-No reported failure — a latent inconsistency, not a live bug.
+### 3. The insurance mismatch branch is three questions and a free-text box
 
-### 5. The last single-question trip back to the referral fax
+The one thing the measurement turned up. When Valerie and Athena disagree the
+tool asks which insurance needs fixing (51% of grid runs), then what kind of
+mismatch it is from a list (34%), then asks for the same thing again in prose
+(28%).
+
+That is the shape feedback has complained about twice already - a type from a
+list followed by a description of the type. Folding the last two into one screen
+is the obvious consolidation.
+
+**Not done.** `p4_ins_mismatch_type` routes on its answer - "Self-pay on Valerie,
+insurance listed in Athena" goes somewhere different from the rest - so merging
+it into a form changes crumb structure and the resume path, not just the layout.
+That is a bigger change than the registration consolidation it resembles, and it
+wants doing deliberately rather than at the end of a long day.
+
+### 4. The last single-question trip back to the referral fax
 
 The referring provider's specialty question sits alone between Care Team and Full
 Registration, in 38% of walks. Folding it into a form would mean asking it on the
 62% that do not need it. **Leave it** — recorded so it is not rediscovered.
 
-### 6. The patient name sits in the header all session
-
-Raised in the UX pass and **not changed**, because the default is a decision
-rather than a defect. Today `updateHeaderSub()` replaces "Based on Updated
-Notion · Biltmore Cardiology" with "<name> · Task-1234" and leaves it there for
-the whole run, which in a shared workspace is a patient name on screen
-continuously.
-
-Two options, both small:
-
-- **Initials.** "A.G. · Task-1234". Nothing to click, nothing to learn, and the
-  operator can still tell which patient they are on. Two initials collide often
-  enough that the Task ID is doing the identifying anyway.
-- **Click to reveal.** Show "Task-1234" with the name behind a tap that hides
-  itself again on the next question. Exact when wanted, absent the rest of the
-  time; one more thing to know about.
-
-The name is only ever in memory either way - this is about what a passer-by
-sees, not about storage. Say which and it is a few lines.
 
 
-
-### 7. The insurance questions deserve one systematic pass
-
-The referral grid made existing questions redundant in **three separate places, found
-three separate ways** - one by hitting it, one by asking about it, one by a 15-walk sweep.
-That is a pattern, not three coincidences: every question the grid can now answer was
-written before the grid existed, and there is no list of which ones those are.
-
-The remaining insurance questions should be checked against the 307 packages in one pass
-rather than waiting for a fourth accident. Measurement only - no code changes - so it can
-be done and read before anything is decided.
-
-### 8. Keep the rules in step
-
-`TPR-RULES.md` in the private docs repo is the rules of record. The fifteen-step
-structure has landed and its structure section has not been updated to match.
 
 ---
 

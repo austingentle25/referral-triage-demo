@@ -2004,7 +2004,7 @@
       next:"p0_status"
     },
     p0_status: { kind:"yesno", source:"Quickview → Scheduling → View Patient Appointments", part:1,
-      definition:"A qualifying appointment must be cardiology, with a Biltmore provider, at a Biltmore location, and the patient attended (not Canceled or No Show). Established = one of those within the last 3 years.",
+      definition:"A qualifying appointment must be cardiology, with a Biltmore provider, at a Biltmore location, and the patient attended - not Canceled and not a No Show. Established = one of those within the last 3 years.",
       text:"Have they completed a qualifying appointment in the last 3 years?",
       short:"Established (3 yrs)?",
       yes:function(s){ setOut("status","Established"); return "p1_q1"; },
@@ -2013,14 +2013,19 @@
 
     // ---- PART 1 - PROVIDER ----
     p1_q1: { kind:"yesno", source:"Quickview → Scheduling → View Patient Appointments", part:1,
-      definition:"A qualifying appointment must be cardiology, with a Biltmore provider, at a Biltmore location, and the patient attended (not Canceled or No Show). Upcoming window = next 60 days.",
+      // One definition was doing two jobs. "The patient attended (not Canceled or
+      // No Show)" cannot apply to an appointment in the next 60 days, and asking
+      // an operator to check attendance on a future booking is asking for
+      // something that does not exist. Split: attendance for the past, and for
+      // the upcoming ones only that they are still on the books.
+      definition:"A qualifying appointment must be cardiology, with a Biltmore provider and at a Biltmore location. Attendance is not part of it here - the appointment has not happened yet - but a Canceled one does not count. Upcoming window = next 60 days.",
       text:"Is there a qualifying appointment in the next 60 days?",
       short:"Upcoming qualifying appt (60 days)?",
       yes:function(s){ s.hasUpcomingAppt = true; return "p1_q1a"; },
       no:function(s){ return "p1_q2"; }
     },
     p1_q1a: { kind:"yesno", source:"Quickview → Scheduling → View Patient Appointments", part:1,
-      definition:"A qualifying appointment must be cardiology, with a Biltmore provider, at a Biltmore location, and the patient attended (not Canceled or No Show).",
+      definition:"A qualifying appointment must be cardiology, with a Biltmore provider and at a Biltmore location. Attendance is not part of it here - these have not happened yet - but a Canceled one does not count.",
       text:"Is that just one appointment - not several?",
       short:"Only one upcoming appt?",
       yes:function(s){ return "p1_name_unique"; },
@@ -2032,7 +2037,7 @@
       next:"p2_entry"
     },
     p1_q1b: { kind:"yesno", source:"Quickview → Scheduling → View Patient Appointments", part:1,
-      definition:"A qualifying appointment must be cardiology, with a Biltmore provider, at a Biltmore location, and the patient attended (not Canceled or No Show).",
+      definition:"A qualifying appointment must be cardiology, with a Biltmore provider and at a Biltmore location. Attendance is not part of it here - these have not happened yet - but a Canceled one does not count.",
       text:"Are those upcoming appointments all with the same provider?",
       short:"Upcoming appts, same provider?",
       yes:function(s){ return "p1_name_same"; },
@@ -4708,9 +4713,31 @@
       return;
     }
     var bits = [];
-    if (name) bits.push(escapeHtml(name));
+    // Initials, not the name. The header sits on screen for the whole referral,
+    // and in a shared workspace that put a patient's full name in front of
+    // anyone walking past for as long as the tab was open. The Task ID is what
+    // identifies the referral anyway; the initials are there so the operator can
+    // tell at a glance which patient they are on. The full name is still on the
+    // question screen where it was typed, and in the title attribute.
+    if (name) bits.push(escapeHtml(initialsOf(name)));
     if (task) bits.push(escapeHtml(task));
     sub.textContent = bits.join(" · ");
+    if (name) sub.setAttribute("title", name);
+    else sub.removeAttribute("title");
+  }
+
+  function initialsOf(name){
+    var parts = String(name || "").trim().split(/\s+/).filter(Boolean);
+    if (!parts.length) return "";
+    var letters = parts.map(function(w){
+      var m = w.match(/[A-Za-z]/);
+      return m ? m[0].toUpperCase() : "";
+    }).filter(Boolean);
+    // One word gets its first two letters, so a single name is not a lone "K".
+    if (letters.length === 1 && parts[0].length > 1){
+      return (parts[0][0] + parts[0][1]).toUpperCase() + ".";
+    }
+    return letters.join(".") + ".";
   }
 
   // A form is one screen that records several crumbs, so its field labels are
@@ -5138,9 +5165,9 @@
       // deliberately: a list nobody prunes stops being read. Internal work does
       // not belong here - only what an operator would notice.
       group('Recent updates', [
+        '<b>8 Sep</b> - The header shows the patient\'s initials and the Task ID rather than the full name, which used to sit on screen for the whole referral. The name is still on the question where you typed it, and on hover.',
         '<b>8 Sep</b> - Every row in the session log has a <b>Mark complete</b> tick, so you can see what is left to do. It is your own tick and it does not change what the tool determined; it survives reopening a determination and travels with a transferred log.',
-        '<b>8 Sep</b> - The referral clock stops when the referral is finished, and holds after five minutes with nothing happening. A trip to Athena still counts; a tab left open no longer does. The label says which - <i>done</i> or <i>idle</i>.',
-        '<b>8 Sep</b> - The diagnosis search stops matching inside words. Typing AS used to offer "Coronary Artery Disease" and PE used to offer "Angina Pectoris"; VT and MI now find the right diagnosis instead of an unrelated one. A search longer than the name also matches now, so "SOB on exertion" and "c/o chest pain" find something.',
+        '<b>8 Sep</b> - The referral clock stops when the referral is finished, and holds after five minutes with nothing happening. A trip to Athena still counts; a tab left open no longer does. The label says which - <i>done</i> or <i>idle</i>.'
       ]) +
 
       group('Insurance', [
