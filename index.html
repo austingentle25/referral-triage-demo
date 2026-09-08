@@ -731,7 +731,7 @@
   </div>
   <div class="progress-wrap">
     <div class="progress-track"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
-    <div class="progress-label" id="progressLabel">0% through</div>
+    <div class="progress-label" id="progressLabel">Question 1 of about 18</div>
   </div>
 </header>
 
@@ -1166,6 +1166,9 @@
   // Rough weight of each part in the overall flow (sums to 100), used to drive
   // the progress bar. PART_INTERACTIVE is the max number of yes/no/text/select
   // questions a path through that part could hit (used to interpolate within a part).
+  // Kept for reference only - the progress bar no longer reads them. It is
+  // driven by PATH_LENGTH, measured per question, because a share of the whole
+  // graph is not a share of the branch anyone is actually on.
   var PART_WEIGHTS = { 0:2, 1:41, 2:8, 4:4, 5:17, 6:1, 7:5, 8:3, 9:1, 10:1, 11:9, 12:3, 15:5 };
   var PART_INTERACTIVE = { 0:2, 1:48, 2:10, 4:5, 5:20, 6:1, 7:6, 8:3, 9:1, 10:1, 11:11, 12:4, 15:6 };
   var PART_START = (function(){
@@ -4315,28 +4318,144 @@
     sub.textContent = bits.join(" · ");
   }
 
+  // A form is one screen that records several crumbs, so its field labels are
+  // collected once and a consecutive run of them counts as a single question.
+  var FORM_FIELD_SHORTS = (function(){
+    var set = {};
+    for (var id in NODES){
+      if (!Object.prototype.hasOwnProperty.call(NODES, id)) continue;
+      var n = NODES[id];
+      if (n.kind === "form" && n.fields){
+        for (var i = 0; i < n.fields.length; i++) set[n.fields[i].short] = true;
+      }
+    }
+    return set;
+  })();
+
+  // Questions actually put on screen so far in this run. Auto steps are not
+  // screens, and neither are dividers - those are section headers, pushed every
+  // time the part changes, so counting only since the last one would restart the
+  // question number several times a run. The old percentage did break at them,
+  // because it measured progress within a part; this measures the whole path.
+  function screensAnswered(){
+    var n = 0, prevWasField = false;
+    for (var j = 0; j < state.crumbs.length; j++){
+      if (state.crumbs[j].divider) continue;
+      var sh = String(state.crumbs[j].short || "");
+      if (sh.indexOf("(auto)") !== -1){ prevWasField = false; continue; }
+      var isField = !!FORM_FIELD_SHORTS[sh];
+      if (isField && prevWasField) continue;
+      n++;
+      prevWasField = isField;
+    }
+    return n;
+  }
+
+  // "About M questions on this path", measured rather than guessed: 300 seeded
+  // walks, and for every question the median total length of the runs that
+  // reached it. It sharpens as the run goes on - at the first question all it
+  // can say is the median run, by the authorization questions it knows the run
+  // is a long one.
+  //
+  // This is a snapshot of the graph as it stands. It is an estimate shown as
+  // "about N", nothing routes off it, and a question missing from the table
+  // falls back to the median run, so it degrades quietly rather than lying.
+  // Regenerate by re-running the walk harness if the graph changes shape.
+  var PATH_LENGTH_DEFAULT = 18;
+  var PATH_LENGTH = {
+    "Added Referral Authorization Requested chart note?":28,
+    "Any other scheduling block?":25,
+    "Auth info on fax?":28,
+    "Auth required?":29,
+    "Auto referral object exists?":27,
+    "Awaiting Info - payor called?":24,
+    "Block reason":25,
+    "Chart Export sent to referring provider?":28,
+    "Closer location treats dx?":9,
+    "Confirmed provider from history":21,
+    "Diagnosis":22,
+    "Document labelled in Athena?":20,
+    "Edge-case insurance type":31,
+    "Established (3 yrs)?":18,
+    "Existing auth already in chart?":28,
+    "Existing auth valid 90+ days?":28,
+    "Existing insurance doesn't match most recent?":31,
+    "Fax marked Urgent?":19,
+    "Full Registration sweep":20,
+    "Insurance did not sync?":26,
+    "Insurance listed in Athena?":28,
+    "Insurance mismatch type":27,
+    "Insurance record synced & eligible?":25,
+    "Insurance synced but wrong?":28,
+    "Know most-recent/usual provider?":7,
+    "Location (no referral location captured)":17,
+    "Matching department":20,
+    "Mercy plan requires PCP referral?":30,
+    "Mismatch detail":27,
+    "Most-recent/usual provider name":20,
+    "Only one upcoming appt?":19,
+    "PCP already listed?":20,
+    "PCP letter on file?":27,
+    "PIMC coverage?":31,
+    "Patient name":18,
+    "Payor ID":24,
+    "Primary dept not Biltmore Cardio?":20,
+    "Primary or secondary insurance?":26,
+    "Prior qualifying-visit location":20,
+    "Provider who treats dx?":16,
+    "Ran Chart Export only once?":28,
+    "Receiving location on referral?":18,
+    "Receiving-location department":18,
+    "Referral doc location matches Athena dept?":20,
+    "Referral fax sweep":20,
+    "Referral names a provider?":16,
+    "Referral required?":29,
+    "Referral-named provider":21,
+    "Referring provider NPI found":28,
+    "Referring provider address found":28,
+    "Referring provider details":22,
+    "Referring provider is FM/IM/FNP?":20,
+    "Referring provider listed with matching address?":20,
+    "Referring provider name found":28,
+    "Referring provider not in DB or missing address?":26,
+    "Referring provider status on Care Team":21,
+    "Seen before at qualifying location?":20,
+    "Self-pay?":21,
+    "Send outbound auth request?":28,
+    "Task ID":18,
+    "Upcoming appts, same provider?":19,
+    "Upcoming provider name":19,
+    "Upcoming qualifying appt (60 days)?":18,
+    "Urgent - appt within 1 week?":23,
+    "Usual alternate location":17,
+    "Usual provider name":17,
+    "Usually seen provider elsewhere?":20,
+    "VA coverage?":28,
+    "Valerie/Athena insurance match?":24,
+    "Verified auto-generated auth document?":28,
+    "What's wrong with insurance in Athena":26
+  };
+
+  function pathPosition(){
+    if (state.node === "__DONE__" || state.node === "__STOP__") return null;
+    var node = NODES[state.node];
+    if (!node || node.kind === "auto") return null;
+    var n = screensAnswered() + 1;
+    var est = PATH_LENGTH[node.short] || PATH_LENGTH_DEFAULT;
+    return { n: n, m: Math.max(est, n) };
+  }
+
   function computeProgress(){
     if (state.node === "__DONE__" || state.node === "__STOP__") return 100;
-    var node = NODES[state.node];
-    if (!node) return 0;
-    var part = node.part;
-    var answered = 0;
-    // Only count real questions. Auto-resolved steps also push a crumb, but
-    // PART_INTERACTIVE counts interactive questions only, so including them
-    // overstated progress - and each gate added to Part 5 made it worse.
-    for (var i = state.crumbs.length - 1; i >= 0; i--){
-      if (state.crumbs[i].divider) break;
-      if (String(state.crumbs[i].short || "").indexOf("(auto)") !== -1) continue;
-      answered++;
-    }
-    var total = PART_INTERACTIVE[part] || 1;
-    var ratio = Math.min(1, answered / total);
-    var pct = PART_START[part] + ratio * (PART_WEIGHTS[part] || 0);
-    pct = Math.max(0, Math.min(100, Math.round(pct)));
+    var pos = pathPosition();
+    // Position on this path, not position in the whole graph. Measured against
+    // all 119 nodes it read 6% seven questions in, implying ninety still to come
+    // when the branch had about twenty.
+    var pct = pos ? Math.round(100 * (pos.n - 1) / pos.m) : (state.progressHigh || 0);
+    pct = Math.max(0, Math.min(100, pct));
     // The workflow's step order and this tool's question order are not the same
-    // - a referral reaches step 7 before step 4 on most paths - so a bar driven
-    // straight off the step number would run backwards. Progress only ever
-    // moves forward within a run; the step name says where you are.
+    // - a referral reaches step 7 before step 4 on most paths - so progress only
+    // ever moves forward within a run; the step name says where you are.
     if (pct < (state.progressHigh || 0)) return state.progressHigh;
     state.progressHigh = pct;
     return pct;
@@ -4347,7 +4466,10 @@
     var fill = document.getElementById("progressFill");
     var label = document.getElementById("progressLabel");
     if (fill) fill.style.width = pct + "%";
-    if (label) label.textContent = pct + "% through";
+    if (!label) return;
+    if (state.node === "__DONE__" || state.node === "__STOP__"){ label.textContent = "Finished"; return; }
+    var pos = pathPosition();
+    label.textContent = pos ? ("Question " + pos.n + " of about " + pos.m) : (pct + "% through");
   }
 
   // A transferred row has no patient name, so it leads with its Task ID rather
