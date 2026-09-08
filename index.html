@@ -5199,6 +5199,15 @@
           var w = document.getElementById("formWarn");
           if (w) w.style.display = "none";
         });
+        // Enter does exactly what Continue does, validation included - by
+        // clicking it. When the form is incomplete Continue is disabled, so
+        // Enter does nothing, which is the same answer the button gives.
+        el.addEventListener("keydown", function(e){
+          if (e.key !== "Enter") return;
+          e.preventDefault();
+          var btn = document.getElementById("btnFormGo");
+          if (btn && !btn.disabled) btn.click();
+        });
       })(texts[b]);
     }
     var go = document.getElementById("btnFormGo");
