@@ -766,6 +766,17 @@
   .log-transfer-msg.bad{ color:var(--review); }
   .log-phi-note{ font-size:0.7rem; color:var(--k03f); margin-top:10px; line-height:1.45; }
   .log-summary-bar{ font-size:0.75rem; color:var(--ink-soft); margin:0 0 12px; }
+  .log-tick{
+    flex-shrink:0; font-family:inherit; font-size:0.6875rem; font-weight:700; cursor:pointer;
+    padding:4px 9px; border-radius:999px; border:1px solid var(--line);
+    background:var(--panel); color:var(--ink-soft); margin-right:8px;
+  }
+  .log-tick:hover{ background:var(--k35b); color:var(--ink); }
+  .log-tick.on{ border-color:var(--picked-solid); background:var(--picked-bg); color:var(--picked); }
+  /* A ticked row recedes rather than disappearing - it is still the record of a
+     determination, it is just not what is left to do. */
+  .log-entry.is-marked > summary{ opacity:.55; }
+  .log-entry.is-marked > summary:hover{ opacity:.8; }
   .danger-btn{ border-color:var(--k48b) !important; color:var(--review) !important; }
 
   /* The title always takes its own row. The header column is 640px to line up
@@ -3597,6 +3608,7 @@
         backSteps: Array.isArray(raw.backSteps) ? raw.backSteps : [],
         stopReason: raw.stopReason || "",
         stopPart: typeof raw.stopPart === "number" ? raw.stopPart : null,
+        markedComplete: raw.markedComplete === true,
         output: raw.output || "",
         why: raw.why || "",
         imported: true
@@ -3645,6 +3657,9 @@
       schedulingStatus: computeSchedulingStatus(),
       ms: (state.stepTimings || []).reduce(function(sum, t){ return sum + (t.ms || 0); }, 0),
       reviewerNote: o.reviewerNote || "", pendingOn: pendingOn,
+      // Always present, so every exported entry has the same shape whether or
+      // not anybody ticked it.
+      markedComplete: false,
       // Everything below is for analysis of how the graph is actually worked.
       // None of it is shown in the tool; it exists to be exported and counted.
       reviewer: o.reviewer || sessionReviewer || "",
@@ -3661,7 +3676,12 @@
       output: buildOutputText(), why: buildWhyPath()
     };
     for (var i = 0; i < sessionLog.length; i++){
-      if (sessionLog[i].runId === entry.runId){ sessionLog[i] = entry; updateLogButton(); return; }
+      if (sessionLog[i].runId === entry.runId){
+        // Reopening rewrites the entry. The tick is the operator's and survives,
+        // rather than being cleared by a determination they did not change.
+        entry.markedComplete = !!sessionLog[i].markedComplete;
+        sessionLog[i] = entry; updateLogButton(); return;
+      }
     }
     sessionLog.push(entry);
     updateLogButton();
@@ -4866,9 +4886,18 @@
     if (e.bucket) meta.push(e.bucket);
     meta.push(formatDuration(e.ms));
     meta.push(e.at.toLocaleTimeString());
-    return '<details class="log-entry' + cls + '" data-run="' + escapeHtml(e.runId) + '">' +
+    // The tick is the operator's, and it is kept apart from e.outcome, which is
+    // the tool's determination. Overwriting the outcome would make the log say
+    // the tool decided something it did not.
+    var done = !!e.markedComplete;
+    return '<details class="log-entry' + cls + (done ? " is-marked" : "") + '" data-run="' + escapeHtml(e.runId) + '">' +
       '<summary>' +
         '<div class="log-top">' +
+          '<button type="button" class="log-tick' + (done ? " on" : "") + '"' +
+            ' data-act="mark" data-run="' + escapeHtml(e.runId) + '"' +
+            ' aria-pressed="' + (done ? "true" : "false") + '"' +
+            ' title="Your own tick that the Athena work for this referral is done. It does not change what the tool determined.">' +
+            (done ? "\u2713 Complete" : "Mark complete") + '</button>' +
           '<span class="log-name">' + e.seq + '. ' + escapeHtml(logEntryTitle(e)) + (e.urgent ? " ⚡" : "") + '</span>' +
           '<span class="log-outcome">' + escapeHtml(e.outcome) + '</span>' +
         '</div>' +
@@ -5109,9 +5138,9 @@
       // deliberately: a list nobody prunes stops being read. Internal work does
       // not belong here - only what an operator would notice.
       group('Recent updates', [
+        '<b>8 Sep</b> - Every row in the session log has a <b>Mark complete</b> tick, so you can see what is left to do. It is your own tick and it does not change what the tool determined; it survives reopening a determination and travels with a transferred log.',
         '<b>8 Sep</b> - The referral clock stops when the referral is finished, and holds after five minutes with nothing happening. A trip to Athena still counts; a tab left open no longer does. The label says which - <i>done</i> or <i>idle</i>.',
         '<b>8 Sep</b> - The diagnosis search stops matching inside words. Typing AS used to offer "Coronary Artery Disease" and PE used to offer "Angina Pectoris"; VT and MI now find the right diagnosis instead of an unrelated one. A search longer than the name also matches now, so "SOB on exertion" and "c/o chest pain" find something.',
-        '<b>8 Sep</b> - The provider search marks a restricted provider the same way the tap list does, at the point you pick them rather than on the output card twenty questions later.'
       ]) +
 
       group('Insurance', [
@@ -5138,6 +5167,7 @@
         'Reopens a determination by replaying your answers, so you continue from where you stopped.',
         'Rebuilds a determination from the list of questions and answers, which you can copy out and paste back in.',
         'Carries your session log into a new version of the tool.',
+        'Ticks off a referral once you have done the Athena side, so the log shows what is left rather than only what was decided.',
         'Exports the log with the questions asked, the time spent on each, and anywhere you went back, so the flow can be checked against how referrals are really worked.'
       ]) +
 
@@ -5296,9 +5326,13 @@
       var review = sessionLog.filter(function(e){ return e.outcome === "Manual review"; }).length;
       var exited = sessionLog.filter(function(e){ return e.outcome === "Exited early"; }).length;
       var totalMs = sessionLog.reduce(function(s, e){ return s + e.ms; }, 0);
+      var marked = sessionLog.filter(function(e){ return e.markedComplete; }).length;
       var bits = [sessionLog.length + " logged", complete + " complete"];
       if (review) bits.push(review + " manual review");
       if (exited) bits.push(exited + " exited early");
+      // "of N" so this reads as a tally of the list rather than as another
+      // outcome sitting beside "complete", which means something else.
+      if (marked) bits.push(marked + " of " + sessionLog.length + " marked complete");
       bits.push(formatDuration(totalMs) + " total");
       html = '<div class="card"><h2>Session log</h2>' +
         '<div class="log-summary-bar">' + escapeHtml(bits.join(" · ")) + '</div>' +
@@ -5397,6 +5431,17 @@
       sessionLog = [];
       updateLogButton();
       reset();
+    });
+    // A button inside <summary> would otherwise open the entry as well as fire.
+    stage.querySelectorAll(".log-top button[data-act]").forEach(function(btn){
+      btn.addEventListener("click", function(ev){
+        ev.preventDefault(); ev.stopPropagation();
+        var run = btn.getAttribute("data-run");
+        var entry = sessionLog.filter(function(e){ return e.runId === run; })[0];
+        if (!entry) return;
+        entry.markedComplete = !entry.markedComplete;
+        renderLog();
+      });
     });
     stage.querySelectorAll(".log-actions button[data-act]").forEach(function(btn){
       btn.addEventListener("click", function(ev){
