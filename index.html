@@ -2948,6 +2948,28 @@
     },
     p5_auth_needed: { kind:"auto", part:11,
       run:function(s){
+        // Austin, 8 Sep 2026, on feedback #11: a referral already routed away
+        // from scheduling still gets its referral question asked, but no
+        // authorization is chased - there is nothing for us to authorize on a
+        // referral we are not the ones scheduling. The whole authorization
+        // chain hangs off this gate, so stopping here also skips the chart
+        // check, the fax check, the outbound request and step 12's upload.
+        //
+        // Matched on the action note, not on the bucket. sscardio was the
+        // obvious test and it is wrong: it also holds referrals that come back
+        // to us - "Referring provider not in database", "missing an address",
+        // "Blocked" - where the block is cleared and we do schedule it, so the
+        // authorization work still has to happen. Only the four notes that mean
+        // somebody else is scheduling it qualify. Awaiting Info does not
+        // qualify either; that is a hold pending a payor call.
+        var note = String(s.out.actionNote || "");
+        if (/^Ineligible for Scheduling|^Non-Camelback Referral/.test(note)){
+          setOut("authObjNote","Not needed - this referral is not being scheduled here, so there is no authorization to obtain");
+          setOut("outboundExport","no");
+          s.crumbs.push({ short:"Authorization needed? (auto)",
+                          answer:"No - referral already routed away from scheduling" });
+          return "__DONE__";
+        }
         if (s.out.referralAuthRequiredGrid === "Yes") return "p5_auth_chart_check";
         if (s.out.referralAuthRequiredGrid === "No"){
           setOut("authObjNote", isSelfPay(s)
