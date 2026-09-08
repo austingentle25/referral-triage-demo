@@ -3345,11 +3345,33 @@
       updateReviewerChip();
       parsed = parsed.filter(function(st){ return st.short !== "Reviewer"; });
     }
+    // A failed resume has to be a no-op. The replay mutates state as it goes and
+    // renders each step, so a path that stops half way used to leave the operator
+    // on some mid-flow question with the earlier answers already applied - and
+    // the error message written to a resume box that the re-render had just
+    // destroyed. It looked like it had worked. Snapshot, and put everything back
+    // if it does not.
+    var savedState = JSON.parse(JSON.stringify(state));
+    var savedHistory = historyStack.slice();
+    var savedReviewer = sessionReviewer;
+    var savedTimerNode = timerNodeId;
+    var savedStepStart = stepStartTime;
+
     // One exit point for the flag: seven returns below, and a missed one would
     // leave the tool permanently unable to ask the reviewer question.
     resumingRun = true;
     try {
-      return replayParsedPath(parsed, adopt);
+      var res = replayParsedPath(parsed, adopt);
+      if (!res.ok){
+        state = savedState;
+        historyStack = savedHistory;
+        sessionReviewer = savedReviewer;
+        timerNodeId = savedTimerNode;
+        stepStartTime = savedStepStart;
+        updateReviewerChip();
+        render();
+      }
+      return res;
     } finally {
       resumingRun = false;
     }
@@ -3476,6 +3498,21 @@
                       : node.thirdLabel;
         answer(node, kind, canonical);
       } else if (node.kind === "text" || node.kind === "select" || node.kind === "diagnosis"){
+        // The question has to be the one the path was answering. Without this,
+        // a path replayed against a graph whose order has changed writes each
+        // saved answer into whatever field now sits at that position - and it
+        // does it silently. Demonstrated: swapping two adjacent answers stored
+        // the Task ID as the patient name, reached a determination, and reported
+        // no error, which would carry a wrong name into the log and the chart
+        // notes. The yes/no branch has always checked; this one never did.
+        //
+        // A rename of a question's short is the false positive here, and a
+        // refusal is the right answer to that too - the path was answering a
+        // question that no longer exists under that name.
+        if (step.short !== node.short){
+          return { ok:false, error:"Stopped at step " + (i+1) + " - the path answers \"" +
+            step.short + "\" but this version asks \"" + node.short + "\" here. It was saved from a different version." };
+        }
         submitText(node, step.answer);
       } else {
         return { ok:false, error:"Stopped at step " + (i+1) + " - unexpected question type." };
@@ -3777,11 +3814,21 @@
     if (!btn) return;
     btn.addEventListener("click", function(){
       var input = document.getElementById("resumeInput");
-      var errEl = document.getElementById("resumeError");
-      var result = resumeFromWhyPathText(input.value);
+      var pasted = input.value;
+      var result = resumeFromWhyPathText(pasted);
       if (!result.ok){
-        errEl.textContent = result.error;
-        errEl.style.display = "block";
+        // Re-queried, because the screen has been redrawn since - both by the
+        // replay and by putting the state back. Writing to the element captured
+        // before the call is how this error came to be invisible.
+        var box = document.querySelector(".resume-box");
+        if (box) box.open = true;
+        var again = document.getElementById("resumeInput");
+        if (again) again.value = pasted;
+        var errEl = document.getElementById("resumeError");
+        if (errEl){
+          errEl.textContent = result.error;
+          errEl.style.display = "block";
+        }
         return;
       }
       render();
@@ -5208,9 +5255,9 @@
       // deliberately: a list nobody prunes stops being read. Internal work does
       // not belong here - only what an operator would notice.
       group('Recent updates', [
+        '<b>8 Sep</b> - Pasting a path saved from a different version is refused with a message naming the question it disagrees on, instead of applying half of it and leaving you part-way through a referral with no warning.',
         '<b>8 Sep</b> - Typing a patient you have already worked this session brings up a warning naming the earlier task and how it ended. It matches the same patient however the name arrives - pasted last-name-first, in capitals, or with an MRN or date of birth in brackets, which is dropped rather than stored.',
-        '<b>8 Sep</b> - The header shows the patient\'s initials and the Task ID rather than the full name, which used to sit on screen for the whole referral. The name is still on the question where you typed it, and on hover.',
-        '<b>8 Sep</b> - Every row in the session log has a <b>Mark complete</b> tick, so you can see what is left to do. It is your own tick and it does not change what the tool determined; it survives reopening a determination and travels with a transferred log.'
+        '<b>8 Sep</b> - The header shows the patient\'s initials and the Task ID rather than the full name, which used to sit on screen for the whole referral. The name is still on the question where you typed it, and on hover.'
       ]) +
 
       group('Insurance', [
