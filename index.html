@@ -646,7 +646,6 @@
   ul.neat{ margin:0; padding-left:0; list-style:none; }
   ul.neat li{ font-size:0.86rem; line-height:1.5; padding:7px 0; border-bottom:1px solid var(--line); }
   ul.neat li:last-child{ border-bottom:none; }
-  ul.neat b{ display:block; }
   .about-lede{ font-size:0.95rem; color:var(--k03f); line-height:1.55; margin-bottom:4px; }
   .about-sec{ margin-top:20px; padding-top:16px; border-top:1px solid var(--line); }
   .about-sec h3{ font-size:0.9375rem; margin:0 0 8px; }
@@ -4339,49 +4338,48 @@
     stageBadge.textContent = "About";
     var group = function(title, items){
       return '<div class="about-sec"><h3>' + title + '</h3><ul class="neat">' +
-        items.map(function(x){ return '<li><b>' + x[0] + '</b> ' + x[1] + '</li>'; }).join("") +
-        '</ul></div>';
+        items.map(function(x){ return '<li>' + x + '</li>'; }).join("") + '</ul></div>';
     };
     stage.innerHTML = '<div class="card">' +
       '<h2>Referral Sync Helper</h2>' +
-      '<p class="about-lede">Some of the things it does.</p>' +
+      '<p class="about-lede">What the tool does.</p>' +
 
       group('Insurance', [
-        ['307 insurance packages built in.', 'Type a package number and it answers contracted, referral required and authorization required.'],
-        ['Search by number or by name.', '"22796" and "mercy" both find Mercy Care.'],
-        ['Edge cases announce themselves.', 'A Mercy or VA plan says so before anyone has to recognise the name.'],
-        ['It warns about the sibling plan.', '99 packages belong to an insurer that also has plans the practice is not contracted with. It says so, and quotes the grid.'],
-        ['It will not turn a maybe into a yes.', 'Where the grid says it depends, you are still asked.'],
-        ['Payer phone and website.', 'Carried through for the rows that have them, so a "verify" does not start with a search.']
+        'Holds 307 insurance packages from the referral grid. Enter the package number and it fills in whether the plan is contracted and whether a referral or an authorization is required.',
+        'Finds a package by its number or by the insurance name.',
+        'Recognises a Mercy or VA plan and goes to the questions those need.',
+        'Shows the grid\'s wording where an insurer also has plans the practice is not contracted with, so you can check you have the right plan.',
+        'Still asks where the grid says the answer depends on the plan.',
+        'Shows the payer\'s phone number and website where the grid lists them.'
       ]) +
 
       group('Providers', [
-        ['Fuzzy name search.', '"Kholgi" finds Khayyat Kholghi. "Strum" finds Sturm. It handles dropped letters and scrambled ones.'],
-        ['Athena codes derived automatically.', 'AMG_ALQAISI_S from "Saifuldeen Al Qaisi, MD" - multi-word surnames included.'],
-        ['Diagnosis matched to specialty.', 'By span containment, so "atrial fibrillation" does not match on "fibrillation" alone.'],
-        ['Providers who left are still findable.', 'Listed so a name on a referral is recognisable, but impossible to select.'],
-        ['Scheduling and texting are different questions.', 'Loli and Bahu are scheduled and never texted, and the tool knows the difference.']
+        'Finds a provider despite a misspelling or a missing letter. Typing Kholgi finds Khayyat Kholghi.',
+        'Works out the Athena provider code from the name, including multi-word surnames.',
+        'Checks the diagnosis against the specialties the provider actually treats.',
+        'Shows providers who have left, but will not let you select one.',
+        'Tracks whether a patient can be texted separately from whether the referral can be scheduled.'
       ]) +
 
-      group('Not losing work', [
-        ['Pending is not Complete.', 'A referral still waiting on a phone number says so, and names what it is waiting on.'],
-        ['Reopen replays a determination.', 'You carry on from where it stopped; the answer that was waiting is the only one that changes.'],
-        ['The whole path is copyable.', 'Paste it back in and the determination rebuilds itself. No storage, no account.'],
-        ['Your log survives a new version.', 'Copy it out, paste it into the next build. Rows come back under their Task ID.']
+      group('Work you have not finished', [
+        'Records a referral that is still waiting on something as Pending, and names what it is waiting on.',
+        'Reopens a determination by replaying your answers, so you continue from where you stopped.',
+        'Rebuilds a determination from the list of questions and answers, which you can copy out and paste back in.',
+        'Carries your session log into a new version of the tool.'
       ]) +
 
-      group('Telling us it is wrong', [
-        ['One tap opens a real issue.', 'About a second, carrying the question, the step and the path that led there.'],
-        ['PHI is stripped on the way out.', 'Patient name, dates and long numbers, removed in the page and again on arrival.'],
-        ['Nothing is dropped quietly.', 'If a report cannot be sent you are told, it stays, and it can be retried.']
+      group('Reporting a problem', [
+        'Opens an issue when you flag a question, with the question, the step and the answers that led there.',
+        'Removes patient names, dates and long numbers before anything is sent.',
+        'Tells you when a report could not be sent, keeps it, and lets you send it again.'
       ]) +
 
-      group('Small things that add up', [
-        ['Skipped steps say why.', '"Not needed - non-Camelback receiving assignment", rather than silently ending.'],
-        ['Three notes, three boxes.', 'Tap to copy. They go to different places in Athena, so they are kept apart.'],
-        ['It stops rather than guesses.', 'Two upcoming appointments with different providers, and it hands the case back.'],
-        ['A clock that pauses.', 'Starts after the patient name, so entering it is not counted.'],
-        ['One file, no install.', 'Opens in a browser, works on any machine, and keeps nothing when you close it.']
+      group('Elsewhere', [
+        'Marks the steps it skipped and why.',
+        'Keeps the three chart notes separate, each copyable on its own.',
+        'Stops and says what it could not resolve, rather than choosing for you.',
+        'Times the determination from after the patient name, and pauses on request.',
+        'Runs as one file in a browser. Nothing to install, and nothing kept once you close it.'
       ]) +
 
       '<div class="btnrow-continue"><button class="continue-btn" id="aboutBackBtn">Back to task</button></div>' +
