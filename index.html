@@ -250,8 +250,9 @@
   .timer-cell{ display:flex; flex-direction:column; align-items:center; min-width:38px; }
   .timer-scope{
     font-size:0.5625rem; font-weight:700; text-transform:uppercase; letter-spacing:.4px;
-    color:var(--ink-soft); line-height:1.2;
+    color:var(--ink-soft); line-height:1.2; white-space:nowrap;
   }
+  .timer-scope.timer-stopped{ opacity:.75; font-style:italic; }
   /* Always on screen, because attribution nobody can see is attribution nobody
      corrects - two people on one workstation would never notice. */
   button.reviewerchip{
@@ -790,7 +791,7 @@
     <div class="header-btns">
       <span class="timer-group">
         <span class="timer-cell" title="Time on the question now on screen. It restarts with each question."><span class="live-timer" id="liveTimer">0:00</span><span class="timer-scope">question</span></span>
-        <span class="timer-cell" title="Total time on this referral so far, across every question."><span class="live-timer" id="liveTimerTotal">0:00</span><span class="timer-scope">referral</span></span>
+        <span class="timer-cell" title="Total time on this referral. It stops when the referral is finished, and holds after five minutes with nothing happening - a trip to Athena still counts, a tab left open does not."><span class="live-timer" id="liveTimerTotal">0:00</span><span class="timer-scope" id="liveTimerScope">referral</span></span>
       </span>
       <button class="pausebtn" id="pauseBtn">⏸ Pause</button>
       <a class="notionlink" href="https://app.notion.com/p/TPR-Pilot-Updated-Notion-3cfa27dc8d918006a439cadf0376b44d" target="_blank" rel="noopener noreferrer" title="Open the TPR Pilot Notion page">Notion</a>
@@ -1652,6 +1653,18 @@
   // question does not restart it.
   var timerNodeId = null;
   var isPaused = false;
+  // Time on a question does not stop when the operator leaves the tab - going to
+  // Athena to look something up is the work, and a clock that stopped for it
+  // would under-report every referral. But a tab left open over lunch is not
+  // work, and the referral clock was counting that too.
+  //
+  // So a gap counts up to a point and then stops. The first five minutes of any
+  // silence is treated as looking something up; past that the clock holds until
+  // something happens again. It never has to guess which kind of absence it is -
+  // it just stops paying for the long ones.
+  var IDLE_AFTER_MS = 5 * 60 * 1000;
+  var lastActivityAt = Date.now();
+  var idleMsForCurrentStep = 0;
   var pauseStartedAt = null;
   var pausedMsForCurrentStep = 0;
 
@@ -1700,11 +1713,33 @@
   // Elapsed on the question now on screen. Wall-clock, so a backgrounded tab
   // cannot lose time - the count is a subtraction of two timestamps, never an
   // accumulation of ticks, and the interval below only repaints it.
+  // The part of the current silence that is past the threshold, and so is not
+  // being counted. Recomputed rather than accumulated on a timer, so a tab that
+  // was throttled or asleep gets the same answer as one that was awake.
+  function pendingIdleMs(){
+    var gap = Date.now() - lastActivityAt;
+    return gap > IDLE_AFTER_MS ? (gap - IDLE_AFTER_MS) : 0;
+  }
+  function isIdle(){ return !isPaused && pendingIdleMs() > 0; }
+
+  // Anything the operator does is activity, including coming back to the tab.
+  // The excess of the gap just closed is banked against this step, so returning
+  // does not retroactively pay for the hour the tab sat there.
+  function noteActivity(){
+    idleMsForCurrentStep += pendingIdleMs();
+    lastActivityAt = Date.now();
+  }
+
   function currentStepMs(){
     if (!stepStartTime) return 0;
+    // A finished referral is finished. The last question's time is already
+    // recorded, so there is nothing left to add - and without this the total went
+    // on climbing on the output card for as long as the tab stayed open, which is
+    // how a determination came to read seventeen minutes.
+    if (state && (state.node === "__DONE__" || state.node === "__STOP__")) return 0;
     var now = Date.now();
     var pausedTotal = pausedMsForCurrentStep + ((isPaused && pauseStartedAt) ? (now - pauseStartedAt) : 0);
-    return Math.max(0, now - stepStartTime - pausedTotal);
+    return Math.max(0, now - stepStartTime - pausedTotal - idleMsForCurrentStep - pendingIdleMs());
   }
   function taskElapsedMs(){
     var sum = 0;
@@ -1726,6 +1761,14 @@
     // The referral total keeps its value on the finished screens - that is the
     // handle time for the whole task, and it is the number worth reading there.
     if (totalEl) totalEl.textContent = formatLiveTimer(taskElapsedMs());
+    // A stopped clock says so, rather than looking like a running one that has
+    // frozen. Three states, and the label names each: idle, done, or counting.
+    var scope = document.getElementById("liveTimerScope");
+    if (scope){
+      var finished = state.node === "__DONE__" || state.node === "__STOP__";
+      scope.textContent = finished ? "referral \u00b7 done" : (isIdle() ? "referral \u00b7 idle" : "referral");
+      scope.classList.toggle("timer-stopped", finished || isIdle());
+    }
     if (!el) return;
     // Waiting to start reads as 0:00, not a dash: the clock has not begun rather
     // than being unavailable. A dash still marks the finished screens.
@@ -3292,6 +3335,7 @@
     historyStack = [];
     isPaused = false; pauseStartedAt = null; pausedMsForCurrentStep = 0;
     stepStartTime = null; timerNodeId = null;
+    idleMsForCurrentStep = 0; lastActivityAt = Date.now();
     // Resolve the entry gate before replaying. The first node is an auto step
     // now, and the loop below dispatches on node kind - it would meet "auto" and
     // stop with "unexpected question type" on the very first step.
@@ -3434,6 +3478,7 @@
     pauseStartedAt = null;
     pausedMsForCurrentStep = 0;
     stepStartTime = null; timerNodeId = null;
+    idleMsForCurrentStep = 0; lastActivityAt = Date.now();
     viewMode = "flow";
     updatePauseUI();
     // gotoResolve, not render: the first node is now an auto step that decides
@@ -5064,9 +5109,9 @@
       // deliberately: a list nobody prunes stops being read. Internal work does
       // not belong here - only what an operator would notice.
       group('Recent updates', [
+        '<b>8 Sep</b> - The referral clock stops when the referral is finished, and holds after five minutes with nothing happening. A trip to Athena still counts; a tab left open no longer does. The label says which - <i>done</i> or <i>idle</i>.',
         '<b>8 Sep</b> - The diagnosis search stops matching inside words. Typing AS used to offer "Coronary Artery Disease" and PE used to offer "Angina Pectoris"; VT and MI now find the right diagnosis instead of an unrelated one. A search longer than the name also matches now, so "SOB on exertion" and "c/o chest pain" find something.',
-        '<b>8 Sep</b> - The provider search marks a restricted provider the same way the tap list does, at the point you pick them rather than on the output card twenty questions later.',
-        '<b>8 Sep</b> - The tool checks that the provider you picked treats the diagnosis, instead of taking it on trust. Picking a specialist from the full list who does not cover the diagnosis now sends the referral to review.'
+        '<b>8 Sep</b> - The provider search marks a restricted provider the same way the tap list does, at the point you pick them rather than on the output card twenty questions later.'
       ]) +
 
       group('Insurance', [
@@ -5111,7 +5156,7 @@
         'Stops and says what it could not resolve, rather than choosing for you.',
         'Says which question you are on and roughly how many are left on the path you are taking, rather than how far through the whole thing you are.',
         'Shows one step label, and says it is the step in the Notion workflow. The wizard asks in the order the answers depend on each other, so those numbers can run out of sequence.',
-        'Two clocks: one for the question on screen, one for the referral as a whole. Neither loses time while you are in Athena.',
+        'Two clocks: one for the question on screen, one for the referral as a whole. A trip to Athena still counts towards them; a tab left open for five minutes does not, and the referral clock stops for good once the referral is finished.',
         'Works from the keyboard throughout. Arrow through a list of results, Enter to take one, and a visible focus ring at every stop.',
         'Yes and No look the same as each other, because on most questions neither one is the right answer.',
         'Runs as one file in a browser. Nothing to install, and nothing kept once you close it.'
@@ -5414,6 +5459,8 @@
       if (state.node === TIMER_STARTS_AFTER){ stepStartTime = null; }
       else { stepStartTime = Date.now(); }
       pausedMsForCurrentStep = 0;
+      idleMsForCurrentStep = 0;
+      lastActivityAt = Date.now();
       updateLiveTimer();
     }
     if (node.kind === "payor") renderPayorNode(node);
@@ -6562,12 +6609,17 @@
     render();
   });
   setInterval(updateLiveTimer, 500);
+  // Every one of these is the operator being present. Passive listeners so none
+  // of it costs anything on scroll.
+  ["pointerdown","keydown","wheel","touchstart"].forEach(function(evt){
+    document.addEventListener(evt, noteActivity, { passive:true, capture:true });
+  });
   // A background tab throttles the interval, so the number stops being repainted
   // while the operator is in Athena. The value itself is a subtraction of two
   // timestamps and is never wrong - this just repaints it the moment they return
   // rather than up to half a second later.
   document.addEventListener("visibilitychange", function(){
-    if (!document.hidden) updateLiveTimer();
+    if (!document.hidden){ noteActivity(); updateLiveTimer(); }
   });
 
   reset();
