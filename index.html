@@ -548,6 +548,10 @@
     color:var(--teal-dark-ink); opacity:1;
   }
   .feedback-hint{ font-size:0.6875rem; color:var(--ink-soft); margin:6px 0 8px; }
+  .fb-nodeid{
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    font-size:0.6875rem; color:var(--ink-soft); font-weight:400;
+  }
   .report-group{ margin:14px 0 0; }
   .report-group-title{
     font-size:0.6875rem; font-weight:700; text-transform:uppercase; letter-spacing:.4px;
@@ -4711,7 +4715,7 @@
         text: (node.text || "") + (node.kind === "form" && node.fields
           ? "\n  Questions on this screen: " + node.fields.map(function(f){ return f.label; }).join(" | ")
           : ""),
-        part: node.partLabel || PART_LABELS[node.part] || ("Part " + node.part),
+        part: node.partLabel || PART_LABELS[node.part] || ("Step " + node.part),
         path: buildWhyPathRedacted(),
         relayPath: buildWhyPathForRelay(),
         note: note,
@@ -4781,7 +4785,13 @@
       L.push("=".repeat(64));
       byTask[t].forEach(function(f){
         L.push("");
-        L.push("[" + f.n + "] " + f.part + "  -  " + f.short + "   (node " + f.nodeId + ")");
+        // Both identifiers, each labelled: the step is what the reviewer had on
+        // screen, the node id is what somebody triaging the report needs to find
+        // the question in the file. Neither on its own maps one to the other.
+        L.push("[" + f.n + "]");
+        L.push("Notion step: " + f.part);
+        L.push("Question:    " + f.short);
+        L.push("Node ID:     " + f.nodeId);
         if (f.text) L.push("Screen text: " + f.text);
         L.push("Reported:    " + f.note);
         L.push("Logged at:   " + f.at.toLocaleTimeString());
@@ -4886,7 +4896,7 @@
           }
           return '<div class="log-entry">' +
             '<div class="le-top"><b>' + escapeHtml(f.taskId) + '</b> - ' + escapeHtml(f.part) + '</div>' +
-            '<div class="le-mid">' + escapeHtml(f.short) + '</div>' +
+            '<div class="le-mid">' + escapeHtml(f.short) + ' <span class="fb-nodeid">' + escapeHtml(f.nodeId) + '</span></div>' +
             '<div class="le-note">' + escapeHtml(f.note) + '</div>' +
             status +
             '</div>';
