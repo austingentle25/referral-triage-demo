@@ -1616,9 +1616,22 @@
   // altogether from anything saved before the question existed. The replay must
   // not stop to ask a question the trail cannot answer.
   var resumingRun = false;
-  // Seeded with the names we have; anyone else types theirs and it is kept for
-  // the rest of the tab just the same.
-  var REVIEWERS = ["Austin", "Jingyi"];
+  // Suggestions, not a closed list. The field is free text and always accepts
+  // what is typed - this only saves the typing for the people who are on it.
+  // Taken from the team list on 8 September 2026, which was scrolled when it was
+  // captured, so anyone sorting after Payton is missing and types their name.
+  var REVIEWERS = [
+    "Austin Gentle",
+    "Dawn Jardinico",
+    "Erika Dela Cruz",
+    "Jingyi Zhang",
+    "Joshua Osterhaus",
+    "Knox Brashier",
+    "Maddie Raughton",
+    "Madeline Solis",
+    "Melany Suarez-Rojas",
+    "Payton Warren"
+  ];
   var stepStartTime = null;
   // Which question the clock is currently timing, so a re-render of the same
   // question does not restart it.
@@ -1902,14 +1915,12 @@
         return "p_reviewer_name";
       }
     },
-    p_reviewer_name: { kind:"select", source:"You", part:0, field:"reviewer",
+    p_reviewer_name: { kind:"text", source:"You", part:0, field:"reviewer",
       text:"Who is working this referral?",
       short:"Reviewer",
       definition:"Asked once per browser tab, then carried into every referral you work in it. It is attached to anything you report so somebody can come back to you about it, and it never leaves the tab otherwise.",
-      placeholder:"Pick your name\u2026",
-      otherLabel:"Type your name",
-      options:REVIEWERS,
-      otherAllowed:true,
+      placeholder:"Type your name",
+      suggestions:REVIEWERS,
       afterSubmit:function(s){ sessionReviewer = s.out.reviewer; updateReviewerChip(); },
       next:"p_patient_name"
     },
@@ -5633,8 +5644,9 @@
         '<span class="step-label">Type in' + (node.optional ? " (optional)" : "") + '</span>' +
         '<h2>' + escapeHtml(node.text) + '</h2>' +
         sourceLabelHtml(node) +
-        '<div class="input-row">' +
+        '<div class="input-row' + (node.suggestions ? ' dx-picker' : '') + '">' +
           fieldTag +
+          (node.suggestions ? '<div class="dx-suggestions" id="textSuggestions"></div>' : '') +
           '<div class="field-warn" id="fieldWarn" role="alert" hidden>Please enter a value to continue.</div>' +
         '</div>' +
         '<div class="btnrow-continue">' +
@@ -5678,7 +5690,42 @@
       submitText(node, val);
     }
     document.getElementById("submitBtn").addEventListener("click", doSubmit);
-    input.addEventListener("keydown", function(e){ if (e.key === "Enter") doSubmit(); });
+
+    // An optional list of names to save the typing. The field is still free
+    // text: the list narrows as you type, Enter takes the row you have arrowed
+    // to, and Enter with nothing highlighted submits whatever is in the box -
+    // so somebody who is not on the list is not stuck.
+    if (node.suggestions){
+      var sugEl = document.getElementById("textSuggestions");
+      function renderTextSuggestions(){
+        var q = input.value.trim().toLowerCase();
+        var list = node.suggestions.filter(function(s){ return !q || s.toLowerCase().indexOf(q) !== -1; });
+        // Nothing left to offer once the box already holds one of them exactly.
+        if (list.length === 1 && list[0].toLowerCase() === q) list = [];
+        sugEl.innerHTML = list.map(function(s){
+          return '<div class="dx-suggestion" data-val="' + escapeHtml(s) + '">' + escapeHtml(s) + '</div>';
+        }).join("");
+        sugEl.style.display = list.length ? "block" : "none";
+        sugEl.querySelectorAll(".dx-suggestion[data-val]").forEach(function(el){
+          el.addEventListener("click", function(){
+            input.value = el.getAttribute("data-val");
+            clearFieldWarn();
+            renderTextSuggestions();
+            input.focus();
+          });
+        });
+        ta.sync();
+      }
+      var ta = makeTypeahead(input, sugEl, {
+        idBase: "txt",
+        onEscape: function(){ sugEl.style.display = "none"; },
+        onEnterNoActive: function(){ doSubmit(); }
+      });
+      input.addEventListener("input", renderTextSuggestions);
+      renderTextSuggestions();
+    } else {
+      input.addEventListener("keydown", function(e){ if (e.key === "Enter") doSubmit(); });
+    }
     wireBackButton();
     wireWhyPathBox();
     wireFeedbackBox(node);
