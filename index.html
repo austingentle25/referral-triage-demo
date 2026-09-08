@@ -745,10 +745,17 @@
     { name:"Sharon Sadeghinia, MD", specialty:"General", locations:["Goodyear","Surprise","West"] },
     { name:"Timothy Byrne, DO", specialty:"General, Interventional, Structural", locations:["Camelback"] },
     { name:"William Jaffe, MD", specialty:"General", locations:["Scottsdale","Central"] },
-    { name:"Tiffany Milette", specialty:"", locations:[] },
     { name:"Chris Lichtenwalter, MD", specialty:"General, Interventional", locations:["Camelback"], notes:"Chandler physician, will have Camelback availability" },
-    { name:"Danielle Strum", specialty:"", locations:[] },
-    { name:"Diana Thayer", specialty:"", locations:[] },
+    // Advanced practice providers. Each works with a named physician, so they
+    // carry that physician's specialty and clinic - it is whose patients they
+    // see. Franco and Ning carry the in-clinic-only restriction with Loli and
+    // Bahu for the same reason; the guide marks all four DNS for direct slots.
+    { name:"Danielle Sturm, PA-C", specialty:"General, Interventional, Structural", locations:["Camelback"], npi:"1164709788", notes:"APP with Timothy Byrne, DO. Guide lists her as Daniellle Sturm (Lorde)" },
+    { name:"Diana Thayer, NP", specialty:"General, Interventional, Structural", locations:["Camelback"], npi:"1063975076", notes:"APP with Akram Ibrahim, MD" },
+    { name:"Kristen Jensen, PA-C", specialty:"General, Interventional, Structural", locations:["Camelback"], npi:"1770834798", notes:"APP with Timothy Byrne, DO" },
+    { name:"Kevin Murphy, PA-C", specialty:"General, Interventional", locations:["Camelback"], npi:"1881777613", notes:"APP with Peter Maki, MD" },
+    { name:"Kristin Franco, ANP", specialty:"General, Interventional, Structural", locations:["Camelback"], npi:"1932399870", inClinicOnly:true, notes:"APP with Akil Loli, MD - all scheduling must go to in-clinic. Guide lists her as Kristin V. Franco" },
+    { name:"Amilee Ning, PA-C", specialty:"Electrophysiology", locations:["Camelback"], npi:"1699852053", inClinicOnly:true, notes:"APP with Marwan Bahu, MD - all scheduling must go to in-clinic" },
     { name:"Jody Eckhardt, DNP", specialty:"General", locations:["Camelback"], npi:"1871650564" },
     { name:"Lorraine Homes, FNP-C", specialty:"General", locations:["Camelback"], npi:"1255375481" },
     // Eckhardt and Homes were briefly marked inactive because they are absent
@@ -760,22 +767,18 @@
     // specialty the first time one is used rather than guessing.
     { name:"Madhavagopal Cherukuri, MD", specialty:"", locations:[], inactive:true, npi:"1104860337" },
     { name:"Merick Kirshner, MD", specialty:"", locations:[], inactive:true, npi:"1831183870" },
-    { name:"Kristen Jensen, NP", specialty:"", locations:[], inactive:true, npi:"1770834798" },
     { name:"Stephanie Pinchera, NP", specialty:"", locations:[], inactive:true, npi:"1699962563" },
     { name:"Amarnauth Singh, MD", specialty:"", locations:[], inactive:true, npi:"1639170764" },
     { name:"Oday Al-Rabadi, MD", specialty:"", locations:[], inactive:true, npi:"1972779643" },
     { name:"John Morgan, MD", specialty:"", locations:[], inactive:true, npi:"1407890353" },
-    { name:"Kevin Murphy, MD", specialty:"", locations:[], inactive:true, npi:"1881777613" },
     { name:"Gregory Spayde, MD", specialty:"", locations:[], inactive:true, npi:"1083608913" },
     { name:"Desiree Little, NP", specialty:"", locations:[], inactive:true, npi:"1326678319" },
-    { name:"Amilee Cooper, NP", specialty:"", locations:[], inactive:true, npi:"1699852053" },
     { name:"Aye Thandar Win, MD", specialty:"", locations:[], inactive:true, npi:"1245251941" },
     { name:"Basil Al-Khatib, MD", specialty:"", locations:[], inactive:true, npi:"1083977599" },
     { name:"Demetrios Mavroidis, MD", specialty:"", locations:[], inactive:true, npi:"1184602914" },
     { name:"Ethan Meyer, MD", specialty:"", locations:[], inactive:true, npi:"1932532322" },
     { name:"Jacob Pfetsch, MD", specialty:"", locations:[], inactive:true, npi:"1639756356" },
     { name:"Joshua Price, MD", specialty:"", locations:[], inactive:true, npi:"1386106391" },
-    { name:"Kristen Franco, NP", specialty:"", locations:[], inactive:true, npi:"1932399870" },
     { name:"Sherry Caforio, NP", specialty:"", locations:[], inactive:true, npi:"1609363159" },
     { name:"Sunshine Borawski, NP", specialty:"", locations:[], inactive:true, npi:"1831761444" },
   ];
