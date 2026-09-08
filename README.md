@@ -46,10 +46,21 @@ breadcrumb, so the flow only asks when the answer isn't already derivable.
 
 ## Privacy
 
-Everything entered lives in memory for the tab's lifetime. There are no network
-calls other than the webfont, no `localStorage`, and no persistence of any kind —
-the session log included. Refreshing the page clears everything. No patient data
-is stored or transmitted.
+Everything entered lives in memory for the tab's lifetime. There is no
+`localStorage` and no persistence of any kind — the session log included.
+Refreshing the page clears everything.
+
+**One thing does leave the page**, and this section used to say nothing did. When
+a reviewer presses Send on a feedback report, that report goes to a Cloudflare
+Worker and becomes an issue in a private tracker. Nothing else is transmitted,
+and nothing is sent without that press. The patient name, every free-text field
+that could carry patient information, dates and long digit runs are stripped
+before it leaves — in the page, and again in the Worker, because a rule enforced
+only in the browser protects nobody against a browser that skips it. The
+reviewer's own name is kept deliberately. See `DEPLOY.md` for the field-by-field
+table.
+
+Otherwise the only network call is the webfont.
 
 ## Data
 
