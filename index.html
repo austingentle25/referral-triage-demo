@@ -261,8 +261,14 @@
   }
 
   .stage-badge{
-    display:inline-block; margin:14px 0 10px; font-size:0.75rem; font-weight:700; letter-spacing:0.3px;
-    color:var(--teal-dark-ink); background:var(--k24b); border:1px solid var(--k25b); padding:4px 10px; border-radius:999px;
+    display:inline-flex; align-items:center; gap:8px;
+    margin:14px 0 10px; font-size:0.75rem; font-weight:700; letter-spacing:0.3px;
+    color:var(--teal-dark-ink); background:var(--k24b); border:1px solid var(--k25b); padding:4px 10px 4px 5px; border-radius:999px;
+  }
+  /* Distinguished by shape and wording, not colour alone. */
+  .stage-badge-role{
+    font-size:0.625rem; font-weight:700; text-transform:uppercase; letter-spacing:.5px;
+    background:var(--k25b); color:var(--teal-dark-ink); border-radius:999px; padding:2px 8px;
   }
 
   .definition{
@@ -660,9 +666,6 @@
     display:flex; gap:10px; align-items:center; flex-wrap:wrap; line-height:1.45; }
   .fb-unsent-bar button{ padding:6px 12px; font-size:0.75rem; border-radius:6px; cursor:pointer;
     border:1px solid var(--review); background:var(--panel); color:var(--review); font-family:inherit; font-weight:600; }
-  .step-badge{ display:inline-block; font-size:0.6875rem; font-weight:700; letter-spacing:0.02em;
-    color:var(--teal-dark-ink); background:var(--k31b); border:1px solid var(--k32b);
-    border-radius:20px; padding:4px 12px; margin-bottom:10px; }
   .payor-outs{ display:flex; gap:10px; margin-top:14px; flex-wrap:wrap; }
   .payor-out{ padding:9px 15px; font-size:0.8125rem; border:1px solid var(--line); border-radius:8px;
     background:var(--panel); color:var(--ink); cursor:pointer; font-family:inherit; font-weight:600; }
@@ -3316,11 +3319,15 @@
     state.pendingBanner = null;
     return html;
   }
-  function contextBadgeHtml(node, stepOverride){
-    var step = PART_LABELS[stepOverride === undefined ? node.part : stepOverride];
-    var extra = node.context ? '<div class="context-badge">' + escapeHtml(node.context) + '</div>' : "";
-    if (!step) return extra;
-    return '<div class="step-badge">' + escapeHtml(step) + '</div>' + extra;
+  // One step label per screen, and it lives in the page chrome where it does not
+  // move around - see updateStageBadge(). This used to render a second copy of
+  // the same PART_LABELS entry inside the card, and two render kinds passed a
+  // hardcoded 15, so a Part 1 diagnosis question showed "Step 1 - Resolve
+  // receiving location & provider" above "Step 15 - Complete manual
+  // follow-through and routing" with nothing saying which to believe. They were
+  // never two taxonomies; they were one table read twice, once with a constant.
+  function contextBadgeHtml(node){
+    return node.context ? '<div class="context-badge">' + escapeHtml(node.context) + '</div>' : "";
   }
   function sourceLabelHtml(node){
     if (!node.source) return "";
@@ -4257,7 +4264,13 @@
     if (state.node === "__STOP__") partNum = state.manualReviewPart;
     else if (state.node === "__DONE__") partNum = 15;
     else if (NODES[state.node]) partNum = NODES[state.node].part;
-    stageBadge.textContent = PART_LABELS[partNum];
+    // Named, not just numbered: this is the reference workflow's step, not
+    // "question N of the wizard". The two run in different orders by design -
+    // see OPEN-ITEMS.md, "The step numbering runs backwards".
+    stageBadge.innerHTML = '<span class="stage-badge-role">Notion workflow</span>' +
+      escapeHtml(PART_LABELS[partNum] || "");
+    stageBadge.setAttribute("title",
+      "The step this question maps to in the Notion reference workflow. The wizard asks in dependency order, so these can run out of sequence.");
   }
 
   function updateFooterNote(){
@@ -5360,7 +5373,7 @@
     if (node.otherAllowed){
       optionsHtml += '<option value="__OTHER__">Other / not listed - type it in</option>';
     }
-    var html = bannerHtml() + contextBadgeHtml(node, 15) +
+    var html = bannerHtml() + contextBadgeHtml(node) +
       '<div class="card question">' +
         '<span class="step-label">Select</span>' +
         '<h2>' + escapeHtml(node.text) + '</h2>' +
@@ -5698,7 +5711,7 @@
   function renderDiagnosisNode(node){
     var selected = [];
 
-    var html = bannerHtml() + contextBadgeHtml(node, 15) +
+    var html = bannerHtml() + contextBadgeHtml(node) +
       '<div class="card question">' +
         '<span class="step-label">Search</span>' +
         '<h2>' + escapeHtml(node.text) + '</h2>' +
