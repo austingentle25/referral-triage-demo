@@ -759,7 +759,10 @@
     { name:"Jason Cool, MD", specialty:"General", locations:["Casa Grande"] },
     { name:"Kristina Skinner, DO", specialty:"General, Interventional", locations:["Arrowhead","Surprise","Peoria"] },
     { name:"Lawrence Kline, DO", specialty:"General", locations:["Camelback","AHI"] },
-    { name:"Maedeh Kholgi, MD", specialty:"General", locations:["Arrowhead","Surprise","Peoria"] },
+    // Athena has AMG_KHAYYATKHOLGHI_M. The code is derived from the name, so the
+    // full surname has to be here - "Kholgi" alone produced AMG_KHOLGI_M, which
+    // matches nothing. Reported from the tool as Task-2104.
+    { name:"Maedah Khayyat Kholghi, MD", specialty:"General", locations:["Arrowhead","Surprise","Peoria"] },
     { name:"Marium Muzaffar, MD", specialty:"General, Interventional", locations:["Camelback"] },
     { name:"Marwan Bahu, MD", specialty:"Electrophysiology", locations:["Camelback"], inClinicOnly:true, notes:"All scheduling must go to in-clinic" },
     { name:"Michelle Mix, MD", specialty:"General", locations:["AHI"] },
@@ -4547,6 +4550,22 @@
         matches = flat.filter(function(f){
           return f.label.toLowerCase().split(/[^a-z]+/).some(function(w){
             return w.length >= 4 && w.split("").sort().join("") === sorted;
+          });
+        });
+      }
+      // Still nothing: allow dropped letters, so a shorter spelling finds the
+      // longer one - "Kholgi" for "Khayyat Kholghi", reported from the tool as
+      // Task-2104. Anagram matching cannot do this because the letter counts
+      // differ. Kept tight: same first letter, and at most three letters apart,
+      // so a short query cannot drag in half the roster.
+      if (!matches.length && q.length >= 4){
+        matches = flat.filter(function(f){
+          return f.label.toLowerCase().split(/[^a-z]+/).some(function(w){
+            if (w.length < q.length || w.length - q.length > 3) return false;
+            if (w.charAt(0) !== q.charAt(0)) return false;
+            var i = 0;
+            for (var k = 0; k < w.length && i < q.length; k++){ if (w.charAt(k) === q.charAt(i)) i++; }
+            return i === q.length;
           });
         });
       }
