@@ -1009,6 +1009,38 @@
     "3123729": { name:"Cigna - HealthSprings", contracted:"Yes" }
   };
 
+  // The grid's Non-Par sheet, keyed by a squashed insurer name. It is prose, not
+  // a package-keyed table - it says which plans WITHIN an insurer the practice is
+  // not contracted with, without giving their package numbers. So it cannot
+  // answer anything on its own; it can only warn.
+  //
+  // That warning matters: 99 of the 249 contracted packages belong to an insurer
+  // that also has non-par plans, and at least one pair is a near-collision - the
+  // grid excludes "UMR EPO HonorHealth benefit plans 001 & 003" while the table
+  // holds "UMR EPO ValleyWise Tiered Plan Benefit Plan 003". Picking by insurer
+  // name alone could land on the wrong one.
+  var NONPAR_NOTES = {
+    "ahcccs": "Banner - University Family Care (ins package 69728) | Bridgeway | Everette Care-LTC | Maricopa Health Plan | Out of State MEDICAID | UHC LTC (Par if Secondary only) | University Family Care - Banner AHCCCS (ins package 69728)",
+    "aetna": "Banner, we ARE contracted with some multi-tiered",
+    "ameriben": "There are 2 plans for Honor Health - we ARE contracted with the High Deductable Plan but NOT with the Coordinated Care Plan - both plans ID number ends with SLHN & Group number: HHH001",
+    "arizonacompl": "Ambetter **Only the select Ambetter plans** We are contracted with all the rest of Ambetter plans",
+    "bcbs": "Alliance - XBN as OON only; XBH not at all | Advantage prefixes: M3V | Neighborhood NNG & NNJ",
+    "bannerplans": "Banner University AHCCCS plans | Medicare Prime",
+    "brighthealth": "Bright Health - as of 2023 no longer offerd outside the state of CA",
+    "kaiserperman": "This insurer has plans the practice is not contracted with.",
+    "meritainheal": "Banner, we ARE contracted with multi-tiered or Buy-up",
+    "nextcareadva": "This is a discount membership only offered at NextCare facilities.",
+    "umr": "EPO HonorHealth - benefit plans 001 & 003 we are NOT contracted with. | benefit plan 001 - Coordinated Care Plan & benefit plan 003 - Health Savings Account Plan",
+    "unitedhealth": "Banner",
+    "wellcare": "WellCare Value (HMO) or Wellcare Patriot (PPO) - Compass & Dividend products are add-ons that the member can choose for additional benefits to their plan and it is only offered on Wellcare Value (HMO) which we are not contracted for."
+  };
+
+  function nonParWarning(name){
+    var head = String(name || "").split(" - ")[0];
+    var k = head.toLowerCase().replace(/[^a-z]/g, "").slice(0, 12);
+    return NONPAR_NOTES[k] || null;
+  }
+
   function payorLookup(id){
     var key = String(id || "").trim().toUpperCase();
     if (!key) return null;
@@ -3854,6 +3886,7 @@
     }
 
     items.push({ sec:"Auth / referral objects" });
+    if (o.nonParWarning) items.push({ label:"Non-par plans for this insurer", value:ft(o.nonParWarning) });
     if (o.pcpLetter) items.push({ label:"PCP letter", value:ft(o.pcpLetter) });
     items.push({ label:"Referral", value:ft(o.referralObjNote) });
     items.push({ label:"Auth", value:ft(o.authObjNote) });
@@ -5201,9 +5234,12 @@
         if (hit.contracted) bits.push("Contracted: " + hit.contracted);
         if (hit.referralRequired) bits.push("Referral required: " + hit.referralRequired);
         if (hit.authRequired) bits.push("Auth required: " + hit.authRequired);
+        var np = nonParWarning(hit.name);
+        if (np) setOut("nonParWarning", np);
         state.pendingBanner = hit.name + " - " + bits.join(" \u00b7 ") +
           (hit.edgeCase ? ". Edge case: " + hit.edgeCase + "." : "") +
-          (hit.verify ? " The grid flags this row as needing verification - check before scheduling." : "");
+          (hit.verify ? " The grid flags this row as needing verification - check before scheduling." : "") +
+          (np ? " This insurer also has plans the practice is NOT contracted with - confirm this is the right one: " + np : "");
         // Conditional is not an answer, so those questions are still asked.
         if (hit.contracted === "No"){
           setOut("bucket","sscardio");
@@ -5251,6 +5287,7 @@
         if (o.e.authRequired) bits.push("Auth: " + o.e.authRequired);
         if (o.e.edgeCase) bits.push(o.e.edgeCase);
         if (o.e.verify) bits.push("verify");
+        if (nonParWarning(o.e.name)) bits.push("insurer has non-par plans");
         return '<div class="dx-suggestion" data-val="' + escapeHtml(o.id) + '"><b>' + escapeHtml(o.id) +
           '</b> - ' + escapeHtml(o.e.name) +
           (bits.length ? '<span class="payor-meta">' + escapeHtml(bits.join(" \u00b7 ")) + '</span>' : '') + '</div>';
