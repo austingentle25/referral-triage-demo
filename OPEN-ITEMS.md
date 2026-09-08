@@ -3,7 +3,7 @@
 Everything outstanding on Referral Sync Helper, and what has closed. Kept in the
 repo so a decision is not rediscovered as new work later.
 
-**Last updated:** 8 September 2026, after the log instrumentation.
+**Last updated:** 8 September 2026, after a second review pass.
 
 ---
 
@@ -35,6 +35,9 @@ repo so a decision is not rediscovered as new work later.
 | F1 | Feedback arrived with nobody's name on it | **Fixed.** A first question asks who is working the referral, once per tab. The name leads the issue title so triage order can be decided from the list |
 | F2 | Authorization chased on referrals we are not scheduling | **Fixed.** Feedback #11. The referral question is still asked; the authorization chain is skipped with the reason on the output card. Matched on the action note, not the bucket - that also holds referrals which come back to us |
 | F3 | Nothing recorded what a walk actually did | **Fixed.** Log format 2: node ids on every timing, back-navigation with source and destination, the answer sequence, and the stop reason. `tools/analyse-logs.mjs` reads a directory of exports; `tools/selftest-analyse.mjs` covers it |
+| F4 | `p1_name_manual` was orphaned | **Removed.** A full 48-provider select node with no inbound reference anywhere in the file. Proved by grep, not by walking |
+| F5 | One auto check wrote three different crumb labels | **Fixed.** `Provider is Loli/Bahu?`, `Provider is Cataldo?` and `Provider is Loli/Bahu/Cataldo?` were one check. Feedback reports quote these paths verbatim, so the same step read as three across reports and any analysis keyed on step name split them |
+| F6 | The determination harness lived nowhere | **Committed.** `tools/walk-harness.js`. Every "no determination changed" claim in this repo's history was produced by it and none of it was reproducible by anyone else |
 
 ---
 
@@ -132,7 +135,37 @@ substring picker makes precision worse, not better. Fixing it changes which
 suggestions appear on the diagnosis screen, so it needs your sign-off rather
 than being folded in quietly.
 
-### 9. The insurance questions deserve one systematic pass
+### 9. `p2_name_here` asserts what it should check
+
+Raised in a second review pass and confirmed. `p2_name_here` - "Pick that
+provider." - ends with `afterSubmit: s.providerTreatsDx = true`. It does not
+call `providerTreatsDiagnosis()`, which already exists.
+
+The dropdown groups providers into "Suggested - treats this diagnosis at X" and
+"Other providers", and the second group is unguarded, so picking from it records
+that the provider treats the diagnosis on no evidence at all. Verified: a
+diagnosis routing to Interventional, a provider whose only specialty is
+Electrophysiology, accepted without comment.
+
+It also explains a second finding. `p4_q3` - "Does this provider treat the
+diagnosis?" - is never reached, and the reason is this line: `p4_diag_entry`
+skips the whole check when `providerTreatsDx` is already true. The assertion
+suppresses the validation that would have caught it.
+
+**Fixing this changes determinations** - some referrals that complete today would
+route to manual review - so it needs your decision, not a quiet fix.
+
+### 10. The provider restriction shows on one picker and not the other
+
+`relevantProvidersListHtml` annotates a restricted provider "schedulable, but no
+manual outreach" and dims the row. `renderSelectNode`, used by `p2_name_here`
+for the same decision, emits plain options with no label and nothing disabled.
+
+Nothing is lost - the output card still says `SMS eligible: No - in-clinic
+scheduling only` and the status is still Review - but the operator finds out
+about twenty questions after the choice rather than at it.
+
+### 11. The insurance questions deserve one systematic pass
 
 The referral grid made existing questions redundant in **three separate places, found
 three separate ways** - one by hitting it, one by asking about it, one by a 15-walk sweep.
@@ -143,7 +176,7 @@ The remaining insurance questions should be checked against the 307 packages in 
 rather than waiting for a fourth accident. Measurement only - no code changes - so it can
 be done and read before anything is decided.
 
-### 10. Keep the rules in step
+### 12. Keep the rules in step
 
 `TPR-RULES.md` in the private docs repo is the rules of record. The fifteen-step
 structure has landed and its structure section has not been updated to match.

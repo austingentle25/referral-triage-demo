@@ -1984,12 +1984,6 @@
       // who each already have an upcoming appointment with the patient.
       no:function(s){ return stopManual("Multiple upcoming appointments name different providers, and the most-recent / usual provider could not be identified.",1); }
     },
-    p1_name_manual: { kind:"select", source:"Quickview → Scheduling → View Patient Appointments", part:1, field:"provider", groups:PROVIDER_OPTION_GROUPS,
-      definition:"Usual / most consistent provider = the provider seen most often among qualifying appointments in the last 3 years.",
-      warning:"This is only for determining the receiving provider on this referral - do not update the patient's Usual Provider field in Athena.",
-      text:"Can't tell automatically - please pick the usual provider for this patient.", short:"Manually selected usual provider",
-      next:"p1_check_entry"
-    },
     p1_name_recentusual: { kind:"select", source:"Quickview → Scheduling → View Patient Appointments", part:1, field:"provider", groups:PROVIDER_OPTION_GROUPS,
       definition:"Usual / most consistent provider = the provider seen most often among qualifying appointments in the last 3 years. Most recent = the last completed qualifying visit.",
       warning:"This is only for determining the receiving provider on this referral - do not update the patient's Usual Provider field in Athena.",
@@ -2381,15 +2375,15 @@
         if (loliBahu){
           if (!s.awaitingInfo){ setOut("bucket","biltmorecardsched"); setOut("actionNote","Ready to schedule - do not manually outreach"); }
           s.isLoliBahu = true;
-          s.crumbs.push({ short:"Provider is Loli/Bahu? (auto)", answer:"Yes" });
+          s.crumbs.push({ short:"Loli/Bahu/Cataldo check (auto)", answer:"Loli or Bahu - do not manually outreach" });
           return "p4_valerie_athena_check";
         }
         if (cataldo){
           setOut("bucket","sscardio"); setOut("actionNote","Ineligible for Scheduling - Non-Valerie Scheduling");
-          s.crumbs.push({ short:"Provider is Cataldo? (auto)", answer:"Yes" });
+          s.crumbs.push({ short:"Loli/Bahu/Cataldo check (auto)", answer:"Cataldo - not scheduled through Valerie" });
           return "p5_referral_date";
         }
-        s.crumbs.push({ short:"Provider is Loli/Bahu/Cataldo? (auto)", answer:"No" });
+        s.crumbs.push({ short:"Loli/Bahu/Cataldo check (auto)", answer:"No - none of them" });
         return "p4_valerie_athena_check";
       }
     },
