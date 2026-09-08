@@ -412,6 +412,12 @@
     font-family:inherit; color:var(--ink);
   }
   .text-input:focus{ outline:2px solid var(--teal); border-color:var(--teal-ink); }
+  /* One rule so every stop on a keyboard pass is visible. Only two elements had
+     a focus style before this, which made a Tab-only walk untrackable. */
+  a:focus-visible, button:focus-visible, select:focus-visible,
+  summary:focus-visible, [tabindex]:focus-visible{
+    outline:2px solid var(--teal); outline-offset:2px; border-radius:6px;
+  }
   .textarea-input{ font-family:inherit; resize:vertical; line-height:1.4; }
 
   .prefixed-input{
@@ -450,7 +456,11 @@
   }
   .dx-chip-x:hover{ background:rgba(27,122,77,0.15); }
   select.text-input{ background:var(--k39b); appearance:auto; }
-  .field-warn{ color:var(--review); font-size:0.75rem; margin-top:6px; display:none; }
+  /* Hidden with the attribute, not a class, so it leaves the accessibility tree
+     when it is not showing - it used to sit in the DOM after the field had been
+     filled in, still saying the field was empty. */
+  .field-warn{ color:var(--review); font-size:0.75rem; margin-top:6px; }
+  .field-warn[hidden]{ display:none; }
 
   .form-fields{ display:flex; flex-direction:column; gap:18px; margin:14px 0 4px; }
   .form-field{ border-left:2px solid var(--line); padding-left:14px; }
@@ -738,7 +748,7 @@
 <div class="wrap">
   <div class="stage-badge" id="stageBadge">Part 0 - Status</div>
 
-  <div class="paused-banner" id="pausedBanner" style="display:none;">⏸ Paused - timer stopped. Tap Resume in the header to continue.</div>
+  <div class="paused-banner" id="pausedBanner" role="status" hidden>⏸ Paused - timer stopped. Tap Resume in the header to continue.</div>
   <div id="stage"></div>
 </div>
 
@@ -1575,7 +1585,9 @@
     var stageEl = document.getElementById("stage");
     if (stageEl) stageEl.classList.toggle("is-paused", isPaused);
     var banner = document.getElementById("pausedBanner");
-    if (banner) banner.style.display = isPaused ? "block" : "none";
+    // hidden, not display:none, so a screen reader is not carrying "Paused -
+    // timer stopped" through the whole session while the timer runs.
+    if (banner) banner.hidden = !isPaused;
   }
 
   function formatLiveTimer(ms){
@@ -3335,6 +3347,20 @@
       .replace(/"/g,"&quot;").replace(/'/g,"&#39;");
   }
 
+  // The warning under a field. Showing it sets the text every time, because the
+  // date check used to overwrite it and leave the date message in place for the
+  // next empty-value error on that screen.
+  function showFieldWarn(message){
+    var el = document.getElementById("fieldWarn");
+    if (!el) return;
+    if (message) el.textContent = message;
+    el.hidden = false;
+  }
+  function clearFieldWarn(){
+    var el = document.getElementById("fieldWarn");
+    if (el) el.hidden = true;
+  }
+
   function bannerHtml(){
     if (!state.pendingBanner) return "";
     var html = '<div class="banner"><b>Why you\'re here</b>' + escapeHtml(state.pendingBanner) + '</div>';
@@ -3565,8 +3591,13 @@
     function rowHtml(p){
       var loc = p.locations.length ? p.locations.join(", ") : "no location on file";
       var restricted = isRestrictedProvider(p.name);
+      // Spelled out rather than left to name computation over nested spans: a
+      // screen reader announced twenty-nine rows as "button" and nothing else.
+      var label = p.name + ". " + p.specialty + ". " + loc + "." +
+        (restrictionLabel(p.name) ? " " + restrictionLabel(p.name).replace(/^ - /, "") + "." : "");
       return '<button type="button" class="relevant-provider-row' + (restricted ? " rp-blocked" : "") + '"' +
         ' data-provider="' + escapeHtml(p.name) + '"' +
+        ' aria-label="' + escapeHtml(label) + '"' +
         ' data-search="' + escapeHtml((p.name + " " + p.specialty + " " + loc).toLowerCase()) + '">' +
         '<span class="rp-name">' + escapeHtml(p.name) + '</span>' +
         '<span class="rp-meta">' + escapeHtml(p.specialty) + ' - ' + escapeHtml(loc) + escapeHtml(restrictionLabel(p.name)) + '</span>' +
@@ -3582,8 +3613,8 @@
         '</div>';
     }).join("");
 
-    return '<div class="relevant-providers">' +
-      '<div class="relevant-providers-title">Providers who treat ' + escapeHtml(dxText || "this diagnosis") + '</div>' +
+    return '<div class="relevant-providers" role="group" aria-labelledby="rpTitle">' +
+      '<div class="relevant-providers-title" id="rpTitle">Providers who treat ' + escapeHtml(dxText || "this diagnosis") + '</div>' +
       '<div class="rp-filter-row dx-picker">' +
         '<input type="text" class="text-input" id="providerFilter" autocomplete="off"' +
           ' placeholder="Filter by name, specialty or location\u2026"' +
@@ -5297,7 +5328,7 @@
         sourceLabelHtml(node) +
         '<div class="input-row">' +
           fieldTag +
-          '<div class="field-warn" id="fieldWarn">Please enter a value to continue.</div>' +
+          '<div class="field-warn" id="fieldWarn" role="alert" hidden>Please enter a value to continue.</div>' +
         '</div>' +
         '<div class="btnrow-continue">' +
           backButtonHtml() +
@@ -5317,6 +5348,7 @@
     }
     input.focus();
     if (node.defaultToday) input.select();
+    input.addEventListener("input", clearFieldWarn);
     if (node.dateMask){
       input.addEventListener("input", function(){
         input.value = formatDateMask(input.value);
@@ -5325,16 +5357,14 @@
     function doSubmit(){
       var val = input.value.trim();
       if (!val && !node.optional){
-        document.getElementById("fieldWarn").style.display = "block";
+        showFieldWarn();
         return;
       }
       // The mask only shapes digits into MM/DD/YYYY, so "99/99/9999" and a
       // half-typed "1/2" both used to sail through and land verbatim in the
       // chart note. Check it is a real calendar date before accepting it.
       if (node.dateMask && val && !isRealDate(val)){
-        var warn = document.getElementById("fieldWarn");
-        warn.textContent = "Enter a real date as MM/DD/YYYY.";
-        warn.style.display = "block";
+        showFieldWarn("Enter a real date as MM/DD/YYYY.");
         return;
       }
       if (node.prefix && val) val = node.prefix + val;
@@ -5379,7 +5409,7 @@
           '<input type="text" class="text-input" id="providerSearch" placeholder="Search providers…" autocomplete="off">' +
           '<div class="dx-suggestions" id="providerSuggestions"></div>' +
           '<div class="dx-chips" id="providerChips"></div>' +
-          '<div class="field-warn" id="fieldWarn">Search and select a provider from the list to continue.</div>' +
+          '<div class="field-warn" id="fieldWarn" role="alert" hidden>Search and select a provider from the list to continue.</div>' +
         '</div>' +
         '<div class="btnrow-continue">' +
           backButtonHtml() +
@@ -5413,7 +5443,7 @@
     function renderSuggestions(){
       var q = searchInput.value.trim().toLowerCase();
       suggestionsEl.innerHTML = "";
-      if (!q){ suggestionsEl.style.display = "none"; return; }
+      if (!q){ suggestionsEl.style.display = "none"; ta.sync(); return; }
       // Athena codes and the roster do not always agree on spelling - AMG_STURM_D
       // against "Danielle Strum", for instance - so a search that finds nothing
       // falls back to matching regardless of letter order within each word.
@@ -5467,16 +5497,22 @@
           suggestionsEl.innerHTML = "";
           suggestionsEl.style.display = "none";
           searchInput.style.display = "none";
-          document.getElementById("fieldWarn").style.display = "none";
+          clearFieldWarn();
         });
       });
+      ta.sync();
     }
 
+    var ta = makeTypeahead(searchInput, suggestionsEl, {
+      idBase: "prov",
+      onEscape: function(){ suggestionsEl.innerHTML = ""; suggestionsEl.style.display = "none"; },
+      onEnterNoActive: function(rows){ if (rows.length === 1) rows[0].click(); }
+    });
     searchInput.addEventListener("input", renderSuggestions);
 
     document.getElementById("submitBtn").addEventListener("click", function(){
       if (!selectedValue){
-        document.getElementById("fieldWarn").style.display = "block";
+        showFieldWarn();
         return;
       }
       submitText(node, selectedValue);
@@ -5524,7 +5560,7 @@
         '<div class="input-row">' +
           '<select class="text-input select-input" id="selectField">' + optionsHtml + '</select>' +
           (node.otherAllowed ? '<input type="text" class="text-input other-input" id="otherField" placeholder="' + escapeHtml(otherLabel) + '" style="display:none;margin-top:10px;" autocomplete="off">' : '') +
-          '<div class="field-warn" id="fieldWarn">Please choose an option to continue.</div>' +
+          '<div class="field-warn" id="fieldWarn" role="alert" hidden>Please choose an option to continue.</div>' +
         '</div>' +
         '<div class="btnrow-continue">' +
           backButtonHtml() +
@@ -5536,6 +5572,8 @@
 
     var sel = document.getElementById("selectField");
     var other = document.getElementById("otherField");
+    sel.addEventListener("change", clearFieldWarn);
+    if (other) other.addEventListener("input", clearFieldWarn);
     sel.addEventListener("change", function(){
       if (!other) return;
       if (sel.value === "__OTHER__"){ other.style.display = "block"; other.focus(); }
@@ -5545,13 +5583,13 @@
     function doSubmit(){
       var val = sel.value;
       if (!val){
-        document.getElementById("fieldWarn").style.display = "block";
+        showFieldWarn();
         return;
       }
       if (val === "__OTHER__"){
         var ov = other ? other.value.trim() : "";
         if (!ov){
-          document.getElementById("fieldWarn").style.display = "block";
+          showFieldWarn();
           return;
 
         }
@@ -5762,7 +5800,7 @@
 
     function renderList(){
       var q = input.value.trim().toLowerCase();
-      if (!q){ listEl.style.display = "none"; return; }
+      if (!q){ listEl.style.display = "none"; ta.sync(); return; }
       var out = [];
       for (var id in PAYOR_TABLE){
         if (!Object.prototype.hasOwnProperty.call(PAYOR_TABLE, id)) continue;
@@ -5777,6 +5815,7 @@
       if (!out.length){
         listEl.innerHTML = '<div class="dx-suggestion dx-suggestion-empty">No package matches - use <b>Not in our database</b> below.</div>';
         listEl.style.display = "block";
+        ta.sync();
         return;
       }
       listEl.innerHTML = out.map(function(o){
@@ -5794,7 +5833,13 @@
       listEl.querySelectorAll(".dx-suggestion[data-val]").forEach(function(el){
         el.addEventListener("click", function(){ pick(el.getAttribute("data-val")); });
       });
+      ta.sync();
     }
+    var ta = makeTypeahead(input, listEl, {
+      idBase: "payor",
+      onEscape: function(){ listEl.innerHTML = ""; listEl.style.display = "none"; },
+      onEnterNoActive: function(rows){ if (rows.length === 1) rows[0].click(); }
+    });
     input.addEventListener("input", renderList);
 
     // The two escape hatches open the grid questions here rather than sending
@@ -5861,7 +5906,7 @@
           '<input type="text" class="text-input" id="dxSearch" placeholder="Search diagnoses…" autocomplete="off">' +
           '<div class="dx-suggestions" id="dxSuggestions"></div>' +
           '<div class="dx-chips" id="dxChips"></div>' +
-          '<div class="field-warn" id="fieldWarn">Add at least one diagnosis to continue.</div>' +
+          '<div class="field-warn" id="fieldWarn" role="alert" hidden>Add at least one diagnosis to continue.</div>' +
         '</div>' +
         '<div class="btnrow-continue">' +
           backButtonHtml() +
@@ -5918,26 +5963,30 @@
           var val = el.getAttribute("data-val");
           if (val && selected.indexOf(val) === -1) selected.push(val);
           searchInput.value = "";
+          clearFieldWarn();
           renderChips();
           renderSuggestions();
           searchInput.focus();
         });
       });
+      ta.sync();
     }
 
-    searchInput.addEventListener("input", renderSuggestions);
-    searchInput.addEventListener("keydown", function(e){
-      if (e.key === "Enter"){
-        e.preventDefault();
-        var first = suggestionsEl.querySelector(".dx-suggestion");
-        if (first) first.click();
-        else doSubmit();
-      }
+    // Every row is reachable. Enter used to take match #1 however far down the
+    // list you had arrowed, so eight results meant one keyboard-reachable
+    // result and seven that needed a mouse. The "Add ... (not listed)" and
+    // "Add ... as <specialty>" rows are options like any other - they are the
+    // escape hatch, so they have to be selectable the same way.
+    var ta = makeTypeahead(searchInput, suggestionsEl, {
+      idBase: "dx",
+      onEscape: function(){ suggestionsEl.innerHTML = ""; suggestionsEl.style.display = "none"; },
+      onEnterNoActive: function(rows){ if (rows.length) rows[0].click(); else doSubmit(); }
     });
+    searchInput.addEventListener("input", renderSuggestions);
 
     function doSubmit(){
       if (!selected.length){
-        document.getElementById("fieldWarn").style.display = "block";
+        showFieldWarn();
         return;
       }
       submitText(node, selected.join(", "));
