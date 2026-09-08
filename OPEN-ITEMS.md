@@ -64,13 +64,27 @@ repo so a decision is not rediscovered as new work later.
 ## Still open
 
 
-### 1. Provider addresses on the location picker (#20)
+### 1. The location addresses are guesses, and want replacing (#20)
 
-Reported 8 September, **blocked on data**. The tool holds no addresses at all -
-`DEPT_OPTIONS` is names and department numbers, and there is no address field in
-`PROVIDER_DATA`. It cannot be built from what is in the file.
+Twelve of the fourteen departments now show an address in the pickers. **None of
+it came from Athena.** It was gathered on 8 September from public listings -
+Abrazo and Biltmore Cardiology location pages, Optum's Arizona cardiac services
+directory, Healthgrades and Yelp - and the screen says it is unverified.
 
-Needs one address per location for the thirteen departments. Issue left open.
+Two findings from gathering it are why that label is there:
+
+- **Wickenburg** appears as 519 W Rose Ln (85390) in one source and 1395 W
+  Wickenburg Way (85380) in another. Both are shown rather than one being picked.
+- **18700 N 64th Dr** houses Biltmore at one suite and a different cardiology
+  practice at another. Suite numbers are the least reliable part of this, and a
+  suite number is the part an operator would actually use.
+
+**Terrace (678) and Kierland (772) are blank.** Nothing public matched them, and
+a plausible-looking guess is worse than a gap.
+
+Replace the table from Athena when someone can export it - it is one object,
+`DEPT_ADDRESSES`, keyed by the exact department strings.
+
 
 ### 2. The step numbering runs backwards
 

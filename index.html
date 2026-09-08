@@ -506,6 +506,8 @@
     font-size:0.8125rem; color:var(--ink);
   }
   .dupe-warn[hidden]{ display:none; }
+  .dept-note{ font-size:0.6875rem; color:var(--ink-soft); margin-top:8px; line-height:1.45; }
+  .dept-note b{ color:var(--review); }
   .dupe-warn b{ color:var(--review); display:block; margin-bottom:4px; }
   .dupe-warn ul{ margin:0 0 6px; padding-left:18px; }
   .dupe-warn li{ font-variant-numeric:tabular-nums; }
@@ -1285,6 +1287,50 @@
     "Wickenburg (752)", "Kierland (772)"
   ];
 
+  // Addresses for the department pickers, gathered from public listings on
+  // 8 September 2026 - Abrazo and Biltmore Cardiology location pages, Optum's
+  // Arizona cardiac services directory, Healthgrades and Yelp.
+  //
+  // NONE OF THIS IS FROM ATHENA and none of it is confirmed. It is here because
+  // an approximate address beats none for orienting an operator, and it is
+  // labelled unverified on screen for the same reason. Two things found while
+  // gathering it say why that label matters:
+  //
+  //   - Wickenburg is listed at 519 W Rose Ln in one source and 1395 W
+  //     Wickenburg Way in another, with different ZIPs. Both are recorded below
+  //     rather than one being picked.
+  //   - 18700 N 64th Dr houses Biltmore at one suite and a different cardiology
+  //     practice at another. Suite numbers are the least reliable part of this.
+  //
+  // Terrace (678) and Kierland (772) are deliberately empty. Nothing public
+  // matched them and a plausible-looking guess is worse than a blank.
+  //
+  // Replace the lot from Athena when someone can export it.
+  var DEPT_ADDRESSES = {
+    "Camelback (648)":     "2777 E Camelback Rd, Ste 200, Phoenix 85016",
+    "Arrowhead (381)":     "18700 N 64th Dr, Ste 201, Glendale 85308",
+    "Casa Grande (523)":   "1890 E Florence Blvd, Ste 1, Casa Grande 85122",
+    "Central (576)":       "6036 N 19th Ave, Ste 506, Phoenix 85015",
+    "Scottsdale (594)":    "3811 E Bell Rd, Ste 300, Phoenix 85032",
+    "Goodyear (622)":      "1325 N Litchfield Rd, Ste 130, Goodyear 85395",
+    "North Peoria (624)":  "26900 N Lake Pleasant Pkwy, Peoria 85383",
+    "AHI (625)":           "1910 E Thomas Rd, Ste 200, Phoenix 85016",
+    "Terrace (678)":       "",
+    "West (683)":          "1325 N Litchfield Rd, Ste 130, Goodyear 85395",
+    "Surprise (708)":      "14815 W Bell Rd, Ste 104, Surprise 85374",
+    "Verrado Way (747)":   "21250 W Roosevelt St, Ste 306, Buckeye 85326",
+    "Wickenburg (752)":    "519 W Rose Ln, Wickenburg 85390 (also listed as 1395 W Wickenburg Way)",
+    "Kierland (772)":      ""
+  };
+
+  // The value stays the department string exactly as it was - it is what gets
+  // stored, parsed by deptShortName and matched against the provider roster.
+  // Only what is shown changes.
+  function deptOptionLabel(dept){
+    var a = DEPT_ADDRESSES[dept];
+    return a ? (dept + "  -  " + a) : dept;
+  }
+
   var PROVIDER_DATA = [
     { name:"Akil Loli, MD", specialty:"General, Interventional, Structural", locations:["Camelback","Casa Grande"], inClinicOnly:true, notes:"All scheduling must go to in-clinic" },
     { name:"Akram Ibrahim, MD", specialty:"General, Interventional, Structural", locations:["Camelback"] },
@@ -1409,7 +1455,7 @@
     DEPT_OPTIONS.forEach(function(opt){
       var shortName = deptShortName(opt);
       var hit = locs.some(function(l){ return locMatches(l, shortName); });
-      (hit ? mine : rest).push({ value:opt, label:opt });
+      (hit ? mine : rest).push({ value:opt, label:deptOptionLabel(opt) });
     });
     if (!mine.length) return null;
     var groups = [{ label: providerShortName(s.out.provider) + " practices here", options: mine }];
@@ -5368,9 +5414,9 @@
       // deliberately: a list nobody prunes stops being read. Internal work does
       // not belong here - only what an operator would notice.
       group('Recent updates', [
+        '<b>8 Sep</b> - The department pickers show an address beside each location. They are gathered from public listings rather than Athena and are <b>not verified</b> - the screen says so, and Terrace and Kierland are blank because nothing public matched them.',
         '<b>8 Sep</b> - <b>Urgent referrals use a 7-day window.</b> An appointment further out than a week no longer counts as the upcoming one, so an urgent referral stops taking its provider from a booking weeks away. The diagnosis is asked first now, on every referral, because urgency comes from it as much as from the fax marking.',
-        '<b>8 Sep</b> - The Care Team questions run straight after insurance rather than five questions later, and \"Any other block?\" is now <b>\"Is everything else clear to schedule?\"</b> - Yes is the good answer, as it is everywhere else.',
-        '<b>8 Sep</b> - Today\'s date is filled in on the referral date, and the first key you press clears it. There is a third answer on the authorization question for when you already hold the number and just need to enter it by hand.'
+        '<b>8 Sep</b> - The Care Team questions run straight after insurance rather than five questions later, and \"Any other block?\" is now <b>\"Is everything else clear to schedule?\"</b> - Yes is the good answer, as it is everywhere else.'
       ]) +
 
       group('Insurance', [
@@ -6342,6 +6388,7 @@
       flatOptions.forEach(function(opt){
         var val = (opt && typeof opt === "object") ? opt.value : opt;
         var label = (opt && typeof opt === "object") ? opt.label : opt;
+        if (node.field === "location") label = deptOptionLabel(val);
         optionsHtml += '<option value="' + escapeHtml(val) + '">' + escapeHtml(label) + '</option>';
       });
     }
@@ -6358,6 +6405,9 @@
         '<div class="input-row">' +
           '<select class="text-input select-input" id="selectField">' + optionsHtml + '</select>' +
           (node.otherAllowed ? '<input type="text" class="text-input other-input" id="otherField" placeholder="' + escapeHtml(otherLabel) + '" style="display:none;margin-top:10px;" autocomplete="off">' : '') +
+          (node.field === "location"
+            ? '<div class="dept-note">Addresses are from public listings, not Athena, and are <b>not verified</b> - check before giving one to a patient. Two departments have none.</div>'
+            : '') +
           '<div class="field-warn" id="fieldWarn" role="alert" hidden>Please choose an option to continue.</div>' +
         '</div>' +
         '<div class="btnrow-continue">' +
