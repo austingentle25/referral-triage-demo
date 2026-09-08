@@ -3946,6 +3946,7 @@
     }
 
     items.push({ sec:"Auth / referral objects" });
+    if (o.payorGridNote) items.push({ label:"What the grid says about this plan", value:ft(o.payorGridNote) });
     if (o.gridSource) items.push({ label:"Where the insurance answers came from", value:ft(o.gridSource) });
     if (o.payorContact) items.push({ label:"Payor contact", value:ft(o.payorContact) });
     if (o.nonParWarning) items.push({ label:"Non-par plans for this insurer", value:ft(o.nonParWarning) });
@@ -5302,7 +5303,27 @@
                       : "p4_diag_entry";
         state._afterEdgeCase = afterEdge;
         if (hit.edgeCase === "VA (Veteran)") next = "p4_edge_case_va_check";
-        else if (hit.edgeCase === "Mercy") next = "p4_edge_case_mercy_check";
+        else if (hit.edgeCase === "Mercy"){
+          // "Does this Mercy plan require a referral from the PCP?" is the
+          // question the grid's Referral column already answers - all four
+          // Mercy packages are marked required, and 45897 spells out that the
+          // referral must come from the PCP rather than a specialty. Asking it
+          // again is asking the reviewer to re-answer the grid, so where the
+          // grid has answered, go straight to whether the letter is in hand.
+          if (refFromGrid === "Yes"){
+            state.crumbs.push({ short:"Mercy plan requires PCP referral? (auto)",
+                                answer:"Yes - the referral grid marks a referral required for this package" });
+            state.pendingBanner = (state.pendingBanner || "") +
+              " Mercy Plan requires a referral from PCP - make sure Special Notes captures this.";
+            next = "p10_pcp_letter";
+          } else if (refFromGrid === "No"){
+            state.crumbs.push({ short:"Mercy plan requires PCP referral? (auto)",
+                                answer:"No - the referral grid marks no referral required for this package" });
+            next = afterEdge;
+          } else {
+            next = "p4_edge_case_mercy_check";
+          }
+        }
         else if (hit.contracted !== "Yes") next = "p4_q2";
         else next = afterEdge;
       }
