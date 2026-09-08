@@ -3,7 +3,7 @@
 Everything outstanding on Referral Sync Helper, and what has closed. Kept in the
 repo so a decision is not rediscovered as new work later.
 
-**Last updated:** 7 September 2026, after the UX and accessibility pass.
+**Last updated:** 8 September 2026, after the log instrumentation.
 
 ---
 
@@ -32,6 +32,9 @@ repo so a decision is not rediscovered as new work later.
 | E8 | Green Yes / red No on neutral questions | **Fixed.** Both neutral, same border, told apart by position and label. --picked-solid and --review-solid keep their meaning elsewhere |
 | E9 | Two report channels, neither naming its destination | **Fixed.** One "Report a problem" group; each summary says what it is for and whether anything is transmitted |
 | E10 | Feedback reports could not be matched to what the reviewer saw | **Fixed.** Step label, question and node ID on their own labelled lines, in the same words as the chip on screen |
+| F1 | Feedback arrived with nobody's name on it | **Fixed.** A first question asks who is working the referral, once per tab. The name leads the issue title so triage order can be decided from the list |
+| F2 | Authorization chased on referrals we are not scheduling | **Fixed.** Feedback #11. The referral question is still asked; the authorization chain is skipped with the reason on the output card. Matched on the action note, not the bucket - that also holds referrals which come back to us |
+| F3 | Nothing recorded what a walk actually did | **Fixed.** Log format 2: node ids on every timing, back-navigation with source and destination, the answer sequence, and the stop reason. `tools/analyse-logs.mjs` reads a directory of exports; `tools/selftest-analyse.mjs` covers it |
 
 ---
 
@@ -108,7 +111,28 @@ Two options, both small:
 The name is only ever in memory either way - this is about what a passer-by
 sees, not about storage. Say which and it is a few lines.
 
-### 8. The insurance questions deserve one systematic pass
+### 8. The diagnosis picker matches on bare substrings
+
+Found while measuring, not reported from the floor. Full write-up in
+`tools/FINDINGS-diagnosis-matching.md`.
+
+There are two matchers. `specialtiesForDiagnosis()` is careful - word boundaries
+for short keywords, span containment - and should be left alone. The diagnosis
+picker's own search is `d.toLowerCase().indexOf(q) !== -1`, with no word
+boundary and no minimum length.
+
+So typing `AS` offers "Coronary Artery Di**se**ase", `PE` offers "Angina
+**Pe**ctoris", and `HTN` offers "Chest Tig**htn**ess". Seven of twenty
+abbreviations produce a confidently wrong top suggestion. The same line explains
+why a query longer than the canonical name never matches at all, which is why
+every piece of fax shorthand tested failed.
+
+**This has to be settled before any synonym work.** Adding abbreviations to a
+substring picker makes precision worse, not better. Fixing it changes which
+suggestions appear on the diagnosis screen, so it needs your sign-off rather
+than being folded in quietly.
+
+### 9. The insurance questions deserve one systematic pass
 
 The referral grid made existing questions redundant in **three separate places, found
 three separate ways** - one by hitting it, one by asking about it, one by a 15-walk sweep.
@@ -119,7 +143,7 @@ The remaining insurance questions should be checked against the 307 packages in 
 rather than waiting for a fourth accident. Measurement only - no code changes - so it can
 be done and read before anything is decided.
 
-### 9. Keep the rules in step
+### 10. Keep the rules in step
 
 `TPR-RULES.md` in the private docs repo is the rules of record. The fifteen-step
 structure has landed and its structure section has not been updated to match.
