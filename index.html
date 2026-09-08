@@ -510,6 +510,9 @@
   .dupe-warn ul{ margin:0 0 6px; padding-left:18px; }
   .dupe-warn li{ font-variant-numeric:tabular-nums; }
   .dupe-note{ font-size:0.75rem; color:var(--ink-soft); }
+  /* A suggestion, not an answer yet - it reads as filled in but lighter, and the
+     first keystroke replaces it. */
+  .form-text.is-prefilled, .text-input.is-prefilled{ color:var(--ink-soft); }
   .field-warn{ color:var(--review); font-size:0.75rem; margin-top:6px; }
   .field-warn[hidden]{ display:none; }
 
@@ -1301,7 +1304,9 @@
     { name:"Michelle Mix, MD", specialty:"General", locations:["AHI"] },
     { name:"Neal Klein, MD", specialty:"General, Interventional", locations:["Camelback"] },
     { name:"Nickalaus Gramze, MD", specialty:"General", locations:["Camelback"] },
-    { name:"Peter Maki, MD", specialty:"General, Interventional", locations:["Camelback"], notes:"Exception: also sees Pure hypercholesterolemia, unspecified" },
+    // Austin, 8 Sep 2026: the Diagnosis -> Specialty sheet wins over Provider
+    // Specific Rules, which said General, Interventional.
+    { name:"Peter Maki, MD", specialty:"General", locations:["Camelback"], notes:"Exception: also sees Pure hypercholesterolemia, unspecified" },
     { name:"Rahool Karnik, MD", specialty:"General", locations:["Arrowhead","Peoria"] },
     { name:"Renzo Cataldo, MD", specialty:"Electrophysiology", locations:["Goodyear","Verrado","Camelback"], nonValerieScheduling:true, notes:"Not scheduled through Valerie - route to sscardio" },
     { name:"Richard Pham, DO", specialty:"General, Interventional", locations:["Verrado","West"] },
@@ -1317,7 +1322,7 @@
     { name:"Danielle Sturm, PA-C", specialty:"General, Interventional, Structural", locations:["Camelback"], npi:"1164709788", notes:"APP with Timothy Byrne, DO. Guide lists her as Daniellle Sturm (Lorde)" },
     { name:"Diana Thayer, NP", specialty:"General, Interventional, Structural", locations:["Camelback"], npi:"1063975076", notes:"APP with Akram Ibrahim, MD" },
     { name:"Kristen Jensen, PA-C", specialty:"General, Interventional, Structural", locations:["Camelback"], npi:"1770834798", notes:"APP with Timothy Byrne, DO" },
-    { name:"Kevin Murphy, PA-C", specialty:"General, Interventional", locations:["Camelback"], npi:"1881777613", notes:"APP with Peter Maki, MD" },
+    { name:"Kevin Murphy, PA-C", specialty:"General", locations:["Camelback"], npi:"1881777613", notes:"APP with Peter Maki, MD - inherits his specialties" },
     { name:"Kristin Franco, ANP", specialty:"General, Interventional, Structural", locations:["Camelback"], npi:"1932399870", inClinicOnly:true, notes:"APP with Akil Loli, MD - all scheduling must go to in-clinic. Guide lists her as Kristin V. Franco" },
     { name:"Amilee Ning, PA-C", specialty:"Electrophysiology", locations:["Camelback"], npi:"1699852053", inClinicOnly:true, notes:"APP with Marwan Bahu, MD - all scheduling must go to in-clinic" },
     { name:"Jody Eckhardt, DNP", specialty:"General", locations:["Camelback"], npi:"1871650564" },
@@ -1604,7 +1609,18 @@
     "Premature Atrial Contractions (PACs)","Long QT Syndrome","Wolff-Parkinson-White (WPW)","Sick Sinus Syndrome",
     "Heart Block / AV Block","Pacemaker Follow-Up","ICD Follow-Up","Device Monitoring","Loop Recorder",
     "Ablation Follow-Up","Cardiac Resynchronization Therapy (CRT)","Bundle Branch Block","Brugada Syndrome",
-    "Torsades de Pointes"
+    "Torsades de Pointes",
+    // ICD-10 phrasings, kept at the end so the plainer names above keep priority
+    // when both answer the same search. Referral faxes carry the code
+    // description verbatim - "Essential (primary) hypertension", "Mixed
+    // hyperlipidemia", "Endocarditis, valve unspecified" - and none of them found
+    // anything. No new keywords are needed: each contains a term the specialty
+    // matcher already knows, and span containment keeps the hypertension one out
+    // of Interventional's "pulmonary hypertension". Each was checked against the
+    // live matcher and resolves to exactly one sensible specialty.
+    "Essential (primary) hypertension","Mixed hyperlipidemia","Endocarditis, valve unspecified",
+    "Hyperlipidemia, unspecified","Heart failure, unspecified","Chest pain, unspecified",
+    "Cardiac arrhythmia, unspecified","Atrial fibrillation, unspecified"
   ];
 
   // Returns true/false if we can determine it, or null if the diagnosis or
@@ -1949,7 +1965,7 @@
              node:"p_reviewer_entry", crumbs:[], out:{}, stepTimings:[], backSteps:[], manualReview:false, manualReviewReason:null,
              manualReviewPart:0, lastPart:0, pendingBanner:null, part1Result:null, part1Reason:null,
              progressHigh:0, providerTreatsDx:false, hasUpcomingAppt:false, awaitingInfo:false, isCamelbackReferral:null, needsEngineeringEscalation:false, isLoliBahu:false, pendingEdgeCase:false, pendingSelfPay:false,
-             _afterDiag:null, _afterDiag2:null, _afterDiag3:null };
+             _afterDiag:null, _afterDiag2:null, _afterDiag3:null, _afterCareTeam:null };
   }
 
   function setOut(k,v){ state.out[k]=v; }
@@ -2016,14 +2032,56 @@
     p_task_id: { kind:"text", source:"tpr.valeriehealth.com/tasks/", part:0, field:"taskId", prefix:"Task-",
       text:"What's the Task ID?", short:"Task ID",
       placeholder:"12345",
-      next:"p0_status"
+      next:"p0_diag"
+    },
+    // The diagnosis is asked on every referral now, and asked first.
+    //
+    // It used to be collected wherever a branch happened to need it - three
+    // separate entry gates - and skipped entirely when the provider was already
+    // settled, so a referral could reach a determination with no diagnosis
+    // recorded at all even though the chart note wants one.
+    //
+    // Asking it first also settles urgency, which is what the 7-day rule needs.
+    // Urgency comes from the diagnosis as much as from the fax marking, so it
+    // could not be known before the diagnosis was; that is why the window could
+    // not be chosen at the point the window question is asked. It can now.
+    //
+    // The later gates are unchanged: each already reads "diagnosis present?" and
+    // continues, so they simply stop asking.
+    p0_diag: { kind:"diagnosis", source:"Referral document", part:1, field:"diagnosisText",
+      text:"What's the diagnosis?", short:"Diagnosis",
+      next:"p0_urgent_gate"
+    },
+    p0_urgent_gate: { kind:"auto", part:7,
+      run:function(s){
+        var urgentDx = ["afib","atrial fibrillation","chest pain","angina","stenosis","regurgitation","tavr"];
+        var dx = (s.out.diagnosisText || "").toLowerCase();
+        if (urgentDx.some(function(k){ return dx.indexOf(k) !== -1; })){
+          setOut("urgent","YES"); setOut("urgentReason","diagnosis");
+          s.crumbs.push({ short:"Urgent? (auto)", answer:"Yes - the diagnosis is one of the urgent ones" });
+          return "p0_status";
+        }
+        return "p0_urgent_fax";
+      }
+    },
+    p0_urgent_fax: { kind:"yesno", source:"Referral document - fax marking", part:7,
+      text:"Is the fax marked Urgent?",
+      short:"Fax marked Urgent?",
+      definition:"Asked here rather than later because it decides how far ahead an appointment still counts: 7 days on an urgent referral, 60 on any other.",
+      yes:function(s){ setOut("urgent","YES"); setOut("urgentReason","provider"); return "p0_status"; },
+      no:function(s){ setOut("urgent","NO"); return "p0_status"; }
     },
     p0_status: { kind:"yesno", source:"Quickview → Scheduling → View Patient Appointments", part:1,
       definition:"A qualifying appointment must be cardiology, with a Biltmore provider, at a Biltmore location, and the patient attended - not Canceled and not a No Show. Established = one of those within the last 3 years.",
       text:"Have they completed a qualifying appointment in the last 3 years?",
       short:"Established (3 yrs)?",
-      yes:function(s){ setOut("status","Established"); return "p1_q1"; },
-      no:function(s){ setOut("status","New"); return "p1_q1"; }
+      yes:function(s){ setOut("status","Established"); return "p1_q1_gate"; },
+      no:function(s){ setOut("status","New"); return "p1_q1_gate"; }
+    },
+    // Two questions rather than one with a changing number, so each is asked in
+    // its own exact words and neither has to be read twice.
+    p1_q1_gate: { kind:"auto", part:1,
+      run:function(s){ return s.out.urgent === "YES" ? "p1_q1_urgent" : "p1_q1"; }
     },
 
     // ---- PART 1 - PROVIDER ----
@@ -2036,6 +2094,17 @@
       definition:"A qualifying appointment must be cardiology, with a Biltmore provider and at a Biltmore location. Attendance is not part of it here - the appointment has not happened yet - but a Canceled one does not count. Upcoming window = next 60 days.",
       text:"Is there a qualifying appointment in the next 60 days?",
       short:"Upcoming qualifying appt (60 days)?",
+      yes:function(s){ s.hasUpcomingAppt = true; return "p1_q1a"; },
+      no:function(s){ return "p1_q2"; }
+    },
+    // Reported: an urgent referral took its provider from an appointment two
+    // weeks out and resolved to the wrong cardiologist. On an urgent referral an
+    // appointment only counts if it is within 7 days; anything further out is not
+    // the appointment this referral is about.
+    p1_q1_urgent: { kind:"yesno", source:"Quickview → Scheduling → View Patient Appointments", part:1,
+      definition:"This referral is urgent, so the window is 7 days rather than 60. A qualifying appointment must be cardiology, with a Biltmore provider and at a Biltmore location, and still on the books. An appointment further out than a week does not count here - it is not the one this referral is about.",
+      text:"This is urgent - is there a qualifying appointment in the next 7 days?",
+      short:"Upcoming qualifying appt (7 days, urgent)?",
       yes:function(s){ s.hasUpcomingAppt = true; return "p1_q1a"; },
       no:function(s){ return "p1_q2"; }
     },
@@ -2684,8 +2753,15 @@
       yes:function(s){ setOut("referralAuthRequiredGrid","Yes"); return "p4_diag_entry"; },
       no:function(s){ setOut("referralAuthRequiredGrid","No"); return "p4_diag_entry"; }
     },
+    // Reported: Care Team belongs right after the insurance questions, not five
+    // questions later behind the diagnosis check and the fax sweep. The block
+    // runs here and returns to where this gate would have gone.
     p4_diag_entry: { kind:"auto", part:1,
-      run:function(s){ if (s.providerTreatsDx) return "p4_q4"; s._afterDiag3="p4_treats_auto"; return s.out.diagnosisText ? "p4_treats_auto" : "p4_diag_input"; }
+      run:function(s){
+        s._afterCareTeam = s.providerTreatsDx ? "p4_clear_to_schedule" : "p4_treats_auto";
+        if (!s.providerTreatsDx) s._afterDiag3 = "p4_treats_auto";
+        return "p5_careteam1";
+      }
     },
     p4_diag_input: { kind:"diagnosis", source:"Referral document", part:1, field:"diagnosisText",
       text:"What's the diagnosis?", short:"Diagnosis",
@@ -2697,7 +2773,7 @@
         if (result === true){
           s.providerTreatsDx = true;
           s.crumbs.push({ short:"Provider treats the diagnosis? (auto)", answer:"Yes" });
-          return "p4_q4";
+          return "p4_clear_to_schedule";
         }
         if (result === false){
           setOut("bucket","sscardio"); setOut("actionNote","Ineligible for Scheduling - Ineligible Provider");
@@ -2711,14 +2787,22 @@
     p4_q3: { kind:"yesno", source:"Provider list - specialty reference", part:1,
       text:"Does this provider treat the diagnosis?",
       short:"Provider treats the diagnosis?",
-      yes:function(s){ s.providerTreatsDx = true; return "p4_q4"; },
+      yes:function(s){ s.providerTreatsDx = true; return "p4_clear_to_schedule"; },
       no:function(s){ setOut("bucket","sscardio"); setOut("actionNote","Ineligible for Scheduling - Ineligible Provider"); return "p5_referral_date"; }
     },
-    p4_q4: { kind:"yesno", source:"Referral document / Athena chart", part:15,
-      text:"Any other block - no phone, referring provider not in database, something else?",
-      short:"Any other scheduling block?",
-      yes:function(s){ return "p4_q4a"; },
-      no:function(s){ if (!s.awaitingInfo){ setOut("bucket","biltmorecardsched"); setOut("actionNote", s.isLoliBahu ? "Ready to schedule - do not manually outreach" : "Ready to schedule"); } return "p5_referral_date"; }
+    // Reworded so Yes is the good outcome. It used to read "Any other block?"
+    // with Yes meaning there was one, which is the opposite of how every other
+    // question here reads.
+    //
+    // The node id and short are new on purpose. The recorded answer inverts, and
+    // the resume matcher accepts a bare "Yes"/"No" for any yes/no question - so a
+    // path saved before this would have replayed into the opposite branch without
+    // a word. Under a new name it is refused instead, and says why.
+    p4_clear_to_schedule: { kind:"yesno", source:"Referral document / Athena chart", part:15,
+      text:"Is everything else clear to schedule - phone on file, referring provider in the database, nothing else outstanding?",
+      short:"Everything else clear?",
+      yes:function(s){ if (!s.awaitingInfo){ setOut("bucket","biltmorecardsched"); setOut("actionNote", s.isLoliBahu ? "Ready to schedule - do not manually outreach" : "Ready to schedule"); } return "p5_referral_date"; },
+      no:function(s){ return "p4_q4a"; }
     },
     p4_q4a: { kind:"yesno3", source:"Athena - referring provider database", part:15,
       text:"Is it because the referring provider isn't in the database, or because they're missing an address?",
@@ -2775,13 +2859,12 @@
       ],
       next:"p5_urgent"
     },
+    // Urgency is settled at the top now, because the appointment window depends
+    // on it. This gate only routes on the answer already given.
     p5_urgent: { kind:"auto", part:7,
       run:function(s){
-        var urgentDx = ["afib","atrial fibrillation","chest pain","angina","stenosis","regurgitation","tavr"];
-        var dx = (s.out.diagnosisText || "").toLowerCase();
-        var matched = urgentDx.some(function(k){ return dx.indexOf(k) !== -1; });
-        if (matched){ setOut("urgent","YES"); setOut("urgentReason","diagnosis"); return "p5_urgent_appt_check"; }
-        return "p5_urgent_fax";
+        if (s.out.urgent === "YES") return "p5_urgent_appt_check";
+        return "p5_careteam1";
       }
     },
     p5_urgent_fax: { kind:"yesno", source:"Referral document - fax marking", part:7,
@@ -2899,15 +2982,25 @@
       warning:"A provider can be listed as both PCP and Referring Provider at the same time. If a PCP is already listed, do not delete or override it - leave the existing entry alone.",
       text:"Check Care Team for an existing PCP on this patient.",
       short:"PCP already listed?",
-      yes:function(s){ setOut("pcpNote","do not override existing PCP"); return "p5_registration"; },
+      yes:function(s){ setOut("pcpNote","do not override existing PCP"); return "p5_careteam_done"; },
       no:function(s){ return "p5_pcp_specialty"; }
+    },
+    // Where the Care Team block hands back to. Set by whichever gate sent us in,
+    // so the block can be entered from more than one place without either caller
+    // having to know what the other does.
+    p5_careteam_done: { kind:"auto", part:4,
+      run:function(s){
+        var next = s._afterCareTeam || "p5_registration";
+        s._afterCareTeam = null;
+        return next;
+      }
     },
     p5_pcp_specialty: { kind:"yesno", source:"Referral document - referring provider's specialty", part:4,
       warning:"A provider can be listed as both Referring Provider and PCP at the same time - adding the referring provider as PCP doesn't remove them as Referring Provider, or vice versa.",
       text:"Check the referral for whether the referring provider is Family Medicine, Internal Medicine, or a Nurse Practitioner (FM / IM / FNP).",
       short:"Referring provider is FM/IM/FNP?",
-      yes:function(s){ setOut("pcpNote","add referring provider as PCP"); return "p5_registration"; },
-      no:function(s){ setOut("pcpNote","referring provider is not FM/IM/FNP - no PCP action"); return "p5_registration"; }
+      yes:function(s){ setOut("pcpNote","add referring provider as PCP"); return "p5_careteam_done"; },
+      no:function(s){ setOut("pcpNote","referring provider is not FM/IM/FNP - no PCP action"); return "p5_careteam_done"; }
     },
     // Reported from the floor: not all three of these are in Full Registration,
     // and some of them do not have to be. The field notes underneath already
@@ -3203,9 +3296,21 @@
       yes:function(s){ setOut("authObjNote","existing authorization already in chart, valid for 90+ days - use it, no new object needed"); setOut("outboundExport","no"); return "__DONE__"; },
       no:function(s){ s.pendingBanner = "The existing authorization doesn't have 90+ days of validity left - a new one is needed."; return "p5_auth_onfax"; }
     },
-    p5_auth_onfax: { kind:"yesno", source:"Referral document", part:11,
+    p5_auth_onfax: { kind:"yesno3", source:"Referral document", part:11,
       text:"Is the authorization info printed on the fax?",
       short:"Auth info on fax?",
+      thirdLabel:"No - but I have the number and will enter it by hand",
+      // Reported: the number is already in hand and the object just needs
+      // creating. That is neither "it is on the fax" nor "send an outbound
+      // request", and without a third answer it was being forced into one of
+      // them. Same create-new instructions as the fax branch, because the object
+      // being created is the same object; only where the number came from
+      // differs, and that is recorded.
+      third:function(s){
+        setOut("authObjNote","Check first - no valid existing authorization, so create new by hand from the authorization number already held (not from the fax, and no outbound request needed). Type: Pre-Cert (not Referral). Referring provider = referring provider on fax; Referred-to provider = receiving provider (leave blank if none named, e.g. round-robin); Specialty = Cardiology; Department = Primary Department; Insurance authorization number = the number you hold; Effective date = as given with the number, or start = date of referral and end = one year from start if none; Number of visits/units = as given, default 12 if none; Diagnosis codes = ICD-10 codes if extracted; Additional information = note where the number came from");
+        setOut("outboundExport","no");
+        return "__DONE__";
+      },
       yes:function(s){ setOut("authObjNote","Check first - no valid existing authorization, so create new. Type: Pre-Cert (not Referral). Referring provider = referring provider on fax; Referred-to provider = receiving provider (leave blank if none named, e.g. round-robin); Specialty = Cardiology; Department = Primary Department; Insurance authorization number = from the fax if a real number exists, otherwise type \"paper\" into that field (paper referral, no formal auth number); Effective date = from the fax, or for paper referrals with no dates: start = date of referral, end = one year from start; Number of visits/units = from the fax, default 12 for paper referrals if missing; Diagnosis codes = ICD-10 codes if extracted (required for both paper and auth referrals); Additional information = any other details available on the fax"); setOut("outboundExport","no"); return "__DONE__"; },
       no:function(s){ return "p5_auth_outbound"; }
     },
@@ -5255,9 +5360,9 @@
       // deliberately: a list nobody prunes stops being read. Internal work does
       // not belong here - only what an operator would notice.
       group('Recent updates', [
-        '<b>8 Sep</b> - Pasting a path saved from a different version is refused with a message naming the question it disagrees on, instead of applying half of it and leaving you part-way through a referral with no warning.',
-        '<b>8 Sep</b> - Typing a patient you have already worked this session brings up a warning naming the earlier task and how it ended. It matches the same patient however the name arrives - pasted last-name-first, in capitals, or with an MRN or date of birth in brackets, which is dropped rather than stored.',
-        '<b>8 Sep</b> - The header shows the patient\'s initials and the Task ID rather than the full name, which used to sit on screen for the whole referral. The name is still on the question where you typed it, and on hover.'
+        '<b>8 Sep</b> - <b>Urgent referrals use a 7-day window.</b> An appointment further out than a week no longer counts as the upcoming one, so an urgent referral stops taking its provider from a booking weeks away. The diagnosis is asked first now, on every referral, because urgency comes from it as much as from the fax marking.',
+        '<b>8 Sep</b> - The Care Team questions run straight after insurance rather than five questions later, and \"Any other block?\" is now <b>\"Is everything else clear to schedule?\"</b> - Yes is the good answer, as it is everywhere else.',
+        '<b>8 Sep</b> - Today\'s date is filled in on the referral date, and the first key you press clears it. There is a third answer on the authorization question for when you already hold the number and just need to enter it by hand.'
       ]) +
 
       group('Insurance', [
@@ -5756,12 +5861,31 @@
     for (var b = 0; b < texts.length; b++){
       (function(el){
         var f = node.fields[parseInt(el.getAttribute("data-fi"), 10)];
+        // Today's date is right most of the time, so it is filled in - but it is
+        // a suggestion, and clearing it by hand before typing a different one was
+        // work the tool was creating for itself. The first keystroke empties it.
+        var prefilled = false;
         if (f.defaultToday && formDraft[f.short] === undefined){
           var today = new Date();
           el.value = String(today.getMonth() + 1).padStart(2, "0") + "/" +
                      String(today.getDate()).padStart(2, "0") + "/" + today.getFullYear();
           formDraft[f.short] = el.value;
+          prefilled = true;
+          el.classList.add("is-prefilled");
         }
+        el.addEventListener("keydown", function(e){
+          if (!prefilled) return;
+          // Anything that types a character, and Backspace, clears the lot.
+          // Tab, arrows and modifiers leave it alone so it can still be accepted.
+          if (e.key === "Backspace" || e.key === "Delete" || (e.key.length === 1 && !e.metaKey && !e.ctrlKey && !e.altKey)){
+            prefilled = false;
+            el.classList.remove("is-prefilled");
+            el.value = "";
+            formDraft[f.short] = "";
+            if (e.key === "Backspace" || e.key === "Delete") e.preventDefault();
+          }
+        });
+        el.addEventListener("blur", function(){ prefilled = false; el.classList.remove("is-prefilled"); });
         el.addEventListener("input", function(){
           if (f.dateMask) el.value = formatDateMask(el.value);
           formDraft[f.short] = el.value;
@@ -5921,11 +6045,24 @@
     stage.innerHTML = html;
 
     var input = document.getElementById("textField");
+    var datePrefilled = false;
     if (node.defaultToday){
       var today = new Date();
       var mm = String(today.getMonth() + 1).padStart(2, "0");
       var dd = String(today.getDate()).padStart(2, "0");
       input.value = mm + "/" + dd + "/" + today.getFullYear();
+      datePrefilled = true;
+      input.classList.add("is-prefilled");
+      input.addEventListener("keydown", function(e){
+        if (!datePrefilled) return;
+        if (e.key === "Backspace" || e.key === "Delete" || (e.key.length === 1 && !e.metaKey && !e.ctrlKey && !e.altKey)){
+          datePrefilled = false;
+          input.classList.remove("is-prefilled");
+          input.value = "";
+          if (e.key === "Backspace" || e.key === "Delete") e.preventDefault();
+        }
+      });
+      input.addEventListener("blur", function(){ datePrefilled = false; input.classList.remove("is-prefilled"); });
     }
     input.focus();
     if (node.defaultToday) input.select();
@@ -6570,14 +6707,30 @@
       return new RegExp("\\b" + esc + "\\b").test(dl);
     }
     if (hit(q)) return true;
-    // Words of three letters or more only: "of", "c/o" and "r/o" match half the
-    // table and mean nothing.
-    var words = q.split(/[^a-z0-9.]+/).filter(function(w){ return w.length >= 3; });
+    // Words of three letters or more, and not a qualifier. Adding the ICD-10
+    // phrasings made the omission obvious: every "X, unspecified" query matched
+    // "Endocarditis, valve unspecified" on the shared word, so a search for
+    // "Chest pain, unspecified" was answered with endocarditis. These words
+    // appear across the table and carry no signal on their own - they still
+    // match as part of the whole query, they just cannot carry a match alone.
+    var words = q.split(/[^a-z0-9.]+/).filter(function(w){
+      return w.length >= 3 && !DIAGNOSIS_QUALIFIERS[w];
+    });
     // No guard on how many words survive the filter. "pt c/o palpitations" has
     // four tokens and exactly one worth testing, and requiring two dropped it.
     // A single-word query costs one redundant test, since that word is the query.
     return words.some(hit);
   }
+
+  var DIAGNOSIS_QUALIFIERS = (function(){
+    var set = {};
+    ("unspecified other others primary secondary mixed chronic acute type without with " +
+     "disease disorder disorders syndrome follow up left right bilateral due and the for " +
+     "not nos initial subsequent encounter unstable stable").split(" ").forEach(function(w){
+      if (w) set[w] = true;
+    });
+    return set;
+  })();
 
   function renderDiagnosisNode(node){
     var selected = [];
@@ -6622,9 +6775,16 @@
       var q = searchInput.value.trim().toLowerCase();
       suggestionsEl.innerHTML = "";
       if (!q){ suggestionsEl.style.display = "none"; return; }
-      var matches = CANONICAL_DIAGNOSES.filter(function(d){
-        return diagnosisSearchMatches(d, q) && selected.indexOf(d) === -1;
-      }).slice(0, 8);
+      // Whole-query matches first. Without this an entry that answers the search
+      // exactly sits below one that merely shares a word with it, because the
+      // list is in table order and the table is not ordered by relevance.
+      var whole = [], partial = [];
+      CANONICAL_DIAGNOSES.forEach(function(d){
+        if (selected.indexOf(d) !== -1) return;
+        if (!diagnosisSearchMatches(d, q)) return;
+        (d.toLowerCase().indexOf(q) !== -1 ? whole : partial).push(d);
+      });
+      var matches = whole.concat(partial).slice(0, 8);
       var exact = CANONICAL_DIAGNOSES.some(function(d){ return d.toLowerCase() === q; });
       var html2 = matches.map(function(d){
         var cats = specialtiesForDiagnosis(d).join(", ");

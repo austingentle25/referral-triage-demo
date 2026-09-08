@@ -3,7 +3,7 @@
 Everything outstanding on Referral Sync Helper, and what has closed. Kept in the
 repo so a decision is not rediscovered as new work later.
 
-**Last updated:** 8 September 2026, after clearing the open list on judgement.
+**Last updated:** 8 September 2026, after the feedback batch.
 
 ---
 
@@ -48,23 +48,28 @@ repo so a decision is not rediscovered as new work later.
 | F14 | APP specialties | **Keep as they are.** An APP sees the patients of the physician they work with, so inheriting that physician's specialties is the behaviour that matches the work. No sheet can settle it because none covers APPs, and the current rule has a reason rather than being an accident |
 | F15 | The insurance questions, one systematic pass | **Measured, and clean.** Over 400 walks, 183 consulted the grid and those runs ask a median of 3 insurance questions. Everything the grid answers is at zero: contracted, referral required and authorization required are never asked by hand. What survives is not redundant - whether Valerie and Athena agree (100%), whether the record synced and came back eligible (78%), and the mismatch branch. See below |
 | F16 | `TPR-RULES.md` out of step | **Updated.** Definitions split, and it now records the fifteen-step structure it claimed to describe |
+| G1 | Urgent referrals used the 60-day window (#19) | **Fixed.** 7 days when urgent. Urgency comes from the diagnosis as well as the fax marking, so the diagnosis moved to the front to settle it before the window question is asked |
+| G2 | The diagnosis was skipped on some referrals (#22) | **Fixed.** Asked first, on every referral. The three later entry gates already read "diagnosis present?" and now simply stop asking. 0 of 200 walks reach a determination without one |
+| G3 | Care Team came five questions after insurance (#15) | **Fixed.** It runs straight after the payor question and hands back to wherever the gate that sent it in was going |
+| G4 | "Any other block?" had Yes as the bad answer (#16) | **Fixed.** Now "Is everything else clear to schedule?", under a new node id so paths saved before it are refused rather than replayed into the opposite branch |
+| G5 | No way to say the authorization is being created by hand (#18) | **Fixed.** A third answer for when the number is already held - same create-new instructions, no outbound request |
+| G6 | The referral date had to be cleared before retyping (#23) | **Fixed.** Today's date is filled in greyed, and the first keystroke clears it |
+| G7 | ICD-10 phrasings found nothing (#21) | **Fixed.** Eight added, each checked against the live matcher. Also fixed a fault it exposed: a shared qualifier like "unspecified" could carry a match on its own, so "Chest pain, unspecified" was answered with endocarditis |
+| G8 | Peter Maki's specialty | **General only**, decided by Austin. Kevin Murphy inherits |
+| G9 | A loop before the insurance question (#17) | **Closed against G1.** Not reproducible on its own - the attached path runs straight through. Same task and same two-week appointment as #19; the tool kept resolving the wrong provider from an appointment that should not have counted |
 
 ---
 
 ## Still open
 
-### 1. Peter Maki's specialty — two sheets disagree
 
-| Source | Says |
-|---|---|
-| Provider Specific Rules | General, Interventional |
-| Diagnosis → Specialty | **General only**, with the hypercholesterolemia exception in the notes column |
-| The tool today | General, Interventional |
+### 1. Provider addresses on the location picker (#20)
 
-Changing this alters which diagnoses route to him — a real determination change —
-so it is flagged rather than guessed. **Kevin Murphy, his APP, inherits whichever
-you decide.**
+Reported 8 September, **blocked on data**. The tool holds no addresses at all -
+`DEPT_OPTIONS` is names and department numbers, and there is no address field in
+`PROVIDER_DATA`. It cannot be built from what is in the file.
 
+Needs one address per location for the thirteen departments. Issue left open.
 
 ### 2. The step numbering runs backwards
 
