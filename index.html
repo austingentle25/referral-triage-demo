@@ -1681,7 +1681,7 @@
   function taskElapsedMs(){
     var sum = 0;
     if (state && state.stepTimings){
-      for (var i = 0; i < state.stepTimings.length; i++) sum += state.stepTimings[i].ms;
+      for (var i = 0; i < state.stepTimings.length; i++) sum += (state.stepTimings[i].ms || 0);
     }
     return sum + currentStepMs();
   }
@@ -1854,7 +1854,7 @@
   function freshState(){
     runCounter++;
     return { runId:"run-" + runCounter + "-" + Date.now(), runSeq:runCounter,
-             node:"p_reviewer_entry", crumbs:[], out:{}, stepTimings:[], manualReview:false, manualReviewReason:null,
+             node:"p_reviewer_entry", crumbs:[], out:{}, stepTimings:[], backSteps:[], manualReview:false, manualReviewReason:null,
              manualReviewPart:0, lastPart:0, pendingBanner:null, part1Result:null, part1Reason:null,
              progressHigh:0, providerTreatsDx:false, hasUpcomingAppt:false, awaitingInfo:false, isCamelbackReferral:null, needsEngineeringEscalation:false, isLoliBahu:false, pendingEdgeCase:false, pendingSelfPay:false,
              _afterDiag:null, _afterDiag2:null, _afterDiag3:null };
@@ -3149,10 +3149,22 @@
   }
 
   function recordStepTime(node){
-    // The untimed opening step contributes nothing, so it is not logged at all
-    // rather than logged as 0s, which would read as a real measurement.
-    if (!stepStartTime) return;
-    state.stepTimings.push({ short: node.short, ms: currentStepMs() });
+    // The node id and the part travel with the timing. Without the id a log
+    // cannot be joined back to the graph, so "which of the 120 questions is
+    // never reached" and "where does operator time actually go" are
+    // unanswerable from an export - which is the whole point of exporting one.
+    //
+    // The opening step runs before the clock starts. It used to be dropped
+    // entirely rather than logged as 0s, which would read as a real
+    // measurement; it is recorded now with a null time instead, so it counts
+    // towards coverage without inventing a duration. Every consumer has to
+    // treat null as "not timed" rather than as zero.
+    state.stepTimings.push({
+      node: state.node,
+      short: node.short,
+      part: node.part,
+      ms: stepStartTime ? currentStepMs() : null
+    });
   }
 
   function answer(node, kind, label){
@@ -3344,9 +3356,21 @@
     return { ok:true };
   }
 
+  // A question answered and then reversed is the strongest signal the tool has
+  // that the question was unclear. It was not recorded anywhere, so it could not
+  // be counted. Recorded on the state being restored to, because that is the run
+  // the export will carry.
   function goBack(){
     if (!historyStack.length) return;
+    var from = state.node;
+    var fromShort = (NODES[from] && NODES[from].short) || "";
     state = historyStack.pop();
+    if (!state.backSteps) state.backSteps = [];
+    state.backSteps.push({
+      from: from, fromShort: fromShort,
+      to: state.node, toShort: (NODES[state.node] && NODES[state.node].short) || "",
+      at: Date.now()
+    });
     render();
   }
 
@@ -3378,7 +3402,9 @@
   // the list has to survive the change that prompted the export.
   var LOG_FORMAT = "tpr-session-log";
   var logImportResult = null;
-  var LOG_FORMAT_VERSION = 1;
+  // 2: entries gained steps, answers, backSteps, stopReason and reviewer. Older
+  // exports import fine - importLogText defaults every one of them.
+  var LOG_FORMAT_VERSION = 2;
 
   // A transferred log identifies its rows by Task ID, so the patient name does
   // not travel with it. The name is replaced rather than dropped: it is the
@@ -3411,6 +3437,14 @@
     c.patientName = EXPORT_REDACTION;
     c.why = scrub(e.why);
     c.output = scrub(e.output);
+    // The answer list is free text in places - the patient name is one of the
+    // answers - so it goes through the same scrub as the trail rather than
+    // being trusted because it is structured.
+    if (Array.isArray(e.answers)){
+      c.answers = e.answers.map(function(a){
+        return { short: a.short, answer: scrub(a.answer) };
+      });
+    }
     c.at = (e.at instanceof Date) ? e.at.toISOString() : String(e.at || "");
     return c;
   }
@@ -3457,6 +3491,14 @@
         ms: typeof raw.ms === "number" ? raw.ms : 0,
         reviewerNote: raw.reviewerNote || "",
         pendingOn: Array.isArray(raw.pendingOn) ? raw.pendingOn : [],
+        // Format 2 fields. A format 1 export has none of them and imports fine;
+        // it simply contributes nothing to the analysis, which is honest.
+        reviewer: raw.reviewer || "",
+        steps: Array.isArray(raw.steps) ? raw.steps : [],
+        answers: Array.isArray(raw.answers) ? raw.answers : [],
+        backSteps: Array.isArray(raw.backSteps) ? raw.backSteps : [],
+        stopReason: raw.stopReason || "",
+        stopPart: typeof raw.stopPart === "number" ? raw.stopPart : null,
         output: raw.output || "",
         why: raw.why || "",
         imported: true
@@ -3503,8 +3545,21 @@
       location: deptShortName(o.location) || "", bucket: o.bucket || "",
       urgent: o.urgent === "YES", outcome: outcome,
       schedulingStatus: computeSchedulingStatus(),
-      ms: (state.stepTimings || []).reduce(function(sum, t){ return sum + t.ms; }, 0),
+      ms: (state.stepTimings || []).reduce(function(sum, t){ return sum + (t.ms || 0); }, 0),
       reviewerNote: o.reviewerNote || "", pendingOn: pendingOn,
+      // Everything below is for analysis of how the graph is actually worked.
+      // None of it is shown in the tool; it exists to be exported and counted.
+      reviewer: o.reviewer || sessionReviewer || "",
+      steps: (state.stepTimings || []).map(function(t){
+        return { node: t.node, short: t.short, part: t.part, ms: t.ms };
+      }),
+      answers: (state.crumbs || []).filter(function(c){ return !c.divider; })
+                 .map(function(c){ return { short: c.short, answer: c.answer }; }),
+      backSteps: (state.backSteps || []).slice(),
+      // A stop is the most informative outcome there is, and the reason was
+      // only ever rendered on screen.
+      stopReason: state.node === "__STOP__" ? (state.manualReviewReason || "") : "",
+      stopPart: state.node === "__STOP__" ? (state.manualReviewPart || 0) : null,
       output: buildOutputText(), why: buildWhyPath()
     };
     for (var i = 0; i < sessionLog.length; i++){
@@ -4169,13 +4224,19 @@
     return min + "m " + (sec < 10 ? "0" : "") + sec + "s";
   }
   function buildTotalTimeNote(){
-    var timings = state.stepTimings || [];
+    // Only the timed steps. The opening question is recorded with a null time
+    // so it counts towards coverage in an export, and adding it in as zero
+    // would quietly claim it was instantaneous.
+    var timings = timedSteps();
     if (!timings.length) return "";
     var total = timings.reduce(function(sum, t){ return sum + t.ms; }, 0);
     return "Total time to complete: " + formatDuration(total);
   }
+  function timedSteps(){
+    return (state.stepTimings || []).filter(function(t){ return typeof t.ms === "number"; });
+  }
   function timeBreakdownHtml(){
-    var timings = state.stepTimings || [];
+    var timings = timedSteps();
     if (!timings.length) return "";
     var total = timings.reduce(function(sum, t){ return sum + t.ms; }, 0);
     var sorted = timings.slice().sort(function(a, b){ return b.ms - a.ms; });
