@@ -405,10 +405,22 @@
     flex:1; padding:16px 10px; font-size:1.0625rem; font-weight:700; border-radius:11px; border:none;
     cursor:pointer; -webkit-tap-highlight-color:transparent;
   }
-  .btn.yes{background:var(--picked-solid);color:var(--k34f);}
-  .btn.yes:active{background:var(--k37b);}
-  .btn.no{background:var(--review-solid);color:var(--k34f);}
-  .btn.no:active{background:var(--k38b);}
+  /* Both answers are neutral. Green Yes and red No said one answer was the right
+     one on questions where neither is - "have they completed a qualifying
+     appointment in the last 3 years?" has no good answer, only a true one - and
+     it borrowed --picked-solid and --review-solid, which mean "chosen" and
+     "needs manual review" everywhere else in the file. Those two keep their
+     meaning and are left alone; colour here is reserved for outcomes that
+     actually block or end a referral.
+     The pair is given the same border rather than different weights: a heavier
+     border on one is visual weight, which is the same nudge in a quieter voice.
+     They are told apart by position and by their labels, and the shared heavier
+     border sets the answer pair apart from Back and Continue. */
+  .btn.yes, .btn.no{
+    background:var(--panel); color:var(--ink); border:2px solid var(--ink-soft);
+  }
+  .btn.yes:hover, .btn.no:hover{ background:var(--k35b); }
+  .btn.yes:active, .btn.no:active{ background:var(--k36b); }
   .third-row{ margin-top:10px; text-align:center; }
   .btn.third{
     background:none; border:1px solid var(--location); color:var(--location);
