@@ -529,6 +529,11 @@
     align-items:baseline; gap:10px;
   }
   .dx-suggestion-inactive:hover{ background:none; }
+  /* Selectable, but not without knowing. Marked by a rule as well as a colour. */
+  .dx-suggestion-restricted{ box-shadow:inset 3px 0 0 var(--review); }
+  .restriction-tag{
+    font-size:0.6875rem; font-weight:700; color:var(--review); margin-top:2px;
+  }
   .inactive-tag{
     font-size:0.625rem; font-weight:700; letter-spacing:.03em; text-transform:uppercase;
     color:var(--review); white-space:nowrap;
@@ -5045,6 +5050,15 @@
       '<h2>Referral Sync Helper</h2>' +
       '<p class="about-lede">What the tool does.</p>' +
 
+      // The three most recent user-visible changes, newest first. Kept to three
+      // deliberately: a list nobody prunes stops being read. Internal work does
+      // not belong here - only what an operator would notice.
+      group('Recent updates', [
+        '<b>8 Sep</b> - The diagnosis search stops matching inside words. Typing AS used to offer "Coronary Artery Disease" and PE used to offer "Angina Pectoris"; VT and MI now find the right diagnosis instead of an unrelated one. A search longer than the name also matches now, so "SOB on exertion" and "c/o chest pain" find something.',
+        '<b>8 Sep</b> - The provider search marks a restricted provider the same way the tap list does, at the point you pick them rather than on the output card twenty questions later.',
+        '<b>8 Sep</b> - The tool checks that the provider you picked treats the diagnosis, instead of taking it on trust. Picking a specialist from the full list who does not cover the diagnosis now sends the referral to review.'
+      ]) +
+
       group('Insurance', [
         'Holds 307 insurance packages from the referral grid. Enter the package number and it fills in whether the plan is contracted and whether a referral or an authorization is required.',
         'Finds a package by its number or by the insurance name.',
@@ -5774,7 +5788,13 @@
         if (seenProvider[opt.value]) return;
         seenProvider[opt.value] = true;
         flat.push({ value:opt.value, label:opt.label, groupLabel:g.label,
-                    inactive: !!(PROVIDER_LOOKUP[opt.value] && PROVIDER_LOOKUP[opt.value].inactive) });
+                    inactive: !!(PROVIDER_LOOKUP[opt.value] && PROVIDER_LOOKUP[opt.value].inactive),
+                    // The tap-to-select list has always annotated these. This
+                    // picker is the same decision and said nothing, so the same
+                    // choice warned you or did not depending on which control
+                    // you reached it through - and the restriction only surfaced
+                    // on the output card about twenty questions later.
+                    restriction: restrictionLabel(opt.value).replace(/^ - /, "") });
       });
     });
     var selectedValue = null;
@@ -5867,7 +5887,10 @@
           return '<div class="dx-suggestion dx-suggestion-inactive" aria-disabled="true">' +
             escapeHtml(f.label) + '<span class="inactive-tag">not active - do not select</span></div>';
         }
-        return '<div class="dx-suggestion" data-val="' + escapeHtml(f.value) + '">' + escapeHtml(f.label) + '</div>';
+        return '<div class="dx-suggestion' + (f.restriction ? ' dx-suggestion-restricted' : '') + '"' +
+          ' data-val="' + escapeHtml(f.value) + '">' + escapeHtml(f.label) +
+          (f.restriction ? '<span class="restriction-tag">' + escapeHtml(f.restriction) + '</span>' : '') +
+          '</div>';
       }).join("");
       suggestionsEl.style.display = "block";
       suggestionsEl.querySelectorAll(".dx-suggestion[data-val]").forEach(function(el){
@@ -6275,6 +6298,38 @@
     wireEngFlagBox(node);
   }
 
+  // The picker used to be a bare indexOf over the canonical names, which had two
+  // failures pulling in opposite directions.
+  //
+  // It matched mid-word, so two letters found something unrelated and confident:
+  // "AS" offered "Coronary Artery DiSEase", "PE" offered "Angina PEctoris",
+  // "HTN" offered "Chest TigHTNess", "MI" offered "HyperlipideMIa". Seven of
+  // twenty abbreviations tested produced a wrong top suggestion. A query of four
+  // characters or fewer now has to land on a whole word - the same threshold and
+  // the same rule specialtiesForDiagnosis() already applies to its keywords.
+  //
+  // And a query longer than the diagnosis name could never match, so "SOB" found
+  // "Shortness of Breath (SOB)" and "SOB on exertion" found nothing. Every piece
+  // of fax shorthand tested failed for that reason alone, not for want of
+  // vocabulary. A multi-word query now also matches on any of its words.
+  function diagnosisSearchMatches(d, q){
+    var dl = d.toLowerCase();
+    function hit(term){
+      if (!term) return false;
+      if (term.length > 4) return dl.indexOf(term) !== -1;
+      var esc = term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      return new RegExp("\\b" + esc + "\\b").test(dl);
+    }
+    if (hit(q)) return true;
+    // Words of three letters or more only: "of", "c/o" and "r/o" match half the
+    // table and mean nothing.
+    var words = q.split(/[^a-z0-9.]+/).filter(function(w){ return w.length >= 3; });
+    // No guard on how many words survive the filter. "pt c/o palpitations" has
+    // four tokens and exactly one worth testing, and requiring two dropped it.
+    // A single-word query costs one redundant test, since that word is the query.
+    return words.some(hit);
+  }
+
   function renderDiagnosisNode(node){
     var selected = [];
 
@@ -6319,7 +6374,7 @@
       suggestionsEl.innerHTML = "";
       if (!q){ suggestionsEl.style.display = "none"; return; }
       var matches = CANONICAL_DIAGNOSES.filter(function(d){
-        return d.toLowerCase().indexOf(q) !== -1 && selected.indexOf(d) === -1;
+        return diagnosisSearchMatches(d, q) && selected.indexOf(d) === -1;
       }).slice(0, 8);
       var exact = CANONICAL_DIAGNOSES.some(function(d){ return d.toLowerCase() === q; });
       var html2 = matches.map(function(d){
