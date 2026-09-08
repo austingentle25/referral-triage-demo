@@ -652,6 +652,10 @@
     background:var(--panel); color:var(--ink); cursor:pointer; font-family:inherit; font-weight:600; }
   .payor-out:hover{ border-color:var(--teal); color:var(--teal); }
   .payor-meta{ display:block; font-size:0.6875rem; color:var(--k03f); margin-top:2px; }
+  .payor-out.on{ background:var(--teal); border-color:var(--teal); color:var(--k14f); }
+  .payor-manual{ margin-top:16px; padding-top:14px; border-top:1px solid var(--line);
+    display:flex; flex-direction:column; gap:14px; }
+  .payor-manual-head{ font-size:0.78rem; color:var(--k03f); font-weight:600; }
   ul.neat{ margin:0; padding-left:0; list-style:none; }
   ul.neat li{ font-size:0.86rem; line-height:1.5; padding:7px 0; border-bottom:1px solid var(--line); }
   ul.neat li:last-child{ border-bottom:none; }
@@ -3063,15 +3067,21 @@
         // The crumb is "Not in the document", "Not in our database", or
         // "<package> - <name>". Replayed through the same function the screen
         // uses, so the two cannot drift apart.
-        var pid = step.answer === "Not in the document" ? PAYOR_NOT_IN_DOC
-                : step.answer === "Not in our database" ? PAYOR_NOT_IN_DB
-                : String(step.answer).split(" - ")[0].trim();
+        var ans = String(step.answer);
+        var manualAns = null, pid;
+        if (ans.indexOf("Not in the document") === 0 || ans.indexOf("Not in our database") === 0){
+          pid = ans.indexOf("Not in the document") === 0 ? PAYOR_NOT_IN_DOC : PAYOR_NOT_IN_DB;
+          var g = function(k){ var m = ans.match(new RegExp(k + ": ([^;]+)")); return m ? m[1].trim() : null; };
+          manualAns = { contracted: g("Contracted"), referral: g("Referral"), auth: g("Auth") };
+        } else {
+          pid = ans.split(" - ")[0].trim();
+        }
         if (pid !== PAYOR_NOT_IN_DOC && pid !== PAYOR_NOT_IN_DB && !PAYOR_TABLE[pid]){
           return { ok:false, error:"Stopped at step " + (i+1) + " - package \"" + pid + "\" is no longer in the referral grid." };
         }
         historyStack.push(JSON.parse(JSON.stringify(state)));
         recordStepTime(node);
-        var pr = applyPayorChoice(node, pid);
+        var pr = applyPayorChoice(node, pid, manualAns);
         state.crumbs.push({ short: node.short, answer: pr.answer });
         gotoResolve(pr.next);
         continue;
@@ -5209,16 +5219,37 @@
   // plan name, because a reviewer may have either in front of them. The two
   // fixed options are always offered: they are real answers, not failures, and
   // burying them would push somebody into typing a guess.
-  function applyPayorChoice(node, id){
+  function applyPayorChoice(node, id, manual){
     var answer, next;
-    if (id === PAYOR_NOT_IN_DOC){
-      setOut("payorNote", "no payor ID on the document");
-      answer = "Not in the document";
-      next = "p4_q2";
-    } else if (id === PAYOR_NOT_IN_DB){
-      setOut("payorNote", "payor not in the referral grid - answered by hand");
-      answer = "Not in our database";
-      next = "p4_q2";
+    if (id === PAYOR_NOT_IN_DOC || id === PAYOR_NOT_IN_DB){
+      // manual is {contracted, referral, auth} collected on the payor screen
+      var m = manual || {};
+      var why = (id === PAYOR_NOT_IN_DOC) ? "no payor ID on the document"
+                                          : "payor not in the referral grid - answered by hand";
+      setOut("payorNote", why);
+      answer = (id === PAYOR_NOT_IN_DOC ? "Not in the document" : "Not in our database") +
+               " - Contracted: " + m.contracted +
+               (m.referral ? "; Referral: " + m.referral : "") +
+               (m.auth ? "; Auth: " + m.auth : "");
+      if (m.contracted === "Edge case"){
+        setOut("contractedGrid","N/A - edge case (see type-specific check)");
+        state._afterEdgeCase = "p4_diag_entry";
+        next = "p4_edge_case_type";
+      } else if (m.contracted === "Self-pay"){
+        setOut("contractedGrid","N/A - self-pay");
+        setOut("insurancePath","self-pay - no insurance to bill, proceed accordingly");
+        next = "p4_diag_entry";
+      } else if (m.contracted === "No"){
+        setOut("contractedGrid","No");
+        setOut("bucket","sscardio");
+        setOut("actionNote","Ineligible for Scheduling - Ineligible Insurance");
+        next = "p5_referral_date";
+      } else {
+        setOut("contractedGrid","Yes");
+        setOut("referralRequiredGrid", m.referral);
+        setOut("referralAuthRequiredGrid", m.auth);
+        next = "p4_diag_entry";
+      }
     } else {
       setOut("payorId", id);
       var hit = PAYOR_TABLE[id];
@@ -5294,6 +5325,27 @@
           '<button type="button" class="payor-out" data-val="' + PAYOR_NOT_IN_DOC + '">Not in the document</button>' +
           '<button type="button" class="payor-out" data-val="' + PAYOR_NOT_IN_DB + '">Not in our database</button>' +
         '</div>' +
+        '<div class="payor-manual" id="payorManual" hidden>' +
+          '<div class="payor-manual-head" id="payorManualHead"></div>' +
+          '<div class="form-field"><div class="form-q">Is this plan contracted with Biltmore?</div>' +
+            '<div class="form-opts" data-f="contracted">' +
+              '<button type="button" class="form-opt" data-v="Yes">Yes</button>' +
+              '<button type="button" class="form-opt" data-v="No">No</button>' +
+              '<button type="button" class="form-opt" data-v="Edge case">Edge case (VA, Mercy, other)</button>' +
+              '<button type="button" class="form-opt" data-v="Self-pay">Self-pay</button>' +
+            '</div></div>' +
+          '<div class="form-field" id="payorRefField" hidden><div class="form-q">Is a referral required?</div>' +
+            '<div class="form-opts" data-f="referral">' +
+              '<button type="button" class="form-opt" data-v="Yes">Yes</button>' +
+              '<button type="button" class="form-opt" data-v="No">No</button>' +
+            '</div></div>' +
+          '<div class="form-field" id="payorAuthField" hidden><div class="form-q">Is referral authorization required?</div>' +
+            '<div class="form-opts" data-f="auth">' +
+              '<button type="button" class="form-opt" data-v="Yes">Yes</button>' +
+              '<button type="button" class="form-opt" data-v="No">No</button>' +
+            '</div></div>' +
+          '<div class="btnrow-continue"><button class="continue-btn" id="payorManualGo" disabled>Continue</button></div>' +
+        '</div>' +
         '<div class="btnrow-continue">' + backButtonHtml() + '</div>' +
       '</div>' +
       whyPathBoxHtml() + feedbackBoxHtml(node) + engFlagBoxHtml(node);
@@ -5303,10 +5355,10 @@
     var listEl = document.getElementById("payorSuggestions");
     input.focus();
 
-    function pick(id){
+    function pick(id, manual){
       historyStack.push(JSON.parse(JSON.stringify(state)));
       recordStepTime(node);
-      var r = applyPayorChoice(node, id);
+      var r = applyPayorChoice(node, id, manual);
       state.crumbs.push({ short: node.short, answer: r.answer });
       gotoResolve(r.next);
     }
@@ -5348,8 +5400,53 @@
       });
     }
     input.addEventListener("input", renderList);
+
+    // The two escape hatches open the grid questions here rather than sending
+    // the reviewer through three more screens. Referral and authorization only
+    // apply to a contracted plan, so they appear once that is answered Yes.
+    var manual = { contracted:null, referral:null, auth:null };
+    var manualFor = null;
+    var manualEl = document.getElementById("payorManual");
+    var refField = document.getElementById("payorRefField");
+    var authField = document.getElementById("payorAuthField");
+    var manualGo = document.getElementById("payorManualGo");
+
+    function manualReady(){
+      if (!manual.contracted) return false;
+      if (manual.contracted !== "Yes") return true;
+      return !!(manual.referral && manual.auth);
+    }
+    function refreshManual(){
+      var contracted = manual.contracted === "Yes";
+      refField.hidden = !contracted;
+      authField.hidden = !contracted;
+      manualGo.disabled = !manualReady();
+    }
+    manualEl.querySelectorAll(".form-opt").forEach(function(b){
+      b.addEventListener("click", function(){
+        var f = b.parentElement.getAttribute("data-f");
+        manual[f] = b.getAttribute("data-v");
+        b.parentElement.querySelectorAll(".form-opt").forEach(function(x){ x.classList.remove("on"); });
+        b.classList.add("on");
+        if (f === "contracted" && manual.contracted !== "Yes"){ manual.referral = null; manual.auth = null;
+          manualEl.querySelectorAll('[data-f="referral"] .form-opt, [data-f="auth"] .form-opt')
+            .forEach(function(x){ x.classList.remove("on"); }); }
+        refreshManual();
+      });
+    });
+    manualGo.addEventListener("click", function(){ if (manualReady()) pick(manualFor, manual); });
+
     stage.querySelectorAll(".payor-out").forEach(function(b){
-      b.addEventListener("click", function(){ pick(b.getAttribute("data-val")); });
+      b.addEventListener("click", function(){
+        manualFor = b.getAttribute("data-val");
+        stage.querySelectorAll(".payor-out").forEach(function(x){ x.classList.remove("on"); });
+        b.classList.add("on");
+        document.getElementById("payorManualHead").textContent =
+          (manualFor === PAYOR_NOT_IN_DOC ? "No payor ID on the document" : "Not in the referral grid") +
+          " - answer these from the toolbox.";
+        manualEl.hidden = false;
+        refreshManual();
+      });
     });
     wireBackButton();
     wireFeedbackBox(node);
