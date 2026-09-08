@@ -38,6 +38,7 @@ repo so a decision is not rediscovered as new work later.
 | F4 | `p1_name_manual` was orphaned | **Removed.** A full 48-provider select node with no inbound reference anywhere in the file. Proved by grep, not by walking |
 | F5 | One auto check wrote three different crumb labels | **Fixed.** `Provider is Loli/Bahu?`, `Provider is Cataldo?` and `Provider is Loli/Bahu/Cataldo?` were one check. Feedback reports quote these paths verbatim, so the same step read as three across reports and any analysis keyed on step name split them |
 | F6 | The determination harness lived nowhere | **Committed.** `tools/walk-harness.js`. Every "no determination changed" claim in this repo's history was produced by it and none of it was reproducible by anyone else |
+| F7 | The tool asserted that a provider treats the diagnosis | **Fixed.** Three nodes set `providerTreatsDx = true` without checking, and that flag is what `p4_diag_entry` reads to skip the real check - so the assertion switched off the validation that would have caught a mismatch. `p2_diag_auto` and `p2_dept_closer` were the root: both answer "does this *location* have anyone", before any provider is chosen. Now only a confirmed match sets it |
 
 ---
 
@@ -135,27 +136,7 @@ substring picker makes precision worse, not better. Fixing it changes which
 suggestions appear on the diagnosis screen, so it needs your sign-off rather
 than being folded in quietly.
 
-### 9. `p2_name_here` asserts what it should check
-
-Raised in a second review pass and confirmed. `p2_name_here` - "Pick that
-provider." - ends with `afterSubmit: s.providerTreatsDx = true`. It does not
-call `providerTreatsDiagnosis()`, which already exists.
-
-The dropdown groups providers into "Suggested - treats this diagnosis at X" and
-"Other providers", and the second group is unguarded, so picking from it records
-that the provider treats the diagnosis on no evidence at all. Verified: a
-diagnosis routing to Interventional, a provider whose only specialty is
-Electrophysiology, accepted without comment.
-
-It also explains a second finding. `p4_q3` - "Does this provider treat the
-diagnosis?" - is never reached, and the reason is this line: `p4_diag_entry`
-skips the whole check when `providerTreatsDx` is already true. The assertion
-suppresses the validation that would have caught it.
-
-**Fixing this changes determinations** - some referrals that complete today would
-route to manual review - so it needs your decision, not a quiet fix.
-
-### 10. The provider restriction shows on one picker and not the other
+### 9. The provider restriction shows on one picker and not the other
 
 `relevantProvidersListHtml` annotates a restricted provider "schedulable, but no
 manual outreach" and dims the row. `renderSelectNode`, used by `p2_name_here`
@@ -165,7 +146,7 @@ Nothing is lost - the output card still says `SMS eligible: No - in-clinic
 scheduling only` and the status is still Review - but the operator finds out
 about twenty questions after the choice rather than at it.
 
-### 11. The insurance questions deserve one systematic pass
+### 10. The insurance questions deserve one systematic pass
 
 The referral grid made existing questions redundant in **three separate places, found
 three separate ways** - one by hitting it, one by asking about it, one by a 15-walk sweep.
@@ -176,7 +157,7 @@ The remaining insurance questions should be checked against the 307 packages in 
 rather than waiting for a fourth accident. Measurement only - no code changes - so it can
 be done and read before anything is decided.
 
-### 12. Keep the rules in step
+### 11. Keep the rules in step
 
 `TPR-RULES.md` in the private docs repo is the rules of record. The fifteen-step
 structure has landed and its structure section has not been updated to match.

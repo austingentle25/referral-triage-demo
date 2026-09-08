@@ -2178,7 +2178,12 @@
         var deptShort = deptShortName(s.out.location);
         var result = anyProviderAtLocationTreats(deptShort, s.out.diagnosisText);
         if (result === true){
-          s.providerTreatsDx = true;
+          // Deliberately does NOT set providerTreatsDx. This answers "does this
+          // location have anyone who treats it", which is a different question
+          // from "does the provider we end up choosing treat it" - and it is
+          // answered before any provider has been chosen at all. Setting the
+          // flag here made the later per-provider check skip itself, so picking
+          // an unrelated specialist from the full list sailed through.
           s.crumbs.push({ short:"Location has provider for dx? (auto)", answer:"Yes" });
           return "p2_done_new";
         }
@@ -2204,7 +2209,10 @@
     },
     p2_dept_closer: { kind:"select", source:"Provider list - practice locations", warning:"For this referral only - never change the patient's actual home clinic / registration department in Athena.", part:1, field:"location", options:DEPT_OPTIONS, dynamicGroups:deptGroupsForProvider, otherAllowed:true,
       text:"Pick the closer Biltmore location's department.", short:"Closer Biltmore location",
-      afterSubmit:function(s){ setOut("locationChartNote","Location changed because the referred site has no one who treats the diagnosis."); s.providerTreatsDx = true; },
+      // Same as p2_diag_auto: the closer location was chosen because somebody
+      // there treats the diagnosis, which says nothing about the provider who is
+      // picked afterwards.
+      afterSubmit:function(s){ setOut("locationChartNote","Location changed because the referred site has no one who treats the diagnosis."); },
       next:function(s){ return afterLocationPicked(s); }
     },
 
@@ -2258,8 +2266,33 @@
     p2_name_here: { kind:"select", source:"Provider list - practice locations", part:1, field:"provider",
       dynamicGroups:function(s){ return suggestedProviderGroups(deptShortName(s.out.location), s.out.diagnosisText); },
       text:"Pick that provider.", short:"Provider at this location",
-      afterSubmit:function(s){ s.part1Result="PROVIDER_PICKED"; s.providerTreatsDx = true; },
-      next:"p3_entry"
+      // This used to set providerTreatsDx = true unconditionally. The dropdown
+      // offers "Suggested - treats this diagnosis at X" and then "Other
+      // providers", and the second group is unguarded, so picking from it
+      // recorded that the provider treats the diagnosis on no evidence at all.
+      //
+      // The flag is also what p4_diag_entry reads to skip the real check, so the
+      // assertion switched off the validation that would have caught it - which
+      // is why p4_q3 was never reached.
+      //
+      // Only a confirmed yes sets it now. A no, or a provider whose specialty is
+      // not on file, falls through to p4_treats_auto, which already handles all
+      // three answers at the right point in the flow rather than routing from
+      // here, before the location has even been reconciled.
+      afterSubmit:function(s){
+        s.part1Result = "PROVIDER_PICKED";
+        if (providerTreatsDiagnosis(s.out.provider, s.out.diagnosisText) === true) s.providerTreatsDx = true;
+      },
+      // The crumb goes in next(), not afterSubmit(), so it lands after the answer
+      // it was derived from - afterSubmit runs before submitText records the pick,
+      // which read as the conclusion above the evidence.
+      next:function(s){
+        if (s.providerTreatsDx){
+          s.crumbs.push({ short:"Provider treats the diagnosis? (auto)",
+                          answer:"Yes - checked against their specialties" });
+        }
+        return "p3_entry";
+      }
     },
 
     // ---- PART 3 - MAKE THEM AGREE ----
