@@ -65,6 +65,8 @@
     --k46b:#F7FAF9;
     --k47b:#E7F3EC;
     --k48b:#E2B3B3;
+    --k49b:#1B7A4D;
+    --k50b:#B23B3B;
     --teal-ink:#A6193B; --teal-dark-ink:#7A1129;
     color-scheme: light;
   }
@@ -118,6 +120,8 @@
     --k46b:#2B453C;
     --k47b:#305F43;
     --k48b:#672727;
+    --k49b:#1F6E48;
+    --k50b:#9A3838;
     --teal-ink:#EDA9B7; --teal-dark-ink:#F3C4CD;
       --teal-ink:#EDA9B7; --teal-dark-ink:#F3C4CD;
     color-scheme: dark;
@@ -172,6 +176,8 @@
     --k46b:#2B453C;
     --k47b:#305F43;
     --k48b:#672727;
+    --k49b:#1F6E48;
+    --k50b:#9A3838;
     color-scheme: dark;
   }
   body{ background:var(--bg); color:var(--ink); }
@@ -186,9 +192,12 @@
     --bg:var(--k01b); --ink:var(--k02f); --ink-soft:var(--k03f);
     --panel:var(--k04b); --line:var(--k05b);
     --teal:var(--k06b); --teal-dark:var(--k07b);
-    --picked:var(--k08f); --picked-bg:var(--k09b);
+    /* A solid button or tag needs a background-role colour. --picked and
+       --review are foreground-role: in dark mode they become pale, which is
+       right for text and wrong for a fill - white text on a pale ground. */
+    --picked:var(--k08f); --picked-bg:var(--k09b); --picked-solid:var(--k49b);
     --location:var(--k10f); --location-bg:var(--k11b);
-    --review:var(--k12f); --review-bg:var(--k13b);
+    --review:var(--k12f); --review-bg:var(--k13b); --review-solid:var(--k50b);
   }
   *{box-sizing:border-box;}
   html,body{margin:0;padding:0;}
@@ -365,9 +374,9 @@
     flex:1; padding:16px 10px; font-size:1.0625rem; font-weight:700; border-radius:11px; border:none;
     cursor:pointer; -webkit-tap-highlight-color:transparent;
   }
-  .btn.yes{background:var(--picked);color:var(--k34f);}
+  .btn.yes{background:var(--picked-solid);color:var(--k34f);}
   .btn.yes:active{background:var(--k37b);}
-  .btn.no{background:var(--review);color:var(--k34f);}
+  .btn.no{background:var(--review-solid);color:var(--k34f);}
   .btn.no:active{background:var(--k38b);}
   .third-row{ margin-top:10px; text-align:center; }
   .btn.third{
@@ -518,7 +527,7 @@
   }
   .escalate-btn:hover{ background:var(--k43b); }
   .escalate-btn:active{ background:var(--k44b); }
-  .escalate-btn.copied{ background:var(--picked); }
+  .escalate-btn.copied{ background:var(--picked-solid); color:var(--k34f); }
   .escalate-label{ color:var(--k34f); font-weight:700; font-size:0.875rem; }
 
   .errornote-box{
@@ -547,8 +556,8 @@
     display:inline-block; font-size:0.75rem; font-weight:700; letter-spacing:0.3px; padding:4px 10px;
     border-radius:999px; margin-bottom:10px; color:var(--k34f);
   }
-  .stop-card .tag{background:var(--review);}
-  .done-card .tag{background:var(--picked);}
+  .stop-card .tag{background:var(--review-solid);}
+  .done-card .tag{background:var(--picked-solid);}
   .stop-card p, .done-card p{ font-size:0.9062rem; color:var(--ink-soft); margin:0 0 4px; }
 
   .output-card{ background:var(--panel); border:1px solid var(--line); border-left:4px solid var(--teal-dark); }
@@ -574,7 +583,7 @@
   .output-box.urgent-yes{ background:var(--review-bg); border-color:var(--k45b); }
   .output-box.urgent-yes .ob-value{ color:var(--review); font-weight:700; }
   .urgent-banner{
-    background:var(--review); color:var(--k34f); font-weight:700; font-size:0.8125rem;
+    background:var(--review-solid); color:var(--k34f); font-weight:700; font-size:0.8125rem;
     padding:9px 12px; border-radius:9px; margin:0 0 12px; text-align:center; letter-spacing:0.2px;
   }
   .ob-label{ font-size:0.6562rem; text-transform:uppercase; letter-spacing:.4px; color:var(--ink-soft); font-weight:700; }
@@ -2340,45 +2349,7 @@
     p9_payor_id: { kind:"payor", source:"Athena Quickview - Insurance", part:9, context:"Insurance Check",
       text:"What's the insurance payor ID?",
       short:"Payor ID",
-      definition:"The payor ID on the insurance in Athena. If the grid already covers this payor the contracting questions are answered from it and you will see what was applied; if not, you will be asked as usual and the answers recorded against this ID.",
-      afterSubmit:function(s){
-        var hit = payorLookup(s.out.payorId);
-        if (!hit){
-          if (String(s.out.payorId || "").trim()) setOut("payorNote","not in the referral grid - answered by hand");
-          return;
-        }
-        setOut("payorNote", hit.name + " - from the referral grid" + (hit.verify ? " (grid flags this row as needing verification)" : ""));
-        if (hit.contracted === "Yes" || hit.contracted === "No") setOut("contractedGrid", hit.contracted);
-        if (hit.referralRequired === "Yes" || hit.referralRequired === "No") setOut("referralRequiredGrid", hit.referralRequired);
-        if (hit.authRequired === "Yes" || hit.authRequired === "No") setOut("referralAuthRequiredGrid", hit.authRequired);
-        if (hit.edgeCase) setOut("edgeCaseInsuranceType", hit.edgeCase);
-        if (hit.note) setOut("payorGridNote", hit.note);
-      },
-      next:function(s){
-        var hit = payorLookup(s.out.payorId);
-        if (!hit) return "p4_q2";
-        var bits = [];
-        if (hit.contracted) bits.push("Contracted: " + hit.contracted);
-        if (hit.referralRequired) bits.push("Referral required: " + hit.referralRequired);
-        if (hit.authRequired) bits.push("Auth required: " + hit.authRequired);
-        s.pendingBanner = hit.name + " - " + bits.join(" \u00b7 ") +
-          (hit.edgeCase ? ". Edge case: " + hit.edgeCase + "." : "") +
-          (hit.verify ? " The grid flags this row as needing verification - check before scheduling." : "");
-        s.crumbs.push({ short:"Referral grid (auto)", answer: hit.name + " - " + bits.join("; ") });
-        // A grid answer of Conditional is not an answer, so those questions are
-        // still asked. Not contracted ends it here, exactly as answering No does.
-        if (hit.contracted === "No"){
-          setOut("bucket","sscardio");
-          setOut("actionNote","Ineligible for Scheduling - Ineligible Insurance");
-          return "p5_referral_date";
-        }
-        if (hit.edgeCase === "VA (Veteran)") return "p4_edge_case_va_check";
-        if (hit.edgeCase === "Mercy") return "p4_edge_case_mercy_check";
-        if (hit.contracted !== "Yes") return "p4_q2";
-        if (hit.referralRequired !== "Yes" && hit.referralRequired !== "No") return "p4_referral_required";
-        if (hit.authRequired !== "Yes" && hit.authRequired !== "No") return "p4_referral_auth";
-        return "p4_diag_entry";
-      }
+      definition:"The insurance package number on the patient's insurance in Athena. If the referral grid covers it, the contracting questions are answered from the grid and you will see what it applied."
     },
     p4_q2: { kind:"yesno", source:"In the toolbox", part:9, context:"Insurance Check", edgeCaseToggle:true, selfPayToggle:true,
       text:"Is this plan contracted with Biltmore?",
@@ -3085,6 +3056,24 @@
         }
         i = cursor - 1;
         gotoResolve((typeof node.next === "function") ? node.next(state) : node.next);
+        continue;
+      }
+
+      if (node.kind === "payor"){
+        // The crumb is "Not in the document", "Not in our database", or
+        // "<package> - <name>". Replayed through the same function the screen
+        // uses, so the two cannot drift apart.
+        var pid = step.answer === "Not in the document" ? PAYOR_NOT_IN_DOC
+                : step.answer === "Not in our database" ? PAYOR_NOT_IN_DB
+                : String(step.answer).split(" - ")[0].trim();
+        if (pid !== PAYOR_NOT_IN_DOC && pid !== PAYOR_NOT_IN_DB && !PAYOR_TABLE[pid]){
+          return { ok:false, error:"Stopped at step " + (i+1) + " - package \"" + pid + "\" is no longer in the referral grid." };
+        }
+        historyStack.push(JSON.parse(JSON.stringify(state)));
+        recordStepTime(node);
+        var pr = applyPayorChoice(node, pid);
+        state.crumbs.push({ short: node.short, answer: pr.answer });
+        gotoResolve(pr.next);
         continue;
       }
 
@@ -3947,6 +3936,7 @@
     }
 
     items.push({ sec:"Auth / referral objects" });
+    if (o.gridSource) items.push({ label:"Where the insurance answers came from", value:ft(o.gridSource) });
     if (o.payorContact) items.push({ label:"Payor contact", value:ft(o.payorContact) });
     if (o.nonParWarning) items.push({ label:"Non-par plans for this insurer", value:ft(o.nonParWarning) });
     if (o.pcpLetter) items.push({ label:"PCP letter", value:ft(o.pcpLetter) });
@@ -5219,6 +5209,76 @@
   // plan name, because a reviewer may have either in front of them. The two
   // fixed options are always offered: they are real answers, not failures, and
   // burying them would push somebody into typing a guess.
+  function applyPayorChoice(node, id){
+    var answer, next;
+    if (id === PAYOR_NOT_IN_DOC){
+      setOut("payorNote", "no payor ID on the document");
+      answer = "Not in the document";
+      next = "p4_q2";
+    } else if (id === PAYOR_NOT_IN_DB){
+      setOut("payorNote", "payor not in the referral grid - answered by hand");
+      answer = "Not in our database";
+      next = "p4_q2";
+    } else {
+      setOut("payorId", id);
+      var hit = PAYOR_TABLE[id];
+      answer = id + " - " + hit.name;
+      setOut("payorNote", hit.name + " - from the referral grid" + (hit.verify ? " (grid flags this row as needing verification)" : ""));
+      if (hit.contracted) setOut("contractedGrid", hit.contracted);
+      // The payor ID settles referral and authorization, so they are not asked
+      // again. A blank cell is read as not required: the grid marks what IS
+      // required, and it leaves authorization blank on 265 of 307 packages, so
+      // asking on those was asking something the grid had already answered.
+      // "Conditional" is the exception and is still asked - there the grid says
+      // outright that it depends on the plan, so there is nothing to take.
+      var refFromGrid = (hit.referralRequired === "Conditional") ? null : (hit.referralRequired || "No");
+      var authFromGrid = (hit.authRequired === "Conditional") ? null : (hit.authRequired || "No");
+      if (refFromGrid) setOut("referralRequiredGrid", refFromGrid);
+      if (authFromGrid) setOut("referralAuthRequiredGrid", authFromGrid);
+      setOut("gridSource", "Referral and authorization answered from the Abrazo insurance grid dated 7 Jan 2026" +
+        ((!hit.referralRequired || !hit.authRequired)
+          ? ", which left " + [!hit.referralRequired ? "referral required" : null,
+                               !hit.authRequired ? "authorization required" : null].filter(Boolean).join(" and ") +
+            " blank - read as not required"
+          : "") +
+        ". Confirm with the payor if the case turns on it.");
+      if (hit.edgeCase) setOut("edgeCaseInsuranceType", hit.edgeCase);
+      if (hit.note) setOut("payorGridNote", hit.note);
+      var bits = [];
+      if (hit.contracted) bits.push("Contracted: " + hit.contracted);
+      if (refFromGrid) bits.push("Referral required: " + refFromGrid + (hit.referralRequired ? "" : " (blank in grid)"));
+      if (authFromGrid) bits.push("Auth required: " + authFromGrid + (hit.authRequired ? "" : " (blank in grid)"));
+      // Kept for the rows that have one: this is what a reviewer needs when
+      // the grid says to verify, and hunting for it is the slow part.
+      var contact = [hit.phone, hit.website].filter(Boolean).join(" - ");
+      if (contact) setOut("payorContact", contact);
+      var np = nonParWarning(hit.name);
+      if (np) setOut("nonParWarning", np);
+      state.pendingBanner = hit.name + " - " + bits.join(" \u00b7 ") +
+        (hit.edgeCase ? ". Edge case: " + hit.edgeCase + "." : "") +
+        (hit.verify ? " The grid flags this row as needing verification - check before scheduling." : "") +
+        (np ? " This insurer also has plans the practice is NOT contracted with - confirm this is the right one: " + np : "");
+      // Conditional is not an answer, so those questions are still asked.
+      if (hit.contracted === "No"){
+        setOut("bucket","sscardio");
+        setOut("actionNote","Ineligible for Scheduling - Ineligible Insurance");
+        next = "p5_referral_date";
+      } else {
+        // Where to carry on once an edge-case branch finishes. It has to be set
+        // before routing into one, because those branches end by returning it.
+        var afterEdge = !refFromGrid ? "p4_referral_required"
+                      : !authFromGrid ? "p4_referral_auth"
+                      : "p4_diag_entry";
+        state._afterEdgeCase = afterEdge;
+        if (hit.edgeCase === "VA (Veteran)") next = "p4_edge_case_va_check";
+        else if (hit.edgeCase === "Mercy") next = "p4_edge_case_mercy_check";
+        else if (hit.contracted !== "Yes") next = "p4_q2";
+        else next = afterEdge;
+      }
+    }
+    return { answer: answer, next: next };
+  }
+
   function renderPayorNode(node){
     var html = bannerHtml() + contextBadgeHtml(node) +
       '<div class="card question">' +
@@ -5246,60 +5306,11 @@
     function pick(id){
       historyStack.push(JSON.parse(JSON.stringify(state)));
       recordStepTime(node);
-      var answer, next;
-      if (id === PAYOR_NOT_IN_DOC){
-        setOut("payorNote", "no payor ID on the document");
-        answer = "Not in the document";
-        next = "p4_q2";
-      } else if (id === PAYOR_NOT_IN_DB){
-        setOut("payorNote", "payor not in the referral grid - answered by hand");
-        answer = "Not in our database";
-        next = "p4_q2";
-      } else {
-        setOut("payorId", id);
-        var hit = PAYOR_TABLE[id];
-        answer = id + " - " + hit.name;
-        setOut("payorNote", hit.name + " - from the referral grid" + (hit.verify ? " (grid flags this row as needing verification)" : ""));
-        if (hit.contracted) setOut("contractedGrid", hit.contracted);
-        if (hit.referralRequired === "Yes" || hit.referralRequired === "No") setOut("referralRequiredGrid", hit.referralRequired);
-        if (hit.authRequired === "Yes" || hit.authRequired === "No") setOut("referralAuthRequiredGrid", hit.authRequired);
-        if (hit.edgeCase) setOut("edgeCaseInsuranceType", hit.edgeCase);
-        if (hit.note) setOut("payorGridNote", hit.note);
-        var bits = [];
-        if (hit.contracted) bits.push("Contracted: " + hit.contracted);
-        if (hit.referralRequired) bits.push("Referral required: " + hit.referralRequired);
-        if (hit.authRequired) bits.push("Auth required: " + hit.authRequired);
-        // Kept for the rows that have one: this is what a reviewer needs when
-        // the grid says to verify, and hunting for it is the slow part.
-        var contact = [hit.phone, hit.website].filter(Boolean).join(" - ");
-        if (contact) setOut("payorContact", contact);
-        var np = nonParWarning(hit.name);
-        if (np) setOut("nonParWarning", np);
-        state.pendingBanner = hit.name + " - " + bits.join(" \u00b7 ") +
-          (hit.edgeCase ? ". Edge case: " + hit.edgeCase + "." : "") +
-          (hit.verify ? " The grid flags this row as needing verification - check before scheduling." : "") +
-          (np ? " This insurer also has plans the practice is NOT contracted with - confirm this is the right one: " + np : "");
-        // Conditional is not an answer, so those questions are still asked.
-        if (hit.contracted === "No"){
-          setOut("bucket","sscardio");
-          setOut("actionNote","Ineligible for Scheduling - Ineligible Insurance");
-          next = "p5_referral_date";
-        } else {
-          // Where to carry on once an edge-case branch finishes. It has to be set
-          // before routing into one, because those branches end by returning it.
-          var afterEdge = (hit.referralRequired !== "Yes" && hit.referralRequired !== "No") ? "p4_referral_required"
-                        : (hit.authRequired !== "Yes" && hit.authRequired !== "No") ? "p4_referral_auth"
-                        : "p4_diag_entry";
-          state._afterEdgeCase = afterEdge;
-          if (hit.edgeCase === "VA (Veteran)") next = "p4_edge_case_va_check";
-          else if (hit.edgeCase === "Mercy") next = "p4_edge_case_mercy_check";
-          else if (hit.contracted !== "Yes") next = "p4_q2";
-          else next = afterEdge;
-        }
-      }
-      state.crumbs.push({ short: node.short, answer: answer });
-      gotoResolve(next);
+      var r = applyPayorChoice(node, id);
+      state.crumbs.push({ short: node.short, answer: r.answer });
+      gotoResolve(r.next);
     }
+
 
     function renderList(){
       var q = input.value.trim().toLowerCase();
