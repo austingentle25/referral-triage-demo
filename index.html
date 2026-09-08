@@ -233,7 +233,16 @@
   .header-btns{ display:flex; gap:8px; align-items:center; flex-shrink:0; }
   .live-timer{
     font-variant-numeric:tabular-nums; font-size:0.8125rem; font-weight:700; color:var(--k19f);
-    min-width:34px; text-align:right; letter-spacing:.2px;
+    text-align:center; letter-spacing:.2px; display:block;
+  }
+  /* Two clocks, each labelled. One unlabelled number behaved like both a
+     per-question and a per-task timer, so restarting on a new question read as
+     the task timer losing its count. */
+  .timer-group{ display:flex; gap:10px; align-items:flex-start; }
+  .timer-cell{ display:flex; flex-direction:column; align-items:center; min-width:38px; }
+  .timer-scope{
+    font-size:0.5625rem; font-weight:700; text-transform:uppercase; letter-spacing:.4px;
+    color:var(--ink-soft); line-height:1.2;
   }
   button.pausebtn{
     flex-shrink:0; background:transparent; border:1px solid var(--k16b); color:var(--k17f);
@@ -729,7 +738,10 @@
       <div class="sub" id="headerSub"><em>- Based on Updated Notion</em> · Biltmore Cardiology</div>
     </div>
     <div class="header-btns">
-      <span class="live-timer" id="liveTimer">0:00</span>
+      <span class="timer-group">
+        <span class="timer-cell" title="Time on the question now on screen. It restarts with each question."><span class="live-timer" id="liveTimer">0:00</span><span class="timer-scope">question</span></span>
+        <span class="timer-cell" title="Total time on this referral so far, across every question."><span class="live-timer" id="liveTimerTotal">0:00</span><span class="timer-scope">referral</span></span>
+      </span>
       <button class="pausebtn" id="pauseBtn">⏸ Pause</button>
       <a class="notionlink" href="https://app.notion.com/p/TPR-Pilot-Updated-Notion-3cfa27dc8d918006a439cadf0376b44d" target="_blank" rel="noopener noreferrer" title="Open the TPR Pilot Notion page">Notion</a>
       <button class="themebtn" id="themeBtn" aria-label="Toggle dark mode" title="Toggle dark mode">◐</button>
@@ -1560,6 +1572,9 @@
   // have the referral in front of them.
   var TIMER_STARTS_AFTER = "p_patient_name";
   var stepStartTime = null;
+  // Which question the clock is currently timing, so a re-render of the same
+  // question does not restart it.
+  var timerNodeId = null;
   var isPaused = false;
   var pauseStartedAt = null;
   var pausedMsForCurrentStep = 0;
@@ -1590,6 +1605,23 @@
     if (banner) banner.hidden = !isPaused;
   }
 
+  // Elapsed on the question now on screen. Wall-clock, so a backgrounded tab
+  // cannot lose time - the count is a subtraction of two timestamps, never an
+  // accumulation of ticks, and the interval below only repaints it.
+  function currentStepMs(){
+    if (!stepStartTime) return 0;
+    var now = Date.now();
+    var pausedTotal = pausedMsForCurrentStep + ((isPaused && pauseStartedAt) ? (now - pauseStartedAt) : 0);
+    return Math.max(0, now - stepStartTime - pausedTotal);
+  }
+  function taskElapsedMs(){
+    var sum = 0;
+    if (state && state.stepTimings){
+      for (var i = 0; i < state.stepTimings.length; i++) sum += state.stepTimings[i].ms;
+    }
+    return sum + currentStepMs();
+  }
+
   function formatLiveTimer(ms){
     var totalSec = Math.floor(ms / 1000);
     var min = Math.floor(totalSec / 60);
@@ -1598,6 +1630,10 @@
   }
   function updateLiveTimer(){
     var el = document.getElementById("liveTimer");
+    var totalEl = document.getElementById("liveTimerTotal");
+    // The referral total keeps its value on the finished screens - that is the
+    // handle time for the whole task, and it is the number worth reading there.
+    if (totalEl) totalEl.textContent = formatLiveTimer(taskElapsedMs());
     if (!el) return;
     // Waiting to start reads as 0:00, not a dash: the clock has not begun rather
     // than being unavailable. A dash still marks the finished screens.
@@ -1609,10 +1645,7 @@
       el.textContent = " - ";
       return;
     }
-    var now = Date.now();
-    var pausedTotal = pausedMsForCurrentStep + ((isPaused && pauseStartedAt) ? (now - pauseStartedAt) : 0);
-    var ms = Math.max(0, now - stepStartTime - pausedTotal);
-    el.textContent = formatLiveTimer(ms);
+    el.textContent = formatLiveTimer(currentStepMs());
   }
 
 
@@ -2993,10 +3026,7 @@
     // The untimed opening step contributes nothing, so it is not logged at all
     // rather than logged as 0s, which would read as a real measurement.
     if (!stepStartTime) return;
-    var now = Date.now();
-    var pausedTotal = pausedMsForCurrentStep + ((isPaused && pauseStartedAt) ? (now - pauseStartedAt) : 0);
-    var ms = Math.max(0, now - stepStartTime - pausedTotal);
-    state.stepTimings.push({ short: node.short, ms: ms });
+    state.stepTimings.push({ short: node.short, ms: currentStepMs() });
   }
 
   function answer(node, kind, label){
@@ -3050,6 +3080,7 @@
     }
     historyStack = [];
     isPaused = false; pauseStartedAt = null; pausedMsForCurrentStep = 0;
+    stepStartTime = null; timerNodeId = null;
 
     for (var i = 0; i < parsed.length; i++){
       if (state.node === "__STOP__" || state.node === "__DONE__") break;
@@ -3175,6 +3206,7 @@
     isPaused = false;
     pauseStartedAt = null;
     pausedMsForCurrentStep = 0;
+    stepStartTime = null; timerNodeId = null;
     viewMode = "flow";
     updatePauseUI();
     render();
@@ -5053,9 +5085,18 @@
 
     var node = NODES[state.node];
     if (!node) return;
+    // Only a genuinely new question restarts the clock. render() also runs when
+    // the log, feedback or about view is opened and closed, and it used to reset
+    // stepStartTime every time - so a look at the log put the question back to
+    // 0:00 and the time spent on it was lost from the task total.
     if (node.kind === "auto"){ /* no clock on silent steps */ }
-    else if (state.node === TIMER_STARTS_AFTER){ stepStartTime = null; pausedMsForCurrentStep = 0; updateLiveTimer(); }
-    else { stepStartTime = Date.now(); pausedMsForCurrentStep = 0; updateLiveTimer(); }
+    else if (timerNodeId !== state.node){
+      timerNodeId = state.node;
+      if (state.node === TIMER_STARTS_AFTER){ stepStartTime = null; }
+      else { stepStartTime = Date.now(); }
+      pausedMsForCurrentStep = 0;
+      updateLiveTimer();
+    }
     if (node.kind === "payor") renderPayorNode(node);
     else if (node.kind === "form") renderFormNode(node);
     else if (node.kind === "text") renderTextNode(node);
@@ -6124,6 +6165,13 @@
     render();
   });
   setInterval(updateLiveTimer, 500);
+  // A background tab throttles the interval, so the number stops being repainted
+  // while the operator is in Athena. The value itself is a subtraction of two
+  // timestamps and is never wrong - this just repaints it the moment they return
+  // rather than up to half a second later.
+  document.addEventListener("visibilitychange", function(){
+    if (!document.hidden) updateLiveTimer();
+  });
 
   reset();
 })();
