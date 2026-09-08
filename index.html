@@ -755,43 +755,83 @@
   // 303 of 369 authorization cells are blank, and reading those as "not
   // required" would be a guess with real consequences.
   //
-  // 336 grid rows collapse into 249 packages. Three packages carry rows that
-  // disagree; they answer nothing and are flagged for verification instead.
+  // All three package sheets are loaded - Par or Contracted, BCBS Insurance
+  // packages, and Supplemental - because they share a column layout and the
+  // last two were simply unread the first time. 420 rows collapse into 307
+  // packages. Five carry rows that disagree; they answer nothing and are
+  // flagged for verification instead. Supplemental also carries a payer phone
+  // and website, kept for the rows that have them: they are what a reviewer
+  // needs when the grid says to verify.
   var PAYOR_TABLE = {
     "74": { name:"Cigna - Commerical/PPO/Open Access/Plus", contracted:"Yes", referralRequired:"No" },
+    "112": { name:"Bankers Life & Casualty - Medicare Supplement", contracted:"Yes", referralRequired:"No" },
     "725": { name:"Medicare - Railroad (Palmettao GBA)", contracted:"Yes", referralRequired:"No" },
     "1467": { name:"United Healthcare - UnitedHealthOne (formerly Golden Rule)", contracted:"Yes", referralRequired:"No" },
+    "1742": { name:"BCBS VA", contracted:"Yes" },
     "1826": { name:"Cigna - Providence Health Plan ph 800-878-4445 EDI 62308", contracted:"Yes", referralRequired:"No" },
-    "1910": { name:"AARP - Medicare Supplement Plan", contracted:"Yes", referralRequired:"No" },
+    "1910": { name:"AARP - Medicare Supplement Plan", contracted:"Yes", referralRequired:"No", website:"https://www.uhcprovider.com/" },
     "2681": { name:"United Healthcare - UMR - see UMR plan break downs to see which plans we do NOT take & wha", contracted:"Yes", referralRequired:"No" },
     "2718": { name:"United Healthcare - Medicare Advantage Plans - HMO (5 digit group number)", contracted:"Yes", referralRequired:"Yes", authRequired:"Yes", note:"AARP Medicare Advantage - Banner Health Network" },
     "2829": { name:"United Healthcare - HMO", contracted:"Yes", referralRequired:"Yes", authRequired:"Yes" },
     "3150": { name:"Aetna - EPO", contracted:"Yes", referralRequired:"Yes", authRequired:"Yes", note:"Aetna Prime (Banner) HMO (package 302975)" },
+    "5512": { name:"BCBS CA (Anthem)", contracted:"Yes" },
+    "5564": { name:"BCBS NH", contracted:"Yes" },
     "6293": { name:"Aetna - PPO", contracted:"Yes", referralRequired:"No" },
     "7146": { name:"Allied Benefit Admin **Please always get group number** - Fee for Service - no network", contracted:"Yes", referralRequired:"No" },
+    "8477": { name:"BCBS MA", contracted:"Yes" },
+    "9037": { name:"BCBS TN", contracted:"Yes" },
     "10172": { name:"Imagine360 - PHCS", contracted:"Yes", referralRequired:"No" },
+    "10374": { name:"BCBS HI", contracted:"Yes" },
+    "10475": { name:"BCBS NV", contracted:"Yes" },
+    "10489": { name:"BCBS WA (Premera)", contracted:"Yes" },
+    "11489": { name:"BCBS OK", contracted:"Yes" },
+    "11695": { name:"Bankers Fidelity - Medicare Supplement", contracted:"Yes", referralRequired:"No" },
     "12652": { name:"Cigna - HMO", contracted:"Yes", referralRequired:"No", note:"LocalPlus (410195) Athena says Preferred care management  & LocalFlex is on the insurance card" },
+    "13054": { name:"United American - Medicare Supplement", contracted:"Yes", referralRequired:"No", website:"https://eprovider.globelifeinc.com/PolicyBenefits/PolicyBenefits/" },
+    "16029": { name:"BCBS SC", contracted:"Yes" },
+    "16726": { name:"BCBS OR", contracted:"Yes" },
     "16991": { name:"Aetna - POS/OAP", contracted:"Yes", referralRequired:"No", note:"Medicare advantage - Oak Street" },
+    "17105": { name:"BCBS NY (Empire)", contracted:"Yes" },
+    "18691": { name:"BCBS OH", contracted:"Yes" },
+    "19002": { name:"BCBS IN", contracted:"Yes" },
+    "19996": { name:"BCBS AL - PPO", contracted:"Yes", referralRequired:"No" },
     "20011": { name:"Southwest Service Administrators - ASM - Arizona Sheet Metal", contracted:"Yes", referralRequired:"No" },
     "20995": { name:"Humana - Gold Plus HMO & PPO (Medicare Advantage)", contracted:"Yes", referralRequired:"No" },
+    "21448": { name:"BCBS MN", contracted:"Yes" },
+    "21616": { name:"BCBS RI", contracted:"Yes" },
+    "21719": { name:"BCBS IL", contracted:"Yes" },
     "22045": { name:"United Healthcare - Choice Plus (POS)", contracted:"Yes", referralRequired:"No", note:"Banner" },
     "22796": { name:"AHCCCS - Mercy Care", contracted:"Yes", referralRequired:"Yes", authRequired:"No", edgeCase:"Mercy", note:"Mercycare AHCCCS referral must come from PCP (not specialty)" },
+    "22957": { name:"BCBS MO", contracted:"Yes" },
     "23344": { name:"Aetna - Medicare Supplement", contracted:"Yes", referralRequired:"No" },
-    "24243": { name:"Philadelphia American Life Insurance - Medicare Supplement", contracted:"Yes", referralRequired:"No" },
+    "23522": { name:"BCBS KS", contracted:"Yes" },
+    "24243": { name:"Philadelphia American Life Insurance - Medicare Supplement", contracted:"Yes", referralRequired:"No", phone:"888-748-3040", website:"https://apps.neweralife.com/providerportal/policybenefit" },
+    "24506": { name:"BCBS VT", contracted:"Yes" },
+    "24687": { name:"BCBS CT", contracted:"Yes" },
     "24971": { name:"AHCCCS - UHC Community Plan", contracted:"Yes", referralRequired:"No", note:"UHC Community Plan - Long Term Care - LTC (package 24971)" },
+    "25198": { name:"BCBS KY", contracted:"Yes" },
+    "25675": { name:"BCBS WV", contracted:"Yes" },
     "26523": { name:"Ameriben - BCBS - Non PPO", contracted:"Yes", referralRequired:"No" },
     "27233": { name:"United Healthcare - Empire Plan", contracted:"Yes", referralRequired:"No" },
+    "28405": { name:"BCBS ND", contracted:"Yes" },
+    "30928": { name:"BCBS UT", contracted:"Yes" },
     "31505": { name:"HPI (Health Plans, Inc) - PHCS - PPO", contracted:"Yes", referralRequired:"No" },
+    "32308": { name:"BCBS NM", contracted:"Yes" },
+    "33347": { name:"Mutual of Omaha - Medicare Supplement", contracted:"Yes", referralRequired:"No" },
     "33532": { name:"Humana - HMO (exchange plan - HMOx)", contracted:"Yes", referralRequired:"Yes", authRequired:"Yes" },
+    "33844": { name:"BCBS DE", contracted:"Yes" },
     "34746": { name:"GHI - EmblemHealth - PPO", contracted:"Yes", referralRequired:"No" },
     "35331": { name:"ChampVA", contracted:"Yes", referralRequired:"No" },
     "36287": { name:"AHCCCS - American Indian Services", contracted:"Yes", referralRequired:"No" },
     "36797": { name:"Medicare - **alphanumeric ID required**Numbers & upper-case letters. Numbers 1-9 & all let", contracted:"Yes", referralRequired:"No" },
+    "37452": { name:"BCBS FL", contracted:"Yes" },
     "37821": { name:"Aetna - HMO", contracted:"Yes", referralRequired:"Yes", authRequired:"Yes", note:"Value Performance" },
-    "38339": { name:"BCBS - FEP (Federal)", contracted:"Yes", referralRequired:"No" },
+    "38272": { name:"BCBS NC", contracted:"Yes" },
+    "38339": { name:"BCBS - FEP (Federal)", contracted:"Yes", referralRequired:"No", note:"M4K - contracted with Specialty only" },
     "38340": { name:"BCBS - PPO (in/out of state) Prefixes confirmed we take are P9H", contracted:"Yes", referralRequired:"No", note:"Alliance PPO (XBN & N4Z - as OON only) - package 539361" },
-    "38413": { name:"BCBS - HMO (in state)", contracted:"Yes", referralRequired:"Conditional", note:"depends on the plan | checked 12/9/25 - ARE showing contracted - Dr. Subhash Chandra, Lindsay Curran, NP, Dr. Savio Reddymasu, & Dr. Neil Vyas." },
+    "38413": { name:"BCBS - HMO (in state)", contracted:"Yes", referralRequired:"Conditional", note:"depends on the plan | checked 12/9/25 - ARE showing contracted - Dr. Subhash Chandra, Lindsay Curran, NP, Dr. Savio Reddymasu, & Dr. Neil Vyas. | Neighborhood (neither NNG nor NNJ)" },
     "38430": { name:"Multiplan - Administrative Concepts payer ID 22384 ph 800-410-9153 *can be a limited plan*", contracted:"Yes", referralRequired:"No" },
+    "38581": { name:"BCBS AZ - employees package BCBS EPO TX", contracted:"Yes", referralRequired:"No" },
     "38684": { name:"Aetna - POS II", contracted:"Yes", referralRequired:"No" },
     "38888": { name:"AHCCCS - QMB (this is not a plan - only a Medicare Savings Program)", contracted:"Yes", referralRequired:"No" },
     "38982": { name:"Aetna - Medicare Replacement/Advantage HMO", contracted:"Yes", referralRequired:"No" },
@@ -804,22 +844,33 @@
     "45897": { name:"AHCCCS - Mercy Care Advantage", contracted:"Yes", referralRequired:"Yes", authRequired:"No", edgeCase:"Mercy", note:"Mercycare Advantage referral must come from PCP (not specialty)" },
     "46463": { name:"BCBS - Indemnity", contracted:"Yes", referralRequired:"No", note:"PimaConnect (PMA & Z9P - as OON only; neither PMK nor FQL)" },
     "47006": { name:"Humana - PPO/Open Access", contracted:"Yes", referralRequired:"No" },
+    "47542": { name:"BCBS IA - alpha prefix X3H", contracted:"Yes" },
     "47697": { name:"AHCCCS - Health Choice Medicare Advantage thru BCBS (alpha prefix MZHHC) **some providers ", contracted:"Yes", referralRequired:"No", note:"checked 8/18/25 - NOT showing contracted are Dr. Maedeh Kholghi, Dr. James Kim, Dr. Lawrence Kline, Dr. Arcot Premkumar, Dr. Kristina Skinner. All other Cardio ARE showing contracted." },
+    "47798": { name:"BCBS ME", contracted:"Yes" },
+    "50772": { name:"BCBS MT", contracted:"Yes" },
     "51015": { name:"United Healthcare - Limited Benefit Plan (underwritten by Golden Rule) EDI 39026", contracted:"Yes", referralRequired:"No" },
     "51523": { name:"HMA (Hawaii Mainland Admin)", contracted:"Yes", referralRequired:"No" },
     "52395": { name:"USAA - Medicare Supplement", contracted:"Yes", referralRequired:"No" },
     "52528": { name:"UMWA Health & Retirement Funds - ph 888-865-5290 EDI 52180", contracted:"Yes", referralRequired:"No" },
     "52962": { name:"Imagine360 - HealthSmart PPO", contracted:"Yes", referralRequired:"No" },
+    "53033": { name:"BCBS ID", contracted:"Yes" },
+    "53119": { name:"BCBS LA", contracted:"Yes" },
+    "53886": { name:"AMA Insurance - Medicare Supplement", contracted:"Yes", referralRequired:"No", website:"https://provider.amainsure.com/?check_logged_in=1" },
     "54340": { name:"Carelon (used to be Caremore)(Copoloff is NOT contracted) - Medicare Replacement/Advantage", contracted:"Yes", referralRequired:"Yes", authRequired:"Conditional", note:"x (they are called direct referrals)" },
     "54761": { name:"Humana - Supplemental", contracted:"Yes", referralRequired:"No" },
     "54876": { name:"United Healthcare - Medicare Advantage Plans - Optum HMO - United Healthcare West - AARP M", contracted:"Yes", referralRequired:"Yes", authRequired:"Yes", note:"Phoenix Direct Rural" },
-    "55272": { name:"Medico - Medicare Supplement", contracted:"Yes", referralRequired:"No" },
+    "55272": { name:"Medico - Medicare Supplement", contracted:"Yes", referralRequired:"No", phone:"800-228-6080", website:"https://micapps.gomedico.com/Providers/" },
+    "57133": { name:"BCBS AK", contracted:"Yes" },
     "57648": { name:"United Healthcare - Medica PPO", contracted:"Yes", referralRequired:"No" },
+    "57718": { name:"BCBS MS", contracted:"Yes" },
+    "57919": { name:"BCBS CO", contracted:"Yes" },
     "58277": { name:"PIMC (Phoenix Indian Medical Center)(case policy) - If they are using this as insurance we", contracted:"Yes", referralRequired:"Yes", authRequired:"Yes" },
     "58464": { name:"Aetna - EPO/Open access", contracted:"Yes", referralRequired:"No", note:"Aetna Medicare Prime Value Plus Plan (HMO-POS)" },
-    "58750": { name:"United Healthcare - Medicare Advantage Plans - United Healthcare West - Phoenix Direct", contracted:"Yes", note:"need to check | Abrazo Digestive Specialist is not contracted with OPTUM", verify:true },
+    "58750": { name:"United Healthcare - Medicare Advantage Plans - United Healthcare West - Phoenix Direct", contracted:"Yes", note:"Abrazo Digestive Specialist is not contracted with OPTUM | need to check", verify:true },
     "60402": { name:"Aetna - Premiere (Medicare Replacement HMO)", contracted:"Yes", referralRequired:"No" },
     "60966": { name:"Tricare (Benefits Number off card is 11 digits or policy holders social) **Not TriWest - T", contracted:"Yes", referralRequired:"No" },
+    "61596": { name:"BCBS GA", contracted:"Yes" },
+    "62103": { name:"BCBS PA (Highmark)", contracted:"Yes" },
     "64432": { name:"BCBS - Summit Administration Services (doesn't run elig thru Athena)", contracted:"Yes", referralRequired:"No" },
     "67455": { name:"Medica - United Healthcare POS", contracted:"Yes", referralRequired:"No" },
     "69536": { name:"Christian Care Ministry - PHCS - Medi-Share (PPO) ph 800-264-2562", contracted:"Yes", referralRequired:"No", authRequired:"Conditional", note:"Must pre-notify once scheduled ph 800-264-2562" },
@@ -827,15 +878,20 @@
     "73534": { name:"Humana - POS", contracted:"Yes", referralRequired:"No", note:"Humana Community HMO" },
     "74229": { name:"Aetna - Medicare Replacement/Advantage PPO", contracted:"Yes", referralRequired:"No" },
     "76979": { name:"UMR - UHC PPO", contracted:"Yes", referralRequired:"No" },
+    "81240": { name:"BCBS WI", contracted:"Yes" },
     "82471": { name:"Alignment - Arizona Care Network IPA ph 602-406-7226 (Dr. James Kim is still pending - do ", contracted:"Yes", referralRequired:"Yes", authRequired:"No", note:"unable to verify elig thru Athena, will have to check payor website" },
     "84534": { name:"Cigna - Samba ph 800-638-6589", contracted:"Yes", referralRequired:"No" },
-    "85363": { name:"WPAS - Medicare Supplement", contracted:"Yes", referralRequired:"Yes", authRequired:"Yes" },
+    "85363": { name:"WPAS - Medicare Supplement", contracted:"Yes", verify:true },
+    "88700": { name:"Sanford Health Plan - Medicare Supplement", contracted:"Yes", referralRequired:"No", phone:"800-499-3416" },
     "94112": { name:"First Health - IBA (International Benefits Administrators) PPO EDI 11329 ph 878-222-4415", contracted:"Yes", referralRequired:"No" },
     "95670": { name:"HealthSmart Benefit Solutions - BCBS PPO Network", contracted:"Yes", referralRequired:"No" },
     "100575": { name:"UMR - EPO - ValleyWise Tiered Plan Benefit Plan 003", contracted:"Yes", referralRequired:"Yes", authRequired:"Yes" },
     "103132": { name:"Aetna - Medicare Supplement - Aetna Life Insurance Company - ID number starts with AHL", contracted:"Yes", referralRequired:"No", note:"**Meritain has Aetna plans we are NOT contacted with but if the member has the buy up plan we are" },
     "103244": { name:"Summit - BCBS AZ", contracted:"Yes", referralRequired:"No" },
+    "105898": { name:"BCBS NJ", contracted:"Yes" },
     "109670": { name:"Allied Benefit Admin **Please always get group number** - Aetna Signature Administrators -", contracted:"Yes", referralRequired:"No" },
+    "110425": { name:"BCBS MI Medicare PPO - alpha prefix XYL", contracted:"Yes" },
+    "110491": { name:"BCBS MI", contracted:"Yes" },
     "110733": { name:"First Health - Web-TPA First Health (PPO) this will run elig thru Athena", contracted:"Yes", referralRequired:"Conditional", note:"depends on the plan" },
     "111512": { name:"Allegiance - Cigna PPO payer ID 62308", contracted:"Yes", referralRequired:"No" },
     "112942": { name:"Ameriben - BCBS PPO", contracted:"Yes", referralRequired:"No", note:"There are 2 plans for Honor Health - we ARE contracted with the High Deductable Plan but NOT with the Coordinated Care Plan - both plans ID number ends with SLHN & Group number: HHH001 | If we are seeing pt as OON on PPO" },
@@ -844,6 +900,7 @@
     "126931": { name:"BCBS - Tall Tree Administrators", contracted:"Yes", referralRequired:"No" },
     "127042": { name:"Cigna - HealthPartners", contracted:"Yes", referralRequired:"No", note:"SUREFIT-HMO (specialty only)(548738)" },
     "131111": { name:"Aetna - Web-TPA PPO", contracted:"Yes", referralRequired:"No" },
+    "133641": { name:"BCBS WA (Regence)", contracted:"Yes" },
     "133856": { name:"United Healthcare - Medicare Advantage Plans - Optum HMO - AARP Medicare Plan 1 & 3 (Optum", contracted:"Yes", referralRequired:"Yes", authRequired:"Yes", note:"Metro Tucson Network" },
     "134344": { name:"Scan Desert Health Plan - Prospect Medical", contracted:"Yes", referralRequired:"Yes", authRequired:"Yes" },
     "135500": { name:"Luminare Health (Trustmark) - Aetna EDI 3791", contracted:"Yes", referralRequired:"No" },
@@ -851,12 +908,14 @@
     "149947": { name:"UMR - typically uses UHC Choice Plus network", contracted:"Yes", referralRequired:"No" },
     "158526": { name:"Aetna - EBMS (PPO) ph 866-247-1446", contracted:"Yes", referralRequired:"No", note:"Banner package 693655" },
     "160673": { name:"Arizona Priority Care Plus (AZPCP) - Wellcare of AZ", contracted:"Yes", referralRequired:"No" },
+    "161797": { name:"BCBS NE", contracted:"Yes" },
     "163857": { name:"UnitedHealthcare Shared Services - United Healthcare - Choice Plus Network", contracted:"Yes", referralRequired:"No" },
     "178785": { name:"Meritain Health - using BCBS Network", contracted:"Yes", referralRequired:"No" },
     "206234": { name:"AZFMC (AZ Foundation For Medical Care) - EMI", contracted:"Yes" },
     "207729": { name:"Medica - Medicare Advantage HMO **NOT CONTRACTED**", contracted:"Yes", referralRequired:"No" },
     "211513": { name:"Allegiance - Cigna PPO payer ID 81040", contracted:"Yes", referralRequired:"No" },
     "214652": { name:"Scan Desert Health Plan - CenterWell", contracted:"Yes" },
+    "228738": { name:"BCBS TX", contracted:"Yes" },
     "232793": { name:"Cigna - TPA Exchange ph 877-2224-8061 EDI 62308", contracted:"Yes", referralRequired:"No" },
     "233922": { name:"The Health Plan - PHCS - PPO ph 888-816-3096", contracted:"Yes", referralRequired:"No" },
     "249229": { name:"All Savers (UHC PPO Network) - UHC PPO network", contracted:"Yes", referralRequired:"No" },
@@ -873,9 +932,12 @@
     "296896": { name:"Scan Desert Health Plan - Optum Health (EDI LIFE1)", contracted:"Yes", referralRequired:"No" },
     "308642": { name:"WellCare - Patriot Giveback Open PPO", contracted:"Yes", referralRequired:"No" },
     "315988": { name:"AHCCCS - Mercy Care Advantage Dual", contracted:"Yes", referralRequired:"Yes", authRequired:"No", edgeCase:"Mercy", note:"Mercycare Advantage referral must come from PCP (not specialty)" },
+    "325316": { name:"GCU Supplemental - Medicare Supplement", contracted:"Yes", referralRequired:"No", phone:"833-636-0008", website:"https://www.provlookup.com/GCU/PolicyLookup/Verification" },
+    "330099": { name:"BCBS WY", contracted:"Yes" },
     "352697": { name:"US Department of Veterans - WPS-VAPCCC - (under case policy) - VA CC Network 4", contracted:"Yes", referralRequired:"Yes", authRequired:"Yes" },
-    "394871": { name:"Cigna - Cigna Supplemental (Health and Life Insuance)", contracted:"Yes", referralRequired:"No" },
+    "394871": { name:"Cigna - Cigna Supplemental (Health and Life Insuance)", contracted:"Yes", referralRequired:"No", website:"https://myproviderhq.com/v3app/publicservice/loginv1/login.aspx?bc=34e5ccc8-8c7e-4b46-9af7" },
     "400314": { name:"Alignment - Healthcosmos/Imperial IPA ph 800-838-8271", contracted:"Yes", referralRequired:"Yes", authRequired:"Yes" },
+    "402500": { name:"Regence Group Administrators - BCBS-WA Regence PPO", contracted:"Yes" },
     "410195": { name:"Cigna - LocalPlus - there are 2 - contracted with Complete care management (shows in Athen", contracted:"Yes", referralRequired:"No" },
     "421099": { name:"PHCS - Verdegard ph 866-737-0506", contracted:"Yes", referralRequired:"No" },
     "437998": { name:"United Healthcare - Community Plan AHCCCS - Community Plan Medicare Advantage", contracted:"Yes", referralRequired:"Yes", authRequired:"Yes" },
@@ -915,7 +977,7 @@
     "571028": { name:"Aetna - Meritain - Aetna EPO", contracted:"Yes", referralRequired:"No" },
     "572399": { name:"BCBS Medicare Advantage - BCBS Medicare Advantage (PPO)", contracted:"Yes", referralRequired:"No" },
     "573562": { name:"Personify (previously HealthComp/Gilsbar) - 6 Degree's Health - Prime network", contracted:"Yes", referralRequired:"No" },
-    "573731": { name:"BCBS Medicare Advantage - M2K - Local BCBS - payor ID AZBLUE", contracted:"Yes", referralRequired:"No" },
+    "573731": { name:"BCBS Medicare Advantage - M2K - Local BCBS - payor ID AZBLUE", contracted:"Yes", note:"NOT contracted with alpha prefix M3V; contracted with M2V (HMO) & M3P (PPO) | Not contracted", verify:true },
     "582356": { name:"United Healthcare - Surest (Choice Plus Network)", contracted:"Yes", referralRequired:"No" },
     "586260": { name:"Aetna - Trustmark Small Business", contracted:"Yes", referralRequired:"No" },
     "589979": { name:"Allied Benefit Admin **Please always get group number** - Cigna PPO EDI 62308", contracted:"Yes", referralRequired:"No" },
@@ -929,7 +991,7 @@
     "613453": { name:"ACN (Arizona Care Network) - Connected Care Arizona Care Network", contracted:"Yes", referralRequired:"No" },
     "616323": { name:"Aetna - Health EZ - Aetna PPO ph 844-449-5553", contracted:"Yes", referralRequired:"No", note:"Aetna Exchange plans - Gold, Silver & Bronze | Medicare Alliance (specialty only)" },
     "617523": { name:"Medica - Medica Government Programs - Advantage Solution PPO **OON is Medicare Assignment ", contracted:"Yes", referralRequired:"No" },
-    "617650": { name:"Allstate Health Solutions - Medicare Supplemental", contracted:"Yes", referralRequired:"No" },
+    "617650": { name:"Allstate Health Solutions - Medicare Supplemental", contracted:"Yes", referralRequired:"No", website:"https://www.provlookup.com/AllstateHealth/PolicyLookup/Verification" },
     "617811": { name:"United Healthcare - Medicare Advantage Plans - Oputm PPO - AARP Medicare Plan (Optum contr", contracted:"Yes", referralRequired:"Yes", authRequired:"Yes", note:"Pima" },
     "617913": { name:"PHCS - Benefit & Risk Management Services 877-427-5109 (Primepon)", contracted:"Yes", referralRequired:"No" },
     "619540": { name:"Cigna - Oscar - ID numbers start with OSC", contracted:"Yes", referralRequired:"No" },
@@ -966,6 +1028,7 @@
     "694889": { name:"Imperial Health - Arizona Marketplace Plan (ID starting HIM)", contracted:"Yes", referralRequired:"Yes", authRequired:"Yes" },
     "696758": { name:"First Health - Philadelphia American life Insurance - First Health network (Indemnity) ph ", contracted:"Yes", referralRequired:"No" },
     "698480": { name:"AHCCCS - Molina Complete Care - Medicare Advantage", contracted:"Yes", referralRequired:"Yes", authRequired:"No", note:"Mercycare Advantage referral must come from PCP (not specialty)" },
+    "700065": { name:"MedMutual Protect - Medicare Supplement", contracted:"Yes", referralRequired:"No", phone:"833-522-4880", website:"https://provider.iasadmin.com/" },
     "700216": { name:"Curative - First Health Network", contracted:"Yes", referralRequired:"No" },
     "704110": { name:"United Healthcare - Doctors Plan (POS) Payer ID 87726 (It does say Banner Network on the c", contracted:"Yes", referralRequired:"No" },
     "706048": { name:"Liberty HealthShare - PHCS ph 855-585-4237", contracted:"Yes", referralRequired:"No" },
@@ -3886,6 +3949,7 @@
     }
 
     items.push({ sec:"Auth / referral objects" });
+    if (o.payorContact) items.push({ label:"Payor contact", value:ft(o.payorContact) });
     if (o.nonParWarning) items.push({ label:"Non-par plans for this insurer", value:ft(o.nonParWarning) });
     if (o.pcpLetter) items.push({ label:"PCP letter", value:ft(o.pcpLetter) });
     items.push({ label:"Referral", value:ft(o.referralObjNote) });
@@ -4275,76 +4339,65 @@
   function renderAbout(){
     stageBadge.textContent = "About";
     var sec = function(title, body){ return '<div class="about-sec"><h3>' + title + '</h3>' + body + '</div>'; };
-    var feat = function(rows){
-      return '<table class="about-table"><tbody>' + rows.map(function(r){
-        return '<tr><td class="af-name">' + r[0] + '</td><td>' + r[1] + '</td></tr>';
-      }).join("") + '</tbody></table>';
-    };
     stage.innerHTML = '<div class="card">' +
       '<h2>Referral Sync Helper</h2>' +
-      '<p class="about-lede">A checklist for working a TPR referral in Athena. It asks one ' +
-      'question at a time, decides where the referral goes, and hands you the exact text to ' +
-      'paste into the chart. It does not touch Athena itself - you do that.</p>' +
+      '<p class="about-lede">It works a TPR referral with you: asks what it needs, decides where the ' +
+      'referral goes, and writes the notes. What used to live in somebody\'s head is asked out loud, ' +
+      'in the same order, every time.</p>' +
 
-      sec('Working a referral', feat([
-        ['Fifteen steps', 'The same fifteen the production automation uses, so "step 9" means the same thing to everyone. Each screen names its step and where in Athena to look.'],
-        ['Not needed', 'A step that does not apply is marked and given a reason. A non-Camelback referral marks steps 8 to 12 and 14 Not needed rather than silently ending.'],
-        ['Grouped screens', 'Questions that come from the same place in Athena are asked together, so you are not opening Full Registration three times.'],
-        ['Back, anywhere', 'Every question can be revisited, and re-answering updates the determination.'],
-        ['Progress and a clock', 'A bar for how far in you are, and a timer that starts after the patient name and pauses on demand.'],
-        ['Manual review', 'When the tool cannot decide - two upcoming appointments with different providers, no provider who treats the diagnosis - it stops and says why instead of guessing.']
-      ])) +
+      sec('The problem it solves',
+        '<p>A referral takes a chain of judgements - who the receiving provider should be, at which ' +
+        'location, whether the plan is contracted, whether an authorization is needed, what to write ' +
+        'in the chart. Each one is knowable. The difficulty is that they depend on each other, the ' +
+        'rules live in several places, and the answer has to be the same whoever works it.</p>' +
+        '<p>So the tool holds the rules and asks the questions. You bring the judgement it cannot ' +
+        'make - what the fax actually says, what Athena actually shows.</p>') +
 
-      sec('Deciding where it goes', feat([
-        ['Provider precedence', 'Upcoming appointment, then usual provider, then the provider named on the referral, then picked by diagnosis.'],
-        ['Provider roster', 'From the practice scheduling guide. Providers not on it are listed but cannot be selected, so a name on a referral is recognisable without being assignable.'],
-        ['Advanced practice providers', 'Selectable, carrying the specialty of the physician they work with.'],
-        ['Diagnosis to specialty', 'Matched against the provider\'s specialties to check the pairing makes sense.'],
-        ['Location reconciliation', 'Provider and department are checked against each other, defaulting to Camelback only where there is genuine ambiguity.'],
-        ['Buckets', 'biltmorecardsched, sscardio, or biltmorecardreferral for a referral waiting on a payor.'],
-        ['SMS eligibility', 'Separate from being schedulable. Loli and Bahu are scheduled but never texted.']
-      ])) +
+      sec('What it decides',
+        '<p>Given the answers, it works out the receiving provider and location and reconciles them ' +
+        'against each other; whether the diagnosis fits that provider\'s specialty; whether the plan ' +
+        'is contracted and what it requires; which bucket the referral belongs in; whether it can be ' +
+        'scheduled, and separately whether the patient can be texted, which is not the same thing.</p>' +
+        '<p>When it cannot decide, it stops and says why rather than guessing. That is the point of ' +
+        'it - a wrong determination made confidently is worse than one handed back.</p>') +
 
-      sec('Insurance', feat([
-        ['The referral grid', '249 insurance packages from the Abrazo grid, searchable by package number or insurance name.'],
-        ['Answers filled in', 'A known package fills in contracted, referral required and authorization required, and says which it applied.'],
-        ['Edge cases announced', 'A Mercy or VA plan says so, instead of relying on somebody recognising the name.'],
-        ['Conditional stays a question', 'Where the grid says it depends, you are still asked. Where the grid says nothing, you are still asked.'],
-        ['Not in the document / Not in our database', 'Both are answers rather than dead ends. Either one asks the questions as before.'],
-        ['PCP letter', 'When a plan needs a PCP referral, the tool asks whether the letter is actually on file, and calls for an outbound fax when it is not.']
-      ])) +
+      sec('What it knows',
+        '<p>The provider roster and who is in scope, from the practice scheduling guide. Which ' +
+        'diagnoses each provider treats. Every Biltmore location and department number. And 307 ' +
+        'insurance packages from the referral grid - so entering a package number answers the ' +
+        'contracting questions, names an edge case like Mercy or VA before anybody has to recognise ' +
+        'it, and warns when an insurer also has plans the practice is not contracted with.</p>' +
+        '<p>Where the grid says it depends, you are still asked. It does not turn a maybe into a yes.</p>') +
 
-      sec('What comes out', feat([
-        ['Three notes', 'Internal, action and patient - each in its own box, tap to copy.'],
-        ['Output card', 'Bucket, scheduling status, department, document label, referral and authorization objects, care team and registration detail.'],
-        ['Reviewer note', 'For anything belonging to the determination but not the chart. Never written to Athena.'],
-        ['Why this path', 'Every question and answer that led there. Paste it back later to pick the determination up.']
-      ])) +
+      sec('What it produces',
+        '<p>Three notes ready to paste - internal, action and patient - plus the bucket, the ' +
+        'scheduling status, the document label, and the referral and authorization objects. Each is ' +
+        'a separate box you tap to copy, because the notes go to different places in Athena.</p>' +
+        '<p>Alongside them, the full path of questions and answers that led there. That is what makes ' +
+        'a determination explainable afterwards, and it is what you paste back in to pick one up ' +
+        'where you left it.</p>') +
 
-      sec('Keeping track', feat([
-        ['Session log', 'Every determination you finish, with how long it took.'],
-        ['Pending', 'A referral that reaches the end still waiting is logged Pending, not Complete, with what it is waiting on named.'],
-        ['Reopen', 'Replays a determination so you carry on from where it stopped rather than starting again.'],
-        ['Log transfer', 'Copy your list out of one version and paste it into the next. Rows come back under their Task ID; no patient name travels.']
-      ])) +
+      sec('Work that is not finished',
+        '<p>A referral that reaches the end still waiting on something is not complete, and is not ' +
+        'recorded as complete. It is Pending, with what it is waiting on named - a phone number ' +
+        'missing from both the chart and the referral, an address to obtain, an authorization still ' +
+        'pending, a payor not yet confirmed. Reopening replays it so the answer that was waiting is ' +
+        'the only one that changes.</p>') +
 
-      sec('Telling us it is wrong', feat([
-        ['Auto Feedback', 'Flag a problem on the screen where you hit it. It opens a tracked issue carrying the question, the step and the path, so it can be reproduced.'],
-        ['Redaction', 'Patient name, dates and long numbers are stripped before anything leaves the page. Describe the question, not the patient.'],
-        ['Never lost', 'If a report cannot be sent you are told, it stays in the page, and it can be retried.'],
-        ['Flag to Engineering', 'Drafts a message with the task URL for you to paste into Slack.']
-      ])) +
+      sec('When it is wrong',
+        '<p>It will be. The rules move, the wording will not always fit the case in front of you, and ' +
+        'some of what it believes came from a spreadsheet that has since changed.</p>' +
+        '<p>So it can be told. Flagging a problem on the screen where you hit it opens a tracked ' +
+        'issue carrying the question, the step and the path, so it can be reproduced rather than ' +
+        'guessed at. Patient names, dates and long numbers are stripped before anything leaves the ' +
+        'page - describe the question, not the patient.</p>') +
 
-      sec('Patient information', '<ul>' +
-        '<li>Everything is held in the page while the tab is open. Nothing is written to this computer, and refreshing clears it.</li>' +
-        '<li>The only things that leave are ones you send: a redacted Auto Feedback report, an Engineering message you paste yourself, and a log you copy across.</li>' +
-        '<li>A transferred log and a feedback report both identify work by Task ID rather than by patient.</li>' +
-        '</ul>') +
-
-      sec('Worth knowing', '<ul>' +
-        '<li>The step numbers do not always run in order. The workflow is a checklist that can be worked in any order; this is a wizard whose order is fixed by what depends on what. The progress bar follows how far in you are, not the step number.</li>' +
-        '<li>If you have the page open when a new version ships, reload to get it.</li>' +
-        '<li>Dark mode is the half-circle button in the header.</li>' +
+      sec('What it does not do',
+        '<ul>' +
+        '<li>It does not touch Athena. Nothing is written on your behalf; you paste what it produces.</li>' +
+        '<li>It does not keep anything. Everything lives in the page while the tab is open and is gone ' +
+        'when you close it. The only things that leave are ones you send.</li>' +
+        '<li>It does not decide anything it has not been told. Where the guide is silent, it asks.</li>' +
         '</ul>') +
 
       '<div class="btnrow-continue"><button class="continue-btn" id="aboutBackBtn">Back to task</button></div>' +
@@ -5234,6 +5287,10 @@
         if (hit.contracted) bits.push("Contracted: " + hit.contracted);
         if (hit.referralRequired) bits.push("Referral required: " + hit.referralRequired);
         if (hit.authRequired) bits.push("Auth required: " + hit.authRequired);
+        // Kept for the rows that have one: this is what a reviewer needs when
+        // the grid says to verify, and hunting for it is the slow part.
+        var contact = [hit.phone, hit.website].filter(Boolean).join(" - ");
+        if (contact) setOut("payorContact", contact);
         var np = nonParWarning(hit.name);
         if (np) setOut("nonParWarning", np);
         state.pendingBanner = hit.name + " - " + bits.join(" \u00b7 ") +
