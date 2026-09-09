@@ -1246,38 +1246,44 @@
   // back and folded into the table rather than re-looked-up every time.
   var payorCaptured = [];
 
+  // The client's fourteen-step workflow. Their step 2 collapses what were our
+  // steps 1 and 2; their step 1 is what was our step 3. From their step 3 onward
+  // the names matched ours word for word, one number apart.
+  //
+  // Step 2 keeps OUR determination, not the client's single resolve-or-review:
+  // specialty matching, provider/location reconciliation, established-patient
+  // continuity, APP routing for hospital follow-ups and the in-clinic and
+  // non-Valerie restrictions all still run. Only the number on the front changed.
   var PART_LABELS = {
     0:"Start - patient & task",
-    1:"Step 1 - Resolve receiving location & provider",
-    2:"Step 2 - Confirm provider and location",
-    3:"Step 3 - Create or update the Athena chart",
-    4:"Step 4 - Update demographics and care team",
-    5:"Step 5 - Insurance intake and coverage write",
-    6:"Step 6 - Review Full Registration",
-    7:"Step 7 - Process referral documents",
-    8:"Step 8 - Run Athena eligibility",
-    9:"Step 9 - Check clinic and provider network",
-    10:"Step 10 - Send PCP referral fax if required",
-    11:"Step 11 - Resolve authorization and referral requirements",
-    12:"Step 12 - Upload authorization request letter",
-    13:"Step 13 - Write unified notes",
-    14:"Step 14 - Close document if there is an upcoming appointment",
-    15:"Step 15 - Complete manual follow-through and routing"
+    1:"Step 1 - Locate the Document in the Patient Chart",
+    2:"Step 2 - Verify the provider and location",
+    3:"Step 3 - Update demographics and care team",
+    4:"Step 4 - Insurance intake and coverage write",
+    5:"Step 5 - Review Full Registration",
+    6:"Step 6 - Process referral documents",
+    7:"Step 7 - Run Athena eligibility",
+    8:"Step 8 - Check clinic and provider network",
+    9:"Step 9 - Send PCP referral fax if required",
+    10:"Step 10 - Resolve authorization and referral requirements",
+    11:"Step 11 - Upload authorization request letter",
+    12:"Step 12 - Write unified notes",
+    13:"Step 13 - Close document if there is an upcoming appointment",
+    14:"Step 14 - Complete manual follow-through and routing"
   };
-
   // Rough weight of each part in the overall flow (sums to 100), used to drive
   // the progress bar. PART_INTERACTIVE is the max number of yes/no/text/select
   // questions a path through that part could hit (used to interpolate within a part).
   // Kept for reference only - the progress bar no longer reads them. It is
   // driven by PATH_LENGTH, measured per question, because a share of the whole
   // graph is not a share of the branch anyone is actually on.
-  var PART_WEIGHTS = { 0:2, 1:41, 2:8, 4:4, 5:17, 6:1, 7:5, 8:3, 9:1, 10:1, 11:9, 12:3, 15:5 };
-  var PART_INTERACTIVE = { 0:2, 1:48, 2:10, 4:5, 5:20, 6:1, 7:6, 8:3, 9:1, 10:1, 11:11, 12:4, 15:6 };
+  var PART_WEIGHTS = { 0:2, 2:49, 3:4, 4:17, 5:1, 6:5, 7:3, 8:1, 9:1, 10:9, 11:3, 14:5 };
+  var PART_INTERACTIVE = { 0:2, 2:58, 3:5, 4:20, 5:1, 6:6, 7:3, 8:1, 9:1, 10:11, 11:4, 14:6 };
   var PART_START = (function(){
     var start = {}, acc = 0;
-    // Steps 3, 13 and 14 carry no questions and so no weight; the || 0 keeps
+    // Steps 1, 12 and 13 carry no questions and so no weight; the || 0 keeps
     // the running total intact across those gaps.
-    for (var p = 0; p <= 15; p++){ start[p] = acc; acc += (PART_WEIGHTS[p] || 0); }
+    for (var p = 0; p <= 14; p++){ start[p] = acc; acc += (PART_WEIGHTS[p] || 0); }
     return start;
   })();
 
@@ -2047,6 +2053,19 @@
   // =========================================================
   // NODE GRAPH
   // =========================================================
+  // Step 2 failing to resolve is the one thing that sends an operator backwards,
+  // and three of the six places it happens set no reason at all - the banner came
+  // up blank and the only trace was "provider dropped". One helper, so a new exit
+  // cannot forget the reason, and the reason is kept on the state rather than
+  // consumed by the first render, so the screens it blocks name the cause instead
+  // of showing nothing. Callers still choose their own destination; this sets the
+  // cause and nothing else.
+  function step2Unresolved(s, reason){
+    s.part1Result = "FIND_LOCATION";
+    s.part1Reason = reason;
+    s.pendingBanner = reason;
+  }
+
   var NODES = {
 
     // ---- PART 0 ----
@@ -2111,11 +2130,11 @@
     //
     // The later gates are unchanged: each already reads "diagnosis present?" and
     // continues, so they simply stop asking.
-    p0_diag: { kind:"diagnosis", source:"Referral document", part:1, field:"diagnosisText",
+    p0_diag: { kind:"diagnosis", source:"Referral document", part:2, field:"diagnosisText",
       text:"What's the diagnosis?", short:"Diagnosis",
       next:"p0_urgent_gate"
     },
-    p0_urgent_gate: { kind:"auto", part:7,
+    p0_urgent_gate: { kind:"auto", part:6,
       run:function(s){
         var urgentDx = ["afib","atrial fibrillation","chest pain","angina","stenosis","regurgitation","tavr"];
         var dx = (s.out.diagnosisText || "").toLowerCase();
@@ -2127,14 +2146,14 @@
         return "p0_urgent_fax";
       }
     },
-    p0_urgent_fax: { kind:"yesno", source:"Referral document - fax marking", part:7,
+    p0_urgent_fax: { kind:"yesno", source:"Referral document - fax marking", part:6,
       text:"Is the fax marked Urgent?",
       short:"Fax marked Urgent?",
       definition:"Asked here rather than later because it decides how far ahead an appointment still counts: 7 days on an urgent referral, 60 on any other.",
       yes:function(s){ setOut("urgent","YES"); setOut("urgentReason","provider"); return "p0_status"; },
       no:function(s){ setOut("urgent","NO"); return "p0_status"; }
     },
-    p0_status: { kind:"yesno", source:"Quickview → Scheduling → View Patient Appointments", part:1,
+    p0_status: { kind:"yesno", source:"Quickview → Scheduling → View Patient Appointments", part:2,
       definition:"A qualifying appointment must be cardiology, with a Biltmore provider, at a Biltmore location, and the patient attended - not Canceled and not a No Show. Established = one of those within the last 3 years.",
       text:"Have they completed a qualifying appointment in the last 3 years?",
       short:"Established (3 yrs)?",
@@ -2143,12 +2162,12 @@
     },
     // Two questions rather than one with a changing number, so each is asked in
     // its own exact words and neither has to be read twice.
-    p1_q1_gate: { kind:"auto", part:1,
+    p1_q1_gate: { kind:"auto", part:2,
       run:function(s){ return s.out.urgent === "YES" ? "p1_q1_urgent" : "p1_q1"; }
     },
 
     // ---- PART 1 - PROVIDER ----
-    p1_q1: { kind:"yesno", source:"Quickview → Scheduling → View Patient Appointments", part:1,
+    p1_q1: { kind:"yesno", source:"Quickview → Scheduling → View Patient Appointments", part:2,
       // One definition was doing two jobs. "The patient attended (not Canceled or
       // No Show)" cannot apply to an appointment in the next 60 days, and asking
       // an operator to check attendance on a future booking is asking for
@@ -2164,38 +2183,38 @@
     // weeks out and resolved to the wrong cardiologist. On an urgent referral an
     // appointment only counts if it is within 7 days; anything further out is not
     // the appointment this referral is about.
-    p1_q1_urgent: { kind:"yesno", source:"Quickview → Scheduling → View Patient Appointments", part:1,
+    p1_q1_urgent: { kind:"yesno", source:"Quickview → Scheduling → View Patient Appointments", part:2,
       definition:"This referral is urgent, so the window is 7 days rather than 60. A qualifying appointment must be cardiology, with a Biltmore provider and at a Biltmore location, and still on the books. An appointment further out than a week does not count here - it is not the one this referral is about.",
       text:"This is urgent - is there a qualifying appointment in the next 7 days?",
       short:"Upcoming qualifying appt (7 days, urgent)?",
       yes:function(s){ s.hasUpcomingAppt = true; return "p1_q1a"; },
       no:function(s){ return "p1_q2"; }
     },
-    p1_q1a: { kind:"yesno", source:"Quickview → Scheduling → View Patient Appointments", part:1,
+    p1_q1a: { kind:"yesno", source:"Quickview → Scheduling → View Patient Appointments", part:2,
       definition:"A qualifying appointment must be cardiology, with a Biltmore provider and at a Biltmore location. Attendance is not part of it here - these have not happened yet - but a Canceled one does not count.",
       text:"Is that just one appointment - not several?",
       short:"Only one upcoming appt?",
       yes:function(s){ return "p1_name_unique"; },
       no:function(s){ return "p1_q1b"; }
     },
-    p1_name_unique: { kind:"select", source:"Quickview → Scheduling → View Patient Appointments", part:1, field:"provider", groups:PROVIDER_OPTION_GROUPS,
+    p1_name_unique: { kind:"select", source:"Quickview → Scheduling → View Patient Appointments", part:2, field:"provider", groups:PROVIDER_OPTION_GROUPS,
       text:"Pick the upcoming provider.", short:"Upcoming provider name",
       afterSubmit:function(s){ s.part1Result="PROVIDER_PICKED"; },
       next:"p2_entry"
     },
-    p1_q1b: { kind:"yesno", source:"Quickview → Scheduling → View Patient Appointments", part:1,
+    p1_q1b: { kind:"yesno", source:"Quickview → Scheduling → View Patient Appointments", part:2,
       definition:"A qualifying appointment must be cardiology, with a Biltmore provider and at a Biltmore location. Attendance is not part of it here - these have not happened yet - but a Canceled one does not count.",
       text:"Are those upcoming appointments all with the same provider?",
       short:"Upcoming appts, same provider?",
       yes:function(s){ return "p1_name_same"; },
       no:function(s){ return "p1_q1c"; }
     },
-    p1_name_same: { kind:"select", source:"Quickview → Scheduling → View Patient Appointments", part:1, field:"provider", groups:PROVIDER_OPTION_GROUPS,
+    p1_name_same: { kind:"select", source:"Quickview → Scheduling → View Patient Appointments", part:2, field:"provider", groups:PROVIDER_OPTION_GROUPS,
       text:"Pick that provider.", short:"Same upcoming provider name",
       afterSubmit:function(s){ s.part1Result="PROVIDER_PICKED"; },
       next:"p2_entry"
     },
-    p1_q1c: { kind:"yesno", source:"Quickview → Scheduling → View Patient Appointments", part:1,
+    p1_q1c: { kind:"yesno", source:"Quickview → Scheduling → View Patient Appointments", part:2,
       definition:"Most recent = the last completed qualifying visit. Usual / most consistent provider = the provider seen most often among qualifying appointments in the last 3 years.",
       text:"The upcoming appointments are with different providers. Do you know who the patient saw most recently, or who their usual provider is?",
       short:"Know most-recent/usual provider?",
@@ -2205,33 +2224,34 @@
       // who each already have an upcoming appointment with the patient.
       no:function(s){ return stopManual("Multiple upcoming appointments name different providers, and the most-recent / usual provider could not be identified.",1); }
     },
-    p1_name_recentusual: { kind:"select", source:"Quickview → Scheduling → View Patient Appointments", part:1, field:"provider", groups:PROVIDER_OPTION_GROUPS,
+    p1_name_recentusual: { kind:"select", source:"Quickview → Scheduling → View Patient Appointments", part:2, field:"provider", groups:PROVIDER_OPTION_GROUPS,
       definition:"Usual / most consistent provider = the provider seen most often among qualifying appointments in the last 3 years. Most recent = the last completed qualifying visit.",
       warning:"This is only for determining the receiving provider on this referral - do not update the patient's Usual Provider field in Athena.",
       text:"Pick the most-recent / usual provider.", short:"Most-recent/usual provider name",
       next:"p1_check_entry"
     },
-    p1_q2: { kind:"auto", part:1,
+    p1_q2: { kind:"auto", part:2,
       run:function(s){ return s.out.status==="Established" ? "p1_name_usual" : "p1_q3"; }
     },
-    p1_name_usual: { kind:"select", source:"Quickview → Scheduling → View Patient Appointments", part:1, field:"provider", groups:PROVIDER_OPTION_GROUPS,
+    p1_name_usual: { kind:"select", source:"Quickview → Scheduling → View Patient Appointments", part:2, field:"provider", groups:PROVIDER_OPTION_GROUPS,
       definition:"Usual / most consistent provider = the provider seen most often among qualifying appointments in the last 3 years.",
       warning:"This is only for determining the receiving provider on this referral - do not update the patient's Usual Provider field in Athena.",
       text:"Pick the usual / most consistent provider.", short:"Usual provider name",
       next:"p1_check_entry"
     },
-    p1_q3: { kind:"yesno", source:"Referral Document / Fax", part:1,
+    p1_q3: { kind:"yesno", source:"Referral Document / Fax", part:2,
       text:"Does the referral state a specific provider's name?",
       short:"Referral names a provider?",
       yes:function(s){ return "p1_name_referral"; },
-      no:function(s){ setOut("provider","FIND LOCATION FIRST"); s.part1Result="FIND_LOCATION";
-                       s.part1Reason="Part 1 did not pick a provider."; return "p2_entry_banner"; }
+      no:function(s){ setOut("provider","FIND LOCATION FIRST");
+                       step2Unresolved(s, "The referral names no provider, so step 2 could not resolve one - find the location first.");
+                       return "p2_entry_banner"; }
     },
-    p1_name_referral: { kind:"select", source:"Referral document", part:1, field:"provider", groups:PROVIDER_OPTION_GROUPS,
+    p1_name_referral: { kind:"select", source:"Referral document", part:2, field:"provider", groups:PROVIDER_OPTION_GROUPS,
       text:"Pick the provider named on the referral.", short:"Referral-named provider",
       next:"p1_check_entry"
     },
-    p1_check_entry: { kind:"auto", part:1,
+    p1_check_entry: { kind:"auto", part:2,
       run:function(s){
         if (s.out.status === "Established") { s.part1Result="PROVIDER_PICKED"; return "p2_entry"; }
         // A new patient who already has an upcoming appointment was booked with
@@ -2246,7 +2266,7 @@
         return s.out.diagnosisText ? "p1_check_treats_auto" : "p1_diag_input";
       }
     },
-    p1_diag_input: { kind:"diagnosis", source:"Referral document", part:1, field:"diagnosisText",
+    p1_diag_input: { kind:"diagnosis", source:"Referral document", part:2, field:"diagnosisText",
       text:"What's the diagnosis?", short:"Diagnosis",
       next:function(s){ return s._afterDiag; }
     },
@@ -2254,7 +2274,7 @@
     // has no specialty - an unverified provider, or one added since - asking for
     // the specialty is more useful than a yes/no, because it also drives the
     // location and provider suggestions further down.
-    p_provider_specialty: { kind:"select", source:"Provider list / Athena provider record", part:1, field:"providerSpecialtyConfirmed",
+    p_provider_specialty: { kind:"select", source:"Provider list / Athena provider record", part:2, field:"providerSpecialtyConfirmed",
       text:"This provider has no specialty on file. Which specialty do they cover?",
       short:"Confirmed provider specialty",
       placeholder:"Select the specialty\u2026",
@@ -2268,14 +2288,13 @@
       next:function(s){
         if (!s.out.providerSpecialtyConfirmed){
           setOut("provider","FIND LOCATION FIRST");
-          s.part1Result="FIND_LOCATION";
-          s.pendingBanner = "Specialty unconfirmed - pick a provider who treats the diagnosis instead.";
+          step2Unresolved(s, "Specialty unconfirmed - pick a provider who treats the diagnosis instead.");
           return "p2_pick_provider_here";
         }
         return s._afterSpecialty || "p1_check_treats_auto";
       }
     },
-    p1_check_treats_auto: { kind:"auto", part:1,
+    p1_check_treats_auto: { kind:"auto", part:2,
       run:function(s){
         var result = providerTreatsDiagnosis(s.out.provider, s.out.diagnosisText);
         if (result === true){
@@ -2285,8 +2304,7 @@
         }
         if (result === false){
           setOut("provider","FIND LOCATION FIRST"); setOut("providerNote","dropped - does not treat diagnosis");
-          s.part1Result="FIND_LOCATION"; s.part1Reason="New patient, and this provider doesn't treat the diagnosis - provider dropped.";
-          s.pendingBanner = "New patient, and the referral-named provider doesn't treat the diagnosis - pick one who does.";
+          step2Unresolved(s, "New patient, and the referral-named provider doesn't treat the diagnosis - pick one who does.");
           s.crumbs.push({ short:"New patient - provider treats the diagnosis? (auto)", answer:"No" });
           return "p2_pick_provider_here";
         }
@@ -2294,44 +2312,42 @@
         return "p1_check_treats";
       }
     },
-    p1_check_treats: { kind:"yesno", source:"Provider list - specialty reference", part:1,
+    p1_check_treats: { kind:"yesno", source:"Provider list - specialty reference", part:2,
       text:"This is a new patient - does this provider treat this diagnosis?",
       short:"New patient - provider treats the diagnosis?",
       yes:function(s){ s.providerTreatsDx = true; s.part1Result="PROVIDER_PICKED"; return "p2_entry"; },
       no:function(s){ setOut("provider","FIND LOCATION FIRST"); setOut("providerNote","dropped - does not treat diagnosis");
-                        s.part1Result="FIND_LOCATION"; s.part1Reason="New patient, and this provider doesn't treat the diagnosis - provider dropped.";
-                        s.pendingBanner = "New patient, and the referral-named provider doesn't treat the diagnosis - pick one who does.";
+                        step2Unresolved(s, "New patient, and the referral-named provider doesn't treat the diagnosis - pick one who does.");
                         return "p2_pick_provider_here"; }
     },
 
     // ---- PART 2 - LOCATION ----
-    p2_entry: { kind:"auto", part:1,
+    p2_entry: { kind:"auto", part:2,
       run:function(s){ s.pendingBanner=null; return s.out.status==="Established" ? "p2_est1" : "p2_new1"; }
     },
-    p2_entry_banner: { kind:"auto", part:1,
+    p2_entry_banner: { kind:"auto", part:2,
       run:function(s){ s.pendingBanner = s.part1Reason || null; return s.out.status==="Established" ? "p2_est1" : "p2_new1"; }
     },
 
-    p2_new1: { kind:"yesno", source:"Referral document", part:1,
+    p2_new1: { kind:"yesno", source:"Referral document", part:2,
       text:"Is there a receiving location on the referral?",
       short:"Receiving location on referral?",
       yes:function(s){ return "p2_dept_referral"; },
       no:function(s){ return "p2_new1_gate"; }
     },
-    p2_new1_gate: { kind:"auto", part:1,
+    p2_new1_gate: { kind:"auto", part:2,
       run:function(s){
         if (s.part1Result !== "PROVIDER_PICKED") return "p2_diag_entry_pick";
         s._afterDiag2 = "p2_new1_recheck";
         return s.out.diagnosisText ? "p2_new1_recheck" : "p2_diag_input2";
       }
     },
-    p2_new1_recheck: { kind:"auto", part:1,
+    p2_new1_recheck: { kind:"auto", part:2,
       run:function(s){
         var result = providerTreatsDiagnosis(s.out.provider, s.out.diagnosisText);
         if (result === false){
           setOut("provider","FIND LOCATION FIRST"); setOut("providerNote","dropped - does not treat diagnosis");
-          s.part1Result = "FIND_LOCATION";
-          s.pendingBanner = "Diagnosis doesn't match the already-picked provider - provider dropped, finding one who treats it.";
+          step2Unresolved(s, "Diagnosis doesn't match the already-picked provider - provider dropped, finding one who treats it.");
           s.crumbs.push({ short:"Diagnosis matches existing provider? (auto)", answer:"No - dropped" });
           return "p2_pick_provider_here";
         }
@@ -2340,24 +2356,23 @@
         return "p3_entry";
       }
     },
-    p2_dept_referral: { kind:"select", source:"Referral document", warning:"For this referral only - never change the patient's actual home clinic / registration department in Athena.", part:1, field:"location", options:DEPT_OPTIONS, dynamicGroups:deptGroupsForProvider, otherAllowed:true,
+    p2_dept_referral: { kind:"select", source:"Referral document", warning:"For this referral only - never change the patient's actual home clinic / registration department in Athena.", part:2, field:"location", options:DEPT_OPTIONS, dynamicGroups:deptGroupsForProvider, otherAllowed:true,
       text:"Pick the department tied to that receiving location.", short:"Receiving-location department",
       next:"p2_referral_gate"
     },
-    p2_referral_gate: { kind:"auto", part:1,
+    p2_referral_gate: { kind:"auto", part:2,
       run:function(s){
         if (s.part1Result !== "PROVIDER_PICKED") return "p2_diag_entry";
         s._afterDiag2 = "p2_referral_recheck";
         return s.out.diagnosisText ? "p2_referral_recheck" : "p2_diag_input2";
       }
     },
-    p2_referral_recheck: { kind:"auto", part:1,
+    p2_referral_recheck: { kind:"auto", part:2,
       run:function(s){
         var result = providerTreatsDiagnosis(s.out.provider, s.out.diagnosisText);
         if (result === false){
           setOut("provider","FIND LOCATION FIRST"); setOut("providerNote","dropped - does not treat diagnosis");
-          s.part1Result = "FIND_LOCATION";
-          s.pendingBanner = "Diagnosis doesn't match the already-picked provider - provider dropped, finding one who treats it.";
+          step2Unresolved(s, "Diagnosis doesn't match the already-picked provider - provider dropped, finding one who treats it.");
           s.crumbs.push({ short:"Diagnosis matches existing provider? (auto)", answer:"No - dropped" });
           return "p2_pick_provider_here";
         }
@@ -2366,17 +2381,17 @@
         return "p3_entry";
       }
     },
-    p2_diag_entry_pick: { kind:"auto", part:1,
+    p2_diag_entry_pick: { kind:"auto", part:2,
       run:function(s){ s._afterDiag2 = "p2_pick_provider_here"; return s.out.diagnosisText ? "p2_pick_provider_here" : "p2_diag_input2"; }
     },
-    p2_diag_entry: { kind:"auto", part:1,
+    p2_diag_entry: { kind:"auto", part:2,
       run:function(s){ s._afterDiag2="p2_diag_auto"; return s.out.diagnosisText ? "p2_diag_auto" : "p2_diag_input2"; }
     },
-    p2_diag_input2: { kind:"diagnosis", source:"Referral document", part:1, field:"diagnosisText",
+    p2_diag_input2: { kind:"diagnosis", source:"Referral document", part:2, field:"diagnosisText",
       text:"What's the diagnosis?", short:"Diagnosis",
       next:"p2_diag_writtencheck_gate"
     },
-    p2_diag_writtencheck_gate: { kind:"auto", part:1,
+    p2_diag_writtencheck_gate: { kind:"auto", part:2,
       run:function(s){
         var isFreshPick = (s._afterDiag2 === "p2_pick_provider_here" || s._afterDiag2 === "p2_diag_auto");
         if (!isFreshPick) return s._afterDiag2;
@@ -2385,7 +2400,7 @@
         return "p2_diag_written_check";
       }
     },
-    p2_diag_written_check: { kind:"yesno", source:"Referral document", part:1,
+    p2_diag_written_check: { kind:"yesno", source:"Referral document", part:2,
       text:"Do you have a written diagnosis or condition for this referral - not just an ICD code? A code alone isn't enough to confirm which provider treats it.",
       short:"Written diagnosis available (not just ICD code)?",
       yes:function(s){ return s._afterDiag2; },
@@ -2394,7 +2409,7 @@
         return stopManual("New patient, code-only diagnosis (no written condition) - cannot confirm provider fit from an ICD code alone. Location already determined: " + locationText + ".", 2);
       }
     },
-    p2_diag_auto: { kind:"auto", part:1,
+    p2_diag_auto: { kind:"auto", part:2,
       run:function(s){
         var deptShort = deptShortName(s.out.location);
         var result = anyProviderAtLocationTreats(deptShort, s.out.diagnosisText);
@@ -2415,20 +2430,20 @@
         return "p2_diag_q";
       }
     },
-    p2_diag_q: { kind:"yesno", source:"Provider list - specialty reference", part:1,
+    p2_diag_q: { kind:"yesno", source:"Provider list - specialty reference", part:2,
       text:"Does that location have a provider who treats this diagnosis?",
       short:"Location has provider for dx?",
       yes:function(s){ s.providerTreatsDx = true; return "p2_done_new"; },
       no:function(s){ return "p2_new3"; }
     },
-    p2_done_new: { kind:"auto", part:1, run:function(s){ return afterLocationPicked(s); } },
-    p2_new3: { kind:"yesno", source:"Provider list - specialty reference", part:1,
+    p2_done_new: { kind:"auto", part:2, run:function(s){ return afterLocationPicked(s); } },
+    p2_new3: { kind:"yesno", source:"Provider list - specialty reference", part:2,
       text:"Is there a closer or other Biltmore location that has a provider who treats this diagnosis?",
       short:"Closer location treats dx?",
       yes:function(s){ return "p2_dept_closer"; },
       no:function(s){ setOut("location","MANUAL REVIEW"); return stopManual("No Biltmore location found with a provider who treats this diagnosis.",2); }
     },
-    p2_dept_closer: { kind:"select", source:"Provider list - practice locations", warning:"For this referral only - never change the patient's actual home clinic / registration department in Athena.", part:1, field:"location", options:DEPT_OPTIONS, dynamicGroups:deptGroupsForProvider, otherAllowed:true,
+    p2_dept_closer: { kind:"select", source:"Provider list - practice locations", warning:"For this referral only - never change the patient's actual home clinic / registration department in Athena.", part:2, field:"location", options:DEPT_OPTIONS, dynamicGroups:deptGroupsForProvider, otherAllowed:true,
       text:"Pick the closer Biltmore location's department.", short:"Closer Biltmore location",
       // Same as p2_diag_auto: the closer location was chosen because somebody
       // there treats the diagnosis, which says nothing about the provider who is
@@ -2437,17 +2452,17 @@
       next:function(s){ return afterLocationPicked(s); }
     },
 
-    p2_est1: { kind:"yesno", source:"Referral document + Athena department field + Valerie Task Details", part:1,
+    p2_est1: { kind:"yesno", source:"Referral document + Athena department field + Valerie Task Details", part:2,
       text:"Does the receiving location on Valerie for this task match the department Athena already has on file? (If either is missing, answer No.)",
       short:"Referral doc location matches Athena dept?",
       yes:function(s){ return "p2_dept_match"; },
       no:function(s){ return "p2_primarydept_check"; }
     },
-    p2_dept_match: { kind:"select", source:"Referral document", warning:"For this referral only - never change the patient's actual home clinic / registration department in Athena.", part:1, field:"location", options:DEPT_OPTIONS, dynamicGroups:deptGroupsForProvider, otherAllowed:true,
+    p2_dept_match: { kind:"select", source:"Referral document", warning:"For this referral only - never change the patient's actual home clinic / registration department in Athena.", part:2, field:"location", options:DEPT_OPTIONS, dynamicGroups:deptGroupsForProvider, otherAllowed:true,
       text:"You confirmed the fax and Athena already agree - enter which department that shared value actually is. This just records it; you're not changing anything.", short:"Matching department",
       next:function(s){ return afterLocationPicked(s); }
     },
-    p2_primarydept_check: { kind:"yesno", source:"Athena - patient's primary department field", part:1,
+    p2_primarydept_check: { kind:"yesno", source:"Athena - patient's primary department field", part:2,
       text:"Is the patient's primary department in Athena something other than Biltmore Cardio?",
       short:"Primary dept not Biltmore Cardio?",
       yes:function(s){
@@ -2456,18 +2471,18 @@
       },
       no:function(s){ return "p2_est2"; }
     },
-    p2_primarydept_provider: { kind:"select", source:"Quickview → Scheduling → View Patient Appointments", part:1, field:"provider", groups:PROVIDER_OPTION_GROUPS,
+    p2_primarydept_provider: { kind:"select", source:"Quickview → Scheduling → View Patient Appointments", part:2, field:"provider", groups:PROVIDER_OPTION_GROUPS,
       text:"Check the patient's appointment history and confirm the usual provider.", short:"Confirmed provider from history",
       afterSubmit:function(s){ s.part1Result="PROVIDER_PICKED"; s.providerTreatsDx=false; },
       next:"p3_entry"
     },
-    p2_est2: { kind:"yesno", source:"Quickview → Scheduling → View Patient Appointments", part:1,
+    p2_est2: { kind:"yesno", source:"Quickview → Scheduling → View Patient Appointments", part:2,
       text:"Have they been seen before at a location with a qualifying appointment?",
       short:"Seen before at qualifying location?",
       yes:function(s){ return "p2_dept_prior"; },
       no:function(s){ return "p3_entry"; }
     },
-    p2_dept_prior: { kind:"select", source:"Quickview → Scheduling → View Patient Appointments", warning:"For this referral only - never change the patient's actual home clinic / registration department in Athena.", part:1, field:"location", options:DEPT_OPTIONS, dynamicGroups:deptGroupsForProvider, otherAllowed:true,
+    p2_dept_prior: { kind:"select", source:"Quickview → Scheduling → View Patient Appointments", warning:"For this referral only - never change the patient's actual home clinic / registration department in Athena.", part:2, field:"location", options:DEPT_OPTIONS, dynamicGroups:deptGroupsForProvider, otherAllowed:true,
       text:"Pick that prior qualifying-visit location's department.", short:"Prior qualifying-visit location",
       next:function(s){ return afterLocationPicked(s); }
     },
@@ -2476,7 +2491,7 @@
     // over a tap-to-select list and a Yes/No pair: two questions and three
     // interaction models on one screen, with Yes meaning "open a different
     // picker" and No meaning "stop this referral". Both targets are unchanged.
-    p2_pick_provider_here: { kind:"yesno", source:"Provider list - specialty reference", part:1, showRelevantProviders:true,
+    p2_pick_provider_here: { kind:"yesno", source:"Provider list - specialty reference", part:2, showRelevantProviders:true,
       text:"Select the provider who will take this referral.",
       short:"Provider who treats dx?",
       yesLabel:"Not in this list - open the full picker",
@@ -2484,7 +2499,7 @@
       yes:function(s){ return "p2_name_here"; },
       no:function(s){ return stopManual("No provider available who treats the diagnosis.",2); }
     },
-    p2_name_here: { kind:"select", source:"Provider list - practice locations", part:1, field:"provider",
+    p2_name_here: { kind:"select", source:"Provider list - practice locations", part:2, field:"provider",
       dynamicGroups:function(s){ return suggestedProviderGroups(deptShortName(s.out.location), s.out.diagnosisText); },
       text:"Pick that provider.", short:"Provider at this location",
       // This used to set providerTreatsDx = true unconditionally. The dropdown
@@ -2645,7 +2660,7 @@
         return "p4_valerie_athena_check";
       }
     },
-    p4_valerie_athena_check: { kind:"yesno", source:"Athena Quickview - Insurance + Valerie Task Details", part:5, context:"Insurance Check", checkpoint:true,
+    p4_valerie_athena_check: { kind:"yesno", source:"Athena Quickview - Insurance + Valerie Task Details", part:4, context:"Insurance Check", checkpoint:true,
       warning:"Check the patient chart before raising a Missing Information request for insurance. A request went out on Task-847 for insurance that was already active in the chart.",
       definition:"All four must match, not just the payer: plan name, subscriber ID, group number, and responsible payor. Any one of them differing counts as a mismatch. Missing Information is only raised when the detail is absent from BOTH the patient chart AND the referral. If either one has it, it is not missing - take it from whichever source has it.",
       text:"Does Valerie and Athena match on insurance?",
@@ -2656,7 +2671,7 @@
     // Ops update: a primary that needs rerunning is Engineering's to redo; a
     // secondary that merely needs adding can be done here. Anything uncertain
     // goes to Engineering, which is the stated default.
-    p4_ins_which: { kind:"yesno3", source:"Athena Quickview - Insurance", part:5, context:"Insurance Check",
+    p4_ins_which: { kind:"yesno3", source:"Athena Quickview - Insurance", part:4, context:"Insurance Check",
       definition:"Only a secondary insurance may be added by hand. A primary that needs rerunning must be rerun by Engineering, and when in doubt treat it as a primary.",
       text:"Which insurance needs fixing?",
       short:"Primary or secondary insurance?",
@@ -2673,7 +2688,7 @@
     },
     // The mismatch types staff hit repeatedly are named rather than retyped, so
     // the escalation reads the same way every time and can be counted later.
-    p4_ins_mismatch_type: { kind:"select", source:"Athena Quickview - Insurance + Valerie Task Details", part:5, field:"insMismatchType", context:"Insurance Check",
+    p4_ins_mismatch_type: { kind:"select", source:"Athena Quickview - Insurance + Valerie Task Details", part:4, field:"insMismatchType", context:"Insurance Check",
       text:"What kind of mismatch is it?",
       short:"Insurance mismatch type",
       placeholder:"Select the mismatch type…",
@@ -2697,7 +2712,7 @@
     // rerun - the payor has to be called. The referral waits on that answer and
     // keeps its bucket rather than being held, so the rest of the workflow still
     // runs and the case is not re-triaged from scratch afterwards.
-    p4_ins_awaiting_info: { kind:"yesno3", source:"Athena - Insurance + the payor directly", part:5, context:"Insurance Check",
+    p4_ins_awaiting_info: { kind:"yesno3", source:"Athena - Insurance + the payor directly", part:4, context:"Insurance Check",
       // Austin, 9 Sep 2026: Awaiting Info is a Valerie status, not something we
       // put in Athena, and it is not the general "we are waiting on the payor"
       // state. A referral that still needs a call simply stays in its bucket and
@@ -2730,7 +2745,7 @@
         return "p9_payor_id";
       }
     },
-    p4_valerie_athena_desc: { kind:"text", source:"Athena Quickview - Insurance + Valerie Task Details", part:5, field:"engineeringIssueDesc", context:"Insurance Check",
+    p4_valerie_athena_desc: { kind:"text", source:"Athena Quickview - Insurance + Valerie Task Details", part:4, field:"engineeringIssueDesc", context:"Insurance Check",
       optional:true,
       text:"Anything else Engineering needs? Leave blank if the type above says it.",
       short:"Mismatch detail",
@@ -2749,7 +2764,7 @@
       // authorization required - all three of which the grid answers.
       next:"p9_payor_id"
     },
-    p4_edge_case_type: { kind:"select", source:"Referral document / insurance card", part:5, field:"edgeCaseInsuranceType", context:"Insurance Check",
+    p4_edge_case_type: { kind:"select", source:"Referral document / insurance card", part:4, field:"edgeCaseInsuranceType", context:"Insurance Check",
       options:["VA (Veteran)","Mercy","Other (not VA or Mercy)","Not sure"],
       text:"Which type of edge-case insurance is this?", short:"Edge-case insurance type",
       next:function(s){
@@ -2759,14 +2774,14 @@
         return s._afterEdgeCase;
       }
     },
-    p4_edge_case_va_check: { kind:"yesno", source:"Athena - Insurance Authorization", part:5, context:"Insurance Check",
+    p4_edge_case_va_check: { kind:"yesno", source:"Athena - Insurance Authorization", part:4, context:"Insurance Check",
       text:"Check the case policy (Optum - VA Community Care Network), Veteran ICN, and eligibility - update if necessary.",
       short:"VA case policy + ICN + eligibility check",
       yesLabel:"Good", noLabel:"Update was required",
       yes:function(s){ s.pendingBanner = "VA insurance checked - case policy, Veteran ICN, and eligibility were already correct. Continuing below."; return s._afterEdgeCase; },
       no:function(s){ return "p4_edge_case_va_missing"; }
     },
-    p4_edge_case_va_missing: { kind:"text", source:"Athena - Insurance Authorization", part:5, field:"engineeringIssueDesc", context:"Insurance Check",
+    p4_edge_case_va_missing: { kind:"text", source:"Athena - Insurance Authorization", part:4, field:"engineeringIssueDesc", context:"Insurance Check",
       text:"What was updated, or what's missing / couldn't be resolved (e.g., case policy wasn't set, no Veteran ICN available, eligibility won't run)?",
       short:"What was updated / what's missing for VA setup",
       placeholder:"Describe what was updated or what's missing",
@@ -2777,7 +2792,7 @@
       },
       next:function(s){ return s._afterEdgeCase; }
     },
-    p4_edge_case_mercy_check: { kind:"yesno", source:"Referral document / insurance card", part:10, context:"Insurance Check",
+    p4_edge_case_mercy_check: { kind:"yesno", source:"Referral document / insurance card", part:9, context:"Insurance Check",
       text:"Does this Mercy plan require a referral from the PCP?",
       short:"Mercy plan requires PCP referral?",
       yes:function(s){ s.pendingBanner = "Mercy Plan requires a referral from PCP - make sure Special Notes captures this."; return "p10_pcp_letter"; },
@@ -2786,7 +2801,7 @@
     // Step 10. The plan requiring a PCP referral is not the same as having one.
     // If the letter is in hand the referral authorization can be created from
     // it; if it is not, the fax has to go out first and somebody has to send it.
-    p10_pcp_letter: { kind:"yesno", source:"Referral document / Athena - patient chart documents", part:10, context:"Insurance Check",
+    p10_pcp_letter: { kind:"yesno", source:"Referral document / Athena - patient chart documents", part:9, context:"Insurance Check",
       text:"Do we have a letter from the PCP?",
       short:"PCP letter on file?",
       definition:"Check the referral and the chart documents. A plan requiring a PCP referral does not mean one has been received - this is whether the letter itself is there.",
@@ -2814,12 +2829,12 @@
     // Asked before the grid questions so a known payor can answer them without
     // the reviewer looking anything up, and so an edge case announces itself
     // rather than relying on somebody recognising the name.
-    p9_payor_id: { kind:"payor", source:"Athena Quickview - Insurance", part:9, context:"Insurance Check",
+    p9_payor_id: { kind:"payor", source:"Athena Quickview - Insurance", part:8, context:"Insurance Check",
       text:"What's the insurance payor ID?",
       short:"Payor ID",
       definition:"The insurance package number on the patient's insurance in Athena. If the referral grid covers it, the contracting questions are answered from the grid and you will see what it applied."
     },
-    p4_q2: { kind:"yesno", source:"In the toolbox", part:9, context:"Insurance Check", edgeCaseToggle:true, selfPayToggle:true,
+    p4_q2: { kind:"yesno", source:"In the toolbox", part:8, context:"Insurance Check", edgeCaseToggle:true, selfPayToggle:true,
       text:"Is this plan contracted with Biltmore?",
       short:"Contracted?",
       yes:function(s){
@@ -2831,13 +2846,13 @@
         return "p5_referral_date";
       }
     },
-    p4_referral_required: { kind:"yesno", source:"In the toolbox", part:11, context:"Insurance Check",
+    p4_referral_required: { kind:"yesno", source:"In the toolbox", part:10, context:"Insurance Check",
       text:"Is a referral required?",
       short:"Referral Required?",
       yes:function(s){ setOut("referralRequiredGrid","Yes"); return "p4_referral_auth"; },
       no:function(s){ setOut("referralRequiredGrid","No"); return "p4_referral_auth"; }
     },
-    p4_referral_auth: { kind:"yesno", source:"In the toolbox", part:11, context:"Insurance Check",
+    p4_referral_auth: { kind:"yesno", source:"In the toolbox", part:10, context:"Insurance Check",
       text:"Is referral authorization required?",
       short:"Referral Authorization Required?",
       yes:function(s){ setOut("referralAuthRequiredGrid","Yes"); return "p4_diag_entry"; },
@@ -2846,18 +2861,18 @@
     // Reported: Care Team belongs right after the insurance questions, not five
     // questions later behind the diagnosis check and the fax sweep. The block
     // runs here and returns to where this gate would have gone.
-    p4_diag_entry: { kind:"auto", part:1,
+    p4_diag_entry: { kind:"auto", part:2,
       run:function(s){
         s._afterCareTeam = s.providerTreatsDx ? "p4_clear_to_schedule" : "p4_treats_auto";
         if (!s.providerTreatsDx) s._afterDiag3 = "p4_treats_auto";
         return "p5_careteam_gate";
       }
     },
-    p4_diag_input: { kind:"diagnosis", source:"Referral document", part:1, field:"diagnosisText",
+    p4_diag_input: { kind:"diagnosis", source:"Referral document", part:2, field:"diagnosisText",
       text:"What's the diagnosis?", short:"Diagnosis",
       next:function(s){ return s._afterDiag3; }
     },
-    p4_treats_auto: { kind:"auto", part:1,
+    p4_treats_auto: { kind:"auto", part:2,
       run:function(s){
         var result = providerTreatsDiagnosis(s.out.provider, s.out.diagnosisText);
         if (result === true){
@@ -2874,7 +2889,7 @@
         return "p4_q3";
       }
     },
-    p4_q3: { kind:"yesno", source:"Provider list - specialty reference", part:1,
+    p4_q3: { kind:"yesno", source:"Provider list - specialty reference", part:2,
       text:"Does this provider treat the diagnosis?",
       short:"Provider treats the diagnosis?",
       yes:function(s){ s.providerTreatsDx = true; return "p4_clear_to_schedule"; },
@@ -2888,13 +2903,13 @@
     // the resume matcher accepts a bare "Yes"/"No" for any yes/no question - so a
     // path saved before this would have replayed into the opposite branch without
     // a word. Under a new name it is refused instead, and says why.
-    p4_clear_to_schedule: { kind:"yesno", source:"Referral document / Athena chart", part:15,
+    p4_clear_to_schedule: { kind:"yesno", source:"Referral document / Athena chart", part:14,
       text:"Is everything else clear to schedule - phone on file, referring provider in the database, nothing else outstanding?",
       short:"Everything else clear?",
       yes:function(s){ if (!s.awaitingInfo){ setOut("bucket","biltmorecardsched"); setOut("actionNote", s.isLoliBahu ? "Ready to schedule - do not manually outreach" : "Ready to schedule"); } return "p5_referral_date"; },
       no:function(s){ return "p4_q4a"; }
     },
-    p4_q4a: { kind:"yesno3", source:"Athena - referring provider database", part:15,
+    p4_q4a: { kind:"yesno3", source:"Athena - referring provider database", part:14,
       text:"Is it because the referring provider isn't in the database, or because they're missing an address?",
       short:"Referring provider not in DB or missing address?",
       thirdLabel:"Missing referring provider address",
@@ -2902,19 +2917,19 @@
       third:function(s){ setOut("bucket","sscardio"); setOut("actionNote","Referring provider is missing an address - cannot schedule until address is added"); return "p4_missing_provider_name"; },
       no:function(s){ return "p4_block_reason"; }
     },
-    p4_missing_provider_name: { kind:"text", source:"Referral document", part:15, field:"referringProviderName", optional:true,
+    p4_missing_provider_name: { kind:"text", source:"Referral document", part:14, field:"referringProviderName", optional:true,
       text:"What's the referring provider's name, if found anywhere on the referral? Leave blank if unavailable.",
       short:"Referring provider name found",
       placeholder:"Leave blank if unavailable",
       next:"p4_missing_provider_npi"
     },
-    p4_missing_provider_npi: { kind:"text", source:"Referral document", part:15, field:"referringProviderNPI", optional:true,
+    p4_missing_provider_npi: { kind:"text", source:"Referral document", part:14, field:"referringProviderNPI", optional:true,
       text:"What's their NPI number, if found? Leave blank if unavailable.",
       short:"Referring provider NPI found",
       placeholder:"Leave blank if unavailable",
       next:"p4_missing_provider_address"
     },
-    p4_missing_provider_address: { kind:"text", source:"Referral document", part:15, field:"referringProviderAddress", optional:true,
+    p4_missing_provider_address: { kind:"text", source:"Referral document", part:14, field:"referringProviderAddress", optional:true,
       text:"What's their address, if found anywhere on the referral (letterhead, fax header, etc.)? Leave blank if unavailable.",
       short:"Referring provider address found",
       placeholder:"Leave blank if unavailable",
@@ -2927,7 +2942,7 @@
       },
       next:"p5_referral_date"
     },
-    p4_block_reason: { kind:"text", source:"Staff judgment - no fixed source", part:15, field:"blockReason",
+    p4_block_reason: { kind:"text", source:"Staff judgment - no fixed source", part:14, field:"blockReason",
       text:"Briefly note the reason (e.g. no phone).", short:"Block reason",
       placeholder:"Reason",
       afterSubmit:function(s){ setOut("bucket","sscardio"); setOut("actionNote","Blocked - " + s.out.blockReason); },
@@ -2935,7 +2950,7 @@
     },
 
     // ---- PART 5 - WRITES & OBJECTS ----
-    p5_referral_date: { kind:"form", source:"Referral document", part:7,
+    p5_referral_date: { kind:"form", source:"Referral document", part:6,
       text:"With the referral fax open, fill in both.",
       short:"Referral fax sweep",
       fields:[
@@ -2951,19 +2966,19 @@
     },
     // Urgency is settled at the top now, because the appointment window depends
     // on it. This gate only routes on the answer already given.
-    p5_urgent: { kind:"auto", part:7,
+    p5_urgent: { kind:"auto", part:6,
       run:function(s){
         if (s.out.urgent === "YES") return "p5_urgent_appt_check";
         return "p5_careteam_gate";
       }
     },
-    p5_urgent_fax: { kind:"yesno", source:"Referral document - fax marking", part:7,
+    p5_urgent_fax: { kind:"yesno", source:"Referral document - fax marking", part:6,
       text:"Is the fax marked Urgent?",
       short:"Fax marked Urgent?",
       yes:function(s){ setOut("urgent","YES"); setOut("urgentReason","provider"); return "p5_urgent_appt_check"; },
       no:function(s){ setOut("urgent","NO"); return "p5_careteam_gate"; }
     },
-    p5_urgent_appt_check: { kind:"auto", part:7,
+    p5_urgent_appt_check: { kind:"auto", part:6,
       run:function(s){
         if (s.hasUpcomingAppt === false){
           if (s.isCamelbackReferral !== true){
@@ -2991,7 +3006,7 @@
         return "p5_urgent_appt_check_ask";
       }
     },
-    p5_urgent_appt_check_ask: { kind:"yesno", source:"Quickview → Scheduling → View Patient Appointments", part:7,
+    p5_urgent_appt_check_ask: { kind:"yesno", source:"Quickview → Scheduling → View Patient Appointments", part:6,
       text:"This is urgent - is there an appointment already scheduled within the next week?",
       short:"Urgent - appt within 1 week?",
       yes:function(s){ s.hasUpcomingAppt = true; return "p5_careteam_gate"; },
@@ -3020,7 +3035,7 @@
     //
     // It answers a question about the chart, and the chart does not change
     // between the two visits. Once is right.
-    p5_careteam_gate: { kind:"auto", part:4,
+    p5_careteam_gate: { kind:"auto", part:3,
       run:function(s){
         if (s.careTeamDone){
           var next = s._afterCareTeam || "p5_registration";
@@ -3030,14 +3045,14 @@
         return "p5_careteam1";
       }
     },
-    p5_careteam1: { kind:"yesno", source:"Athena Quickview - Care Team + Valerie Task Details", part:4,
+    p5_careteam1: { kind:"yesno", source:"Athena Quickview - Care Team + Valerie Task Details", part:3,
       warning:"A provider can be listed as both Referring Provider and PCP at the same time - adding one doesn't mean removing the other. Never delete an existing Care Team entry that's already there.",
       text:"In Quickview \u2192 Care Team, is the referring provider listed with the same address and fax number as the referral?",
       short:"Referring provider listed with matching address?",
       yes:function(s){ setOut("careTeamReferring","already listed"); return "p5_pcp_existing"; },
       no:function(s){ return "p5_careteam1a"; }
     },
-    p5_careteam1a: { kind:"yesno3", source:"Athena Quickview - Care Team + Valerie Task Details", part:4,
+    p5_careteam1a: { kind:"yesno3", source:"Athena Quickview - Care Team + Valerie Task Details", part:3,
       definition:"An address mismatch is recorded as a chart note only - it does not change the bucket. A Camelback patient who is otherwise ready to schedule still goes to biltmorecardsched. Only a referring provider missing from Athena's database moves the referral to sscardio.",
       text:"Which of these is the case?",
       short:"Referring provider status on Care Team",
@@ -3060,7 +3075,7 @@
     // collected on one screen. The fax number was added at the practice's
     // request: a care-team entry that matches on address but not fax is still
     // wrong, and the note has to say so.
-    p5_ct_name: { kind:"form", source:"Referral document / Athena Care Team", part:4,
+    p5_ct_name: { kind:"form", source:"Referral document / Athena Care Team", part:3,
       text:"Enter what the referral shows for the referring provider.",
       short:"Referring provider details",
       definition:"Each is optional - what is on the referral is what goes in the note. Leave blank anything the referral does not show.",
@@ -3086,7 +3101,7 @@
       ],
       next:"p5_pcp_existing"
     },
-    p5_pcp_existing: { kind:"yesno", source:"Athena Quickview - Care Team", part:4,
+    p5_pcp_existing: { kind:"yesno", source:"Athena Quickview - Care Team", part:3,
       warning:"A provider can be listed as both PCP and Referring Provider at the same time. If a PCP is already listed, do not delete or override it - leave the existing entry alone.",
       text:"Check Care Team for an existing PCP on this patient.",
       short:"PCP already listed?",
@@ -3096,7 +3111,7 @@
     // Where the Care Team block hands back to. Set by whichever gate sent us in,
     // so the block can be entered from more than one place without either caller
     // having to know what the other does.
-    p5_careteam_done: { kind:"auto", part:4,
+    p5_careteam_done: { kind:"auto", part:3,
       run:function(s){
         s.careTeamDone = true;
         var next = s._afterCareTeam || "p5_registration";
@@ -3104,7 +3119,7 @@
         return next;
       }
     },
-    p5_pcp_specialty: { kind:"yesno", source:"Referral document - referring provider's specialty", part:4,
+    p5_pcp_specialty: { kind:"yesno", source:"Referral document - referring provider's specialty", part:3,
       warning:"A provider can be listed as both Referring Provider and PCP at the same time - adding the referring provider as PCP doesn't remove them as Referring Provider, or vice versa.",
       text:"Check the referral for whether the referring provider is Family Medicine, Internal Medicine, or a Nurse Practitioner (FM / IM / FNP).",
       short:"Referring provider is FM/IM/FNP?",
@@ -3116,7 +3131,7 @@
     // said so - "absent from BOTH the patient chart AND the referral" - while
     // the heading above them named one screen, so the instruction contradicted
     // its own definitions. It now names every place these can come from.
-    p5_registration: { kind:"form", source:"Athena Full Registration, the patient chart, and the referral", part:6,
+    p5_registration: { kind:"form", source:"Athena Full Registration, the patient chart, and the referral", part:5,
       text:"Fill in all three - from Full Registration, the patient chart, or the referral.",
       short:"Full Registration sweep",
       fields:[
@@ -3153,7 +3168,7 @@
     },
     // Task-74: documents reached the chart unlabelled. The tool derives the label,
     // but nothing confirmed it was actually applied, so it is a checkpoint now.
-    p5_doc_label: { kind:"yesno", source:"Athena - the referral document", part:7,
+    p5_doc_label: { kind:"yesno", source:"Athena - the referral document", part:6,
       definition:"The label is New Patient Referral when there is no appointment before the referral date or none within three years, otherwise Established Patient Referral. The output card states which one applies.",
       text:"Is the referral document labelled in Athena?",
       short:"Document labelled in Athena?",
@@ -3165,7 +3180,7 @@
     // Notion lists a missing phone number as a disposition in its own right:
     // without a number the patient cannot be contacted to schedule, so it has to
     // reach the chart note rather than being noticed later.
-    p5_insurance1: { kind:"auto", part:5,
+    p5_insurance1: { kind:"auto", part:4,
       run:function(s){
         if (s.isCamelbackReferral === true) return "p5_va_gate";
         if (s.isCamelbackReferral === false){
@@ -3177,7 +3192,7 @@
         return "p5_insurance1_ask";
       }
     },
-    p5_insurance1_ask: { kind:"yesno", source:"Athena - receiving provider's location", part:5,
+    p5_insurance1_ask: { kind:"yesno", source:"Athena - receiving provider's location", part:4,
       text:"Is the receiving department for this referral Camelback?",
       short:"Camelback referral?",
       yes:function(s){ return "p5_va_gate"; },
@@ -3189,7 +3204,7 @@
     // Part 5 skip any coverage question that answer already settled, rather than
     // walking staff back through the same determination. "Not sure" is treated as
     // unknown on purpose - it is the one answer that rules nothing out.
-    p5_va_gate: { kind:"auto", part:5,
+    p5_va_gate: { kind:"auto", part:4,
       run:function(s){
         // Contracting already settled this: a plan that is not contracted is
         // ineligible and held, so VA / tribal / sync questions cannot change the
@@ -3213,7 +3228,7 @@
     // there is none. Re-asking "is there insurance listed in Athena?" sends staff
     // back to a screen they have already read, so it is now only asked when
     // Part 4 genuinely left the question open.
-    p5_insurance_athena_gate: { kind:"auto", part:5,
+    p5_insurance_athena_gate: { kind:"auto", part:4,
       run:function(s){
         var cg = s.out.contractedGrid || "";
         var et = s.out.edgeCaseInsuranceType || "";
@@ -3232,13 +3247,13 @@
         return "p5_insurance_athena_check";
       }
     },
-    p5_insurance_athena_check: { kind:"yesno", source:"Athena Quickview - Insurance", part:5,
+    p5_insurance_athena_check: { kind:"yesno", source:"Athena Quickview - Insurance", part:4,
       text:"Is there insurance listed in Athena for this patient?",
       short:"Insurance listed in Athena?",
       yes:function(s){ return "p5_va_ask_gate"; },
       no:function(s){ return "p5_insurance_selfpay_check"; }
     },
-    p5_va_ask_gate: { kind:"auto", part:5,
+    p5_va_ask_gate: { kind:"auto", part:4,
       run:function(s){
         var t = s.out.edgeCaseInsuranceType;
         if (t === "Mercy" || t === "Other (not VA or Mercy)"){
@@ -3257,7 +3272,7 @@
         return "p5_insurance_va";
       }
     },
-    p5_insurance_selfpay_check: { kind:"yesno", source:"Referral document / insurance card", part:5,
+    p5_insurance_selfpay_check: { kind:"yesno", source:"Referral document / insurance card", part:4,
       text:"Are they self-pay?",
       short:"Self-pay?",
       yes:function(s){ setOut("insurancePath","self-pay - no insurance to bill, proceed accordingly"); return "p5_referral_needed"; },
@@ -3267,7 +3282,7 @@
         return "p5_engineering_desc";
       }
     },
-    p5_insurance_va: { kind:"yesno", source:"Referral document / insurance card", part:5,
+    p5_insurance_va: { kind:"yesno", source:"Referral document / insurance card", part:4,
       text:"Is this VA (Veteran) coverage?",
       short:"VA coverage?",
       yes:function(s){
@@ -3276,19 +3291,19 @@
       },
       no:function(s){ return "p5_insurance2"; }
     },
-    p5_insurance2: { kind:"yesno", source:"Athena Quickview - Insurance", part:8,
+    p5_insurance2: { kind:"yesno", source:"Athena Quickview - Insurance", part:7,
       text:"Has this patient's insurance record synced correctly in the system and come back eligible?",
       short:"Insurance record synced & eligible?",
       yes:function(s){ setOut("insurancePath","synced-ok - leave it"); return "p5_referral_needed"; },
       no:function(s){ return "p5_insurance3"; }
     },
-    p5_insurance3: { kind:"yesno", source:"Athena Quickview - Insurance", part:8,
+    p5_insurance3: { kind:"yesno", source:"Athena Quickview - Insurance", part:7,
       text:"Did it fail to sync at all (nothing there)?",
       short:"Insurance did not sync?",
       yes:function(s){ setOut("insurancePath","did not sync - Add without card image → search → pick plan → run eligibility (must return eligible)"); return "p5_referral_needed"; },
       no:function(s){ return "p5_insurance4"; }
     },
-    p5_insurance4: { kind:"yesno", source:"Athena Quickview - Insurance", part:8,
+    p5_insurance4: { kind:"yesno", source:"Athena Quickview - Insurance", part:7,
       text:"Is it synced but showing the wrong plan or type?",
       short:"Insurance synced but wrong?",
       yes:function(s){
@@ -3299,7 +3314,7 @@
       },
       no:function(s){ return "p5_insurance_mismatch"; }
     },
-    p5_insurance_mismatch: { kind:"yesno", source:"Athena Quickview - Insurance + Valerie Task Details", part:5,
+    p5_insurance_mismatch: { kind:"yesno", source:"Athena Quickview - Insurance + Valerie Task Details", part:4,
       text:"Is there an existing insurance on file that doesn't match the most recent insurance recorded on Valerie for this task?",
       short:"Existing insurance doesn't match most recent?",
       yes:function(s){
@@ -3310,7 +3325,7 @@
       },
       no:function(s){ return "p5_pimc_gate"; }
     },
-    p5_pimc_gate: { kind:"auto", part:5,
+    p5_pimc_gate: { kind:"auto", part:4,
       run:function(s){
         if (s.out.edgeCaseInsuranceType === "Mercy"){
           setOut("insurancePath","self-pay / none / not eligible - flag on output");
@@ -3320,19 +3335,19 @@
         return "p5_insurance6";
       }
     },
-    p5_engineering_desc: { kind:"text", source:"Athena Quickview - Insurance (your observation)", part:5, field:"engineeringIssueDesc", context:"Insurance Check",
+    p5_engineering_desc: { kind:"text", source:"Athena Quickview - Insurance (your observation)", part:4, field:"engineeringIssueDesc", context:"Insurance Check",
       text:"Briefly describe exactly what's wrong with the insurance listing in Athena (e.g., wrong plan name, wrong subscriber ID, wrong insurer entirely).",
       short:"What's wrong with insurance in Athena",
       placeholder:"Describe the discrepancy",
       next:"p5_referral_needed"
     },
-    p5_insurance6: { kind:"yesno", source:"Referral document - PIMC referral format", part:5,
+    p5_insurance6: { kind:"yesno", source:"Referral document - PIMC referral format", part:4,
       text:"Is this PIMC coverage?",
       short:"PIMC coverage?",
       yes:function(s){ setOut("insurancePath","PIMC - case policy PIMC - PURCHASE REFERRED CARE + PIMC member ID"); return "p5_referral_needed"; },
       no:function(s){ setOut("insurancePath","self-pay / none / not eligible - flag on output"); return "p5_referral_needed"; }
     },
-    p5_referral_needed: { kind:"auto", part:11,
+    p5_referral_needed: { kind:"auto", part:10,
       run:function(s){
         if (s.out.referralRequiredGrid === "Yes") return "p5_referral_auto";
         if (s.out.referralRequiredGrid === "No"){
@@ -3344,19 +3359,19 @@
         return "p5_referral_needed_ask";
       }
     },
-    p5_referral_needed_ask: { kind:"yesno", source:"In the toolbox", part:11,
+    p5_referral_needed_ask: { kind:"yesno", source:"In the toolbox", part:10,
       text:"Does toolbox / insurance grid say a referral is required?",
       short:"Referral required?",
       yes:function(s){ return "p5_referral_auto"; },
       no:function(s){ setOut("referralObjNote","Not required (confirmed via toolbox eligibility check)"); return "p5_auth_needed"; }
     },
-    p5_referral_auto: { kind:"yesno", source:"Athena - Authorization section", part:11,
+    p5_referral_auto: { kind:"yesno", source:"Athena - Authorization section", part:10,
       text:"Does an auto-generated referral object already exist?",
       short:"Auto referral object exists?",
       yes:function(s){ setOut("referralObjNote","confirm existing object"); return "p5_auth_needed"; },
       no:function(s){ setOut("referralObjNote","Check first - none found, so create new. Type: Referral (not Pre-Cert). Referring provider = referring provider on fax; Referred-to provider = receiving provider (leave blank if none named, e.g. round-robin); Specialty = Cardiology; Department = Primary Department; Insurance Authorization Number = Not Required; ICD-10 codes = include if extracted"); return "p5_auth_needed"; }
     },
-    p5_auth_needed: { kind:"auto", part:11,
+    p5_auth_needed: { kind:"auto", part:10,
       run:function(s){
         // Austin, 8 Sep 2026, on feedback #11: a referral already routed away
         // from scheduling still gets its referral question asked, but no
@@ -3394,25 +3409,25 @@
         return "p5_auth_needed_ask";
       }
     },
-    p5_auth_needed_ask: { kind:"yesno", source:"In the toolbox", part:11,
+    p5_auth_needed_ask: { kind:"yesno", source:"In the toolbox", part:10,
       text:"Does the grid say referral authorization is required?",
       short:"Auth required?",
       yes:function(s){ return "p5_auth_chart_check"; },
       no:function(s){ setOut("authObjNote","Not required (confirmed via toolbox eligibility check)"); setOut("outboundExport","no"); return "__DONE__"; }
     },
-    p5_auth_chart_check: { kind:"yesno", source:"Athena - Authorization section", part:11,
+    p5_auth_chart_check: { kind:"yesno", source:"Athena - Authorization section", part:10,
       text:"Is there already an authorization for this referral in the chart?",
       short:"Existing auth already in chart?",
       yes:function(s){ return "p5_auth_chart_valid"; },
       no:function(s){ return "p5_auth_onfax"; }
     },
-    p5_auth_chart_valid: { kind:"yesno", source:"Athena - Authorization section", part:11,
+    p5_auth_chart_valid: { kind:"yesno", source:"Athena - Authorization section", part:10,
       text:"Is that existing authorization valid for at least 90 more days?",
       short:"Existing auth valid 90+ days?",
       yes:function(s){ setOut("authObjNote","existing authorization already in chart, valid for 90+ days - use it, no new object needed"); setOut("outboundExport","no"); return "__DONE__"; },
       no:function(s){ s.pendingBanner = "The existing authorization doesn't have 90+ days of validity left - a new one is needed."; return "p5_auth_onfax"; }
     },
-    p5_auth_onfax: { kind:"yesno3", source:"Referral document", part:11,
+    p5_auth_onfax: { kind:"yesno3", source:"Referral document", part:10,
       text:"Is the authorization info printed on the fax?",
       short:"Auth info on fax?",
       thirdLabel:"No - but I have the number and will enter it by hand",
@@ -3430,31 +3445,31 @@
       yes:function(s){ setOut("authObjNote","Check first - no valid existing authorization, so create new. Type: Pre-Cert (not Referral). Referring provider = referring provider on fax; Referred-to provider = receiving provider (leave blank if none named, e.g. round-robin); Specialty = Cardiology; Department = Primary Department; Insurance authorization number = from the fax if a real number exists, otherwise type \"paper\" into that field (paper referral, no formal auth number); Effective date = from the fax, or for paper referrals with no dates: start = date of referral, end = one year from start; Number of visits/units = from the fax, default 12 for paper referrals if missing; Diagnosis codes = ICD-10 codes if extracted (required for both paper and auth referrals); Additional information = any other details available on the fax"); setOut("outboundExport","no"); return "__DONE__"; },
       no:function(s){ return "p5_auth_outbound"; }
     },
-    p5_auth_outbound: { kind:"yesno", source:"Athena - Authorization section", part:11,
+    p5_auth_outbound: { kind:"yesno", source:"Athena - Authorization section", part:10,
       text:"Do you need to send an outbound request for authorization?",
       short:"Send outbound auth request?",
       yes:function(s){ return "p5_export_verify"; },
       no:function(s){ setOut("authObjNote","pending (no outbound sent)"); setOut("outboundExport","no"); return "__DONE__"; }
     },
-    p5_export_verify: { kind:"yesno", source:"Athena - auto-generated \"Request for Authorization Referral\" document", part:12,
+    p5_export_verify: { kind:"yesno", source:"Athena - auto-generated \"Request for Authorization Referral\" document", part:11,
       text:"Did you open the auto-generated \"Request for Authorization Referral\" document and confirm it matches what's being requested?",
       short:"Verified auto-generated auth document?",
       yes:function(s){ setOut("chkVerify","Yes"); return "p5_export_send"; },
       no:function(s){ setOut("chkVerify","No - verify the document before sending"); return "p5_export_send"; }
     },
-    p5_export_send: { kind:"yesno", source:"Athena - Chart Export", part:12,
+    p5_export_send: { kind:"yesno", source:"Athena - Chart Export", part:11,
       text:"Did you complete Chart Export and send it to the referring provider (Athena Fax, Attention = referring provider, Note = \"Request for referral authorization.\")?",
       short:"Chart Export sent to referring provider?",
       yes:function(s){ setOut("chkSend","Yes"); return "p5_export_once"; },
       no:function(s){ setOut("chkSend","No - not yet sent"); return "p5_export_once"; }
     },
-    p5_export_once: { kind:"yesno", source:"Athena - Chart Export / patient chart documents", part:12,
+    p5_export_once: { kind:"yesno", source:"Athena - Chart Export / patient chart documents", part:11,
       text:"Did you run Chart Export only once? (Running it again creates a duplicate document in the chart.)",
       short:"Ran Chart Export only once?",
       yes:function(s){ setOut("chkOnce","Yes"); return "p5_export_note"; },
       no:function(s){ setOut("chkOnce","No - check the chart for a duplicate document"); return "p5_export_note"; }
     },
-    p5_export_note: { kind:"yesno", source:"Athena - patient chart notes", part:12,
+    p5_export_note: { kind:"yesno", source:"Athena - patient chart notes", part:11,
       text:"Did you add the chart note \"Valerie Health: Referral Authorization Requested [date]\" to the patient chart?",
       short:"Added Referral Authorization Requested chart note?",
       yes:function(s){ setOut("chkNote","Yes"); return finalizeOutboundExport(s); },
@@ -3911,7 +3926,7 @@
   // rather than leaving a gap. A non-Camelback receiving assignment ends the
   // run early, and these are the steps it ends - named here so the path says
   // what was not done and why, instead of simply stopping.
-  var STEPS_SKIPPED_NON_CAMELBACK = [8, 9, 10, 11, 12, 14];
+  var STEPS_SKIPPED_NON_CAMELBACK = [7, 8, 9, 10, 11, 13];
 
   function markStepsNotNeeded(s, reason){
     STEPS_SKIPPED_NON_CAMELBACK.forEach(function(n){
@@ -3998,8 +4013,12 @@
   }
 
   function bannerHtml(){
-    if (!state.pendingBanner) return "";
-    var html = '<div class="banner"><b>Why you\'re here</b>' + escapeHtml(state.pendingBanner) + '</div>';
+    var text = state.pendingBanner;
+    // While step 2 is unresolved the cause stays on screen rather than flashing
+    // once and leaving the screens it sends you to blank about why you are there.
+    if (!text && state.part1Result === "FIND_LOCATION" && state.part1Reason) text = state.part1Reason;
+    if (!text) return "";
+    var html = '<div class="banner"><b>Why you\'re here</b>' + escapeHtml(text) + '</div>';
     state.pendingBanner = null;
     return html;
   }
