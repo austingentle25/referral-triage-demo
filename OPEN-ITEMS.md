@@ -3,7 +3,7 @@
 Everything outstanding on Referral Sync Helper, and what has closed. Kept in the
 repo so a decision is not rediscovered as new work later.
 
-**Last updated:** 8 September 2026, after the feedback batch.
+**Last updated:** 9 September 2026, after the fourteen-step renumber and step 15.
 
 ---
 
@@ -64,7 +64,22 @@ repo so a decision is not rediscovered as new work later.
 | H1 | Awaiting Info meant the wrong thing | **Fixed.** Austin: it is a Valerie status, and only for being unable to call the payor at all - out of hours. Both answers used to set it, so every referral reaching that question came out tagged and dispositioned "Eligibility Pending" whether or not anyone was waiting |
 | H2 | Missing phone was half modelled | **Fixed.** Outbound AthenaFax to the **referring provider**, not the PCP, with the chart note on the card. Ends Pending, which is what it already was - no new terminal state |
 | H3 | Mercy needed the authorization object | **Fixed.** The grid marks authorization "No" on all four Mercy packages, which is right about the payor and wrong here: the object is created from the PCP letter. Left to the grid, the authorization steps were skipped and nobody was told to make it |
+| I1 | Renumber to the client's fourteen steps | **Done, on branch `step-renumber-14`.** Their step 2 collapses our old 1 and 2; their step 1 is our old 3; everything from their step 3 up matched by name already, one number apart. Proved by replaying the 300 recorded baseline walks - identical asked-question sequence on all 300, 0 end-state changes, and the only field differing anywhere is "Why this path" on 101 walks, entirely step labels. 80/80 paths saved on the old build still resume |
+| I2 | Step 15, SMS Outreach | **Done, on branch.** Five conditions, naming the one that blocked it. Excluded off the `inClinicOnly` flag, never a name list. A new consent question on the demographics screen, because nothing recorded text consent before |
 | H4 | PIMC (58277) | **Flagged, not decided.** Eligibility is deliberately still checked. The card says the rule is unsettled and to check before finishing |
+
+---
+
+## Decisions - settled, do not re-litigate
+
+| # | Decision | Why |
+|---|---|---|
+| D-A | **Step 2 keeps our determination, not the client's resolve-or-review.** | The client's step 2 is a single resolve-or-manual-review. Ours is the whole Part 1/Part 2 node set: specialty matching, provider/location reconciliation, established-patient continuity, APP routing for hospital follow-ups, and the in-clinic and non-Valerie restrictions. Adopting their shape would drop all of it. Only the number changed |
+| D-B | **SMS consent is asked, not assumed.** | Nothing recorded text consent. What looked like it was a static "Calls YES, Texts YES" line telling the operator what to set in Athena - an instruction, not an answer coming back. Absence is not permission, so it is asked and an absent answer blocks outreach |
+| D-D | **SMS outreach runs for ten named providers.** | Austin, 9 Sep 2026, from the practice's own sheet: Gramze, Kline, Maki, Klein, Muzaffar, Lichtenwalter, Byrne, Ibrahim, Eckhardt, Homes. Loli and Bahu are on that sheet and excluded - they are the in-clinic pair. Held as a `smsOutreach` flag on the roster rather than a second list of names to drift |
+| D-E | **The document label does not block an outreach text.** | Austin, 9 Sep 2026: it is applied automatically, so nobody is waiting on it. Filtered out of the SMS gate only - the pending list and the output card still report it |
+| D-F | **`p4_diag_input` and `p5_urgent_fax` stay.** | Austin, 9 Sep 2026: the diagnosis and the urgent fax marking matter for assessing urgency, the provider rule and the upcoming-appointment window, so they are kept rather than deleted. Note they are orphaned - the live urgency logic runs through `p0_diag` and `p0_urgent_gate`, not these two |
+| D-C | **Non-Valerie and non-Camelback SMS guards are kept though unreachable.** | Both are excluded a layer earlier by bucket routing, so neither branch fires. Kept as backstops, labelled as unreachable, and the Cataldo fixture asserts the routing that makes them unreachable - so a routing change fails a test rather than sending a text |
 
 ---
 
@@ -157,6 +172,50 @@ Registration, in 38% of walks. Folding it into a form would mean asking it on th
 
 
 
+
+
+### 7. Two orphaned nodes - kept deliberately
+
+**Decision D-F: keep them.** Recorded here because the orphaning is still real and
+should not be rediscovered as new work.
+
+
+`p4_diag_input` (diagnosis) and `p5_urgent_fax` (yesno) each appear exactly once
+in `index.html` - their own definition - and have zero inbound references
+anywhere. Found by the orphan scan in `tools/scenario-report.js`. Both are
+orphaned in `fed4d81` too, so neither came from the renumber.
+
+**Not removed.** Deleting graph nodes is a deliberate decision, the way
+`p1_name_manual` was in F4. Same evidence standard: proved by inbound reference
+count, not by not having been walked.
+
+### 8. Four Camelback APPs are excluded from SMS by the named list
+
+Danielle Sturm, Diana Thayer, Kristen Jensen and Kevin Murphy are at Camelback,
+carry no restriction flag, and are not on the practice's outreach sheet - so they
+are not textable. Each works with a physician who **is** on it: Sturm and Jensen
+with Byrne, Thayer with Ibrahim, Murphy with Maki.
+
+That is the opposite of Franco and Ning, who are excluded alongside the physicians
+they work with. Implemented as the sheet reads. **If APPs are meant to inherit
+their physician's outreach the way they inherit specialties (F14), this is four
+names and a one-line change.**
+
+### 9. Step 15 may still be stricter than intended
+
+1 of 51 walks that reach step 15 comes out SMS-eligible, after the document label
+was removed as a blocker. What still blocks, beyond the named-provider list: a
+missing home address, a referring-provider address, a pending referral
+authorization, and unconfirmed payor eligibility.
+
+Whether a pending authorization should stop an outreach text is the open one.
+Say so and it is a one-line change.
+
+### 10. Nothing exercises the manual-review stops
+
+0 of 300 walks stopped for manual review, so every stop path is unexercised by
+the sampling and the stop-reason section of the report has nothing in it. That is
+a gap in coverage, not evidence the stops are right.
 
 ---
 
