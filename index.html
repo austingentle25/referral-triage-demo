@@ -1342,34 +1342,34 @@
 
   var PROVIDER_DATA = [
     { name:"Akil Loli, MD", specialty:"General, Interventional, Structural", locations:["Camelback","Casa Grande"], inClinicOnly:true, notes:"All scheduling must go to in-clinic" },
-    { name:"Akram Ibrahim, MD", specialty:"General, Interventional, Structural", locations:["Camelback"] },
+    { name:"Akram Ibrahim, MD", smsOutreach:true, specialty:"General, Interventional, Structural", locations:["Camelback"] },
     { name:"Ashish Gupta, MD", specialty:"General", locations:["Scottsdale","Arrowhead","Surprise"] },
     { name:"Ayman Jamal, MD", specialty:"General, Interventional, Structural", locations:["AHI"] },
     { name:"David Prutzman, MD", specialty:"General, Interventional, Structural", locations:["Arrowhead","Surprise","Peoria"] },
     { name:"James Kim, MD", specialty:"General, Interventional", locations:["Verrado","West"] },
     { name:"Jason Cool, MD", specialty:"General", locations:["Casa Grande"] },
     { name:"Kristina Skinner, DO", specialty:"General, Interventional", locations:["Arrowhead","Surprise","Peoria"] },
-    { name:"Lawrence Kline, DO", specialty:"General", locations:["Camelback","AHI"] },
+    { name:"Lawrence Kline, DO", smsOutreach:true, specialty:"General", locations:["Camelback","AHI"] },
     // Athena has AMG_KHAYYATKHOLGHI_M. The code is derived from the name, so the
     // full surname has to be here - "Kholgi" alone produced AMG_KHOLGI_M, which
     // matches nothing. Reported from the tool as Task-2104.
     { name:"Maedah Khayyat Kholghi, MD", specialty:"General", locations:["Arrowhead","Surprise","Peoria"] },
-    { name:"Marium Muzaffar, MD", specialty:"General, Interventional", locations:["Camelback"] },
+    { name:"Marium Muzaffar, MD", smsOutreach:true, specialty:"General, Interventional", locations:["Camelback"] },
     { name:"Marwan Bahu, MD", specialty:"Electrophysiology", locations:["Camelback"], inClinicOnly:true, notes:"All scheduling must go to in-clinic" },
     { name:"Michelle Mix, MD", specialty:"General", locations:["AHI"] },
-    { name:"Neal Klein, MD", specialty:"General, Interventional", locations:["Camelback"] },
-    { name:"Nickalaus Gramze, MD", specialty:"General", locations:["Camelback"] },
+    { name:"Neal Klein, MD", smsOutreach:true, specialty:"General, Interventional", locations:["Camelback"] },
+    { name:"Nickalaus Gramze, MD", smsOutreach:true, specialty:"General", locations:["Camelback"] },
     // Austin, 8 Sep 2026: the Diagnosis -> Specialty sheet wins over Provider
     // Specific Rules, which said General, Interventional.
-    { name:"Peter Maki, MD", specialty:"General", locations:["Camelback"], notes:"Exception: also sees Pure hypercholesterolemia, unspecified" },
+    { name:"Peter Maki, MD", smsOutreach:true, specialty:"General", locations:["Camelback"], notes:"Exception: also sees Pure hypercholesterolemia, unspecified" },
     { name:"Rahool Karnik, MD", specialty:"General", locations:["Arrowhead","Peoria"] },
     { name:"Renzo Cataldo, MD", specialty:"Electrophysiology", locations:["Goodyear","Verrado","Camelback"], nonValerieScheduling:true, notes:"Not scheduled through Valerie - route to sscardio" },
     { name:"Richard Pham, DO", specialty:"General, Interventional", locations:["Verrado","West"] },
     { name:"Saifuldeen Al Qaisi, MD", specialty:"General, Interventional", locations:["West"] },
     { name:"Sharon Sadeghinia, MD", specialty:"General", locations:["Goodyear","Surprise","West"] },
-    { name:"Timothy Byrne, DO", specialty:"General, Interventional, Structural", locations:["Camelback"] },
+    { name:"Timothy Byrne, DO", smsOutreach:true, specialty:"General, Interventional, Structural", locations:["Camelback"] },
     { name:"William Jaffe, MD", specialty:"General", locations:["Scottsdale","Central"] },
-    { name:"Chris Lichtenwalter, MD", specialty:"General, Interventional", locations:["Camelback"], notes:"Chandler physician, will have Camelback availability" },
+    { name:"Chris Lichtenwalter, MD", smsOutreach:true, specialty:"General, Interventional", locations:["Camelback"], notes:"Chandler physician, will have Camelback availability" },
     // Advanced practice providers. Each works with a named physician, so they
     // carry that physician's specialty and clinic - it is whose patients they
     // see. Franco and Ning carry the in-clinic-only restriction with Loli and
@@ -1380,8 +1380,8 @@
     { name:"Kevin Murphy, PA-C", specialty:"General", locations:["Camelback"], npi:"1881777613", notes:"APP with Peter Maki, MD - inherits his specialties" },
     { name:"Kristin Franco, ANP", specialty:"General, Interventional, Structural", locations:["Camelback"], npi:"1932399870", inClinicOnly:true, notes:"APP with Akil Loli, MD - all scheduling must go to in-clinic. Guide lists her as Kristin V. Franco" },
     { name:"Amilee Ning, PA-C", specialty:"Electrophysiology", locations:["Camelback"], npi:"1699852053", inClinicOnly:true, notes:"APP with Marwan Bahu, MD - all scheduling must go to in-clinic" },
-    { name:"Jody Eckhardt, DNP", specialty:"General", locations:["Camelback"], npi:"1871650564" },
-    { name:"Lorraine Homes, FNP-C", specialty:"General", locations:["Camelback"], npi:"1255375481" },
+    { name:"Jody Eckhardt, DNP", smsOutreach:true, specialty:"General", locations:["Camelback"], npi:"1871650564" },
+    { name:"Lorraine Homes, FNP-C", smsOutreach:true, specialty:"General", locations:["Camelback"], npi:"1255375481" },
     // Eckhardt and Homes were briefly marked inactive because they are absent
     // from the locations sheet. The scheduling guide settles it: both are listed
     // at Camelback, General, practising independently, and "Yes" under In-scope
@@ -1426,7 +1426,7 @@
     var display = p.specialty ? (p.name + " - " + p.specialty + " (" + p.locations.join(", ") + ")") : p.name;
     if (code) display = code + " - " + display;
     PROVIDER_LOOKUP[p.name] = { specialty:p.specialty, locations:p.locations, display:display, notes:p.notes || "", athenaCode:code,
-      inClinicOnly:!!p.inClinicOnly, nonValerieScheduling:!!p.nonValerieScheduling,
+      inClinicOnly:!!p.inClinicOnly, nonValerieScheduling:!!p.nonValerieScheduling, smsOutreach:!!p.smsOutreach,
       inactive:!!p.inactive, npi:p.npi || "" };
     return { value:p.name, label:display };
   });
@@ -4113,6 +4113,12 @@
     var p = PROVIDER_LOOKUP[name];
     return !!(p && p[flag]);
   }
+  // Step 15 outreach runs for a named set of providers, given by the practice on
+  // 9 Sep 2026. It is a flag on the roster rather than a list of names kept
+  // somewhere else, so there is one place a provider is described and no second
+  // list to drift out of step with it - the same reason the in-clinic
+  // restriction reads a flag instead of matching names.
+  function providerDoesSmsOutreach(name){ return providerFlag(name, "smsOutreach"); }
   function providerIsInClinicOnly(name){ return providerFlag(name, "inClinicOnly"); }
   function providerIsNonValerie(name){ return providerFlag(name, "nonValerieScheduling"); }
   function isRestrictedProvider(name){
@@ -4697,13 +4703,22 @@
     // place, so there is nothing for us to text about.
     if (providerIsInClinicOnly(o.provider)) return "No - in-clinic scheduling only";
     if (providerIsNonValerie(o.provider)) return "No - not scheduled through Valerie";
+    // Outreach runs only for the providers the practice named. Everyone else is
+    // scheduled some other way, so this is "No" and not "NR" - a decision that
+    // outreach does not happen, rather than a question that never arose.
+    if (!providerDoesSmsOutreach(o.provider)) return "No - provider is not on the SMS outreach list";
     // 4 before 3, so a missing phone reports itself rather than arriving as one
     // unnamed entry inside the missing-information list, which also contains it.
     if (o.phoneDisposition || !o.phoneNote) return "No - no phone number on file";
     // 5. Absent and refused are the same answer here.
     if (o.textConsent !== "yes") return "No - no text consent recorded";
-    // 3. Everything the SOP counts as missing information.
-    var missing = outstandingItems();
+    // 3. Missing information, minus the document label. Austin, 9 Sep 2026: the
+    // label is applied automatically, so it is not a thing anyone is waiting on
+    // and it should not stop an outreach text. It stays in outstandingItems() -
+    // the pending list and the card still report it - and is filtered out here
+    // only, because this is a question about texting, not about whether the
+    // referral is finished.
+    var missing = outstandingItems().filter(function(m){ return m !== "Document label not applied"; });
     if (missing.length) return "No - missing information: " + missing.join(", ");
     return "Yes";
   }
@@ -5586,7 +5601,7 @@
       // not belong here - only what an operator would notice.
       group('Recent updates', [
         '<b>9 Sep</b> - The steps are renumbered to match the fourteen-step workflow. Step 2 now covers what used to be steps 1 and 2, and every step above it moves down by one - the names are unchanged, so &quot;Run Athena eligibility&quot; is step 7 where it used to be step 8. Nothing about how a referral is worked out has changed. When step 2 cannot settle the provider, the reason now stays on screen instead of appearing once and vanishing.',
-        '<b>9 Sep</b> - New step 15, SMS outreach. It says whether the patient can be texted, and when they cannot it names the reason - in-clinic scheduling, no phone number, no text consent, or what is still missing. There is a new question on the demographics screen asking whether the patient has consented to texts, because nothing recorded it before and a patient who has not consented is not texted.',
+        '<b>9 Sep</b> - New step 15, SMS outreach. It says whether the patient can be texted, and when they cannot it names the reason - the provider is not one we text for, in-clinic scheduling, no phone number, no text consent, or what is still missing. There is a new question on the demographics screen asking whether the patient has consented to texts, because nothing recorded it before and a patient who has not consented is not texted.',
         '<b>9 Sep</b> - Awaiting Info is now only for being unable to call the payor at all - out of hours. A referral you will call during business hours just stays in its bucket. A missing phone number now says to fax the <b>referring provider</b>, not the PCP, and carries the chart note with it. Mercy referrals say to create the authorization object from the PCP letter, which the grid was hiding.'
       ]) +
 

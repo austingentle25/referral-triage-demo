@@ -165,7 +165,10 @@
       { name: "2. non-Valerie provider (Cataldo) - excluded by routing", opts: mix({ provider: "Cataldo" }), expect: /^NR/ },
       { name: "4. no phone on file", opts: mix({ phone: false }), expect: /no phone number on file/ },
       { name: "5. no text consent", opts: mix({ consent: false }), expect: /no text consent recorded/ },
-      { name: "3. missing information (address)", opts: mix({ address: false }), expect: /missing information/ }
+      { name: "3. missing information (address)", opts: mix({ address: false }), expect: /missing information/ },
+      // A Camelback provider carrying no restriction flag at all, who is simply
+      // not on the outreach list the practice named.
+      { name: "2b. Camelback provider not on the SMS list (Sturm)", opts: mix({ provider: "Sturm" }), expect: /not on the SMS outreach list/ }
     ];
 
     var results = cases.map(function (c) {

@@ -76,6 +76,9 @@ repo so a decision is not rediscovered as new work later.
 |---|---|---|
 | D-A | **Step 2 keeps our determination, not the client's resolve-or-review.** | The client's step 2 is a single resolve-or-manual-review. Ours is the whole Part 1/Part 2 node set: specialty matching, provider/location reconciliation, established-patient continuity, APP routing for hospital follow-ups, and the in-clinic and non-Valerie restrictions. Adopting their shape would drop all of it. Only the number changed |
 | D-B | **SMS consent is asked, not assumed.** | Nothing recorded text consent. What looked like it was a static "Calls YES, Texts YES" line telling the operator what to set in Athena - an instruction, not an answer coming back. Absence is not permission, so it is asked and an absent answer blocks outreach |
+| D-D | **SMS outreach runs for ten named providers.** | Austin, 9 Sep 2026, from the practice's own sheet: Gramze, Kline, Maki, Klein, Muzaffar, Lichtenwalter, Byrne, Ibrahim, Eckhardt, Homes. Loli and Bahu are on that sheet and excluded - they are the in-clinic pair. Held as a `smsOutreach` flag on the roster rather than a second list of names to drift |
+| D-E | **The document label does not block an outreach text.** | Austin, 9 Sep 2026: it is applied automatically, so nobody is waiting on it. Filtered out of the SMS gate only - the pending list and the output card still report it |
+| D-F | **`p4_diag_input` and `p5_urgent_fax` stay.** | Austin, 9 Sep 2026: the diagnosis and the urgent fax marking matter for assessing urgency, the provider rule and the upcoming-appointment window, so they are kept rather than deleted. Note they are orphaned - the live urgency logic runs through `p0_diag` and `p0_urgent_gate`, not these two |
 | D-C | **Non-Valerie and non-Camelback SMS guards are kept though unreachable.** | Both are excluded a layer earlier by bucket routing, so neither branch fires. Kept as backstops, labelled as unreachable, and the Cataldo fixture asserts the routing that makes them unreachable - so a routing change fails a test rather than sending a text |
 
 ---
@@ -171,7 +174,11 @@ Registration, in 38% of walks. Folding it into a form would mean asking it on th
 
 
 
-### 7. Two orphaned nodes, proved dead by the static scan
+### 7. Two orphaned nodes - kept deliberately
+
+**Decision D-F: keep them.** Recorded here because the orphaning is still real and
+should not be rediscovered as new work.
+
 
 `p4_diag_input` (diagnosis) and `p5_urgent_fax` (yesno) each appear exactly once
 in `index.html` - their own definition - and have zero inbound references
@@ -182,17 +189,29 @@ orphaned in `fed4d81` too, so neither came from the renumber.
 `p1_name_manual` was in F4. Same evidence standard: proved by inbound reference
 count, not by not having been walked.
 
-### 8. Step 15 may be stricter than intended
+### 8. Four Camelback APPs are excluded from SMS by the named list
 
-1 of 51 walks that reach step 15 comes out SMS-eligible. The same 51 were
-20-eligible before the change. The broadest gate is missing information:
-`outstandingItems()` counts an unapplied document label and a referring-provider
-address as missing, and either currently blocks a text.
+Danielle Sturm, Diana Thayer, Kristen Jensen and Kevin Murphy are at Camelback,
+carry no restriction flag, and are not on the practice's outreach sheet - so they
+are not textable. Each works with a physician who **is** on it: Sturm and Jensen
+with Byrne, Thayer with Ibrahim, Murphy with Maki.
 
-Narrowing it is a judgement about the work, not a code question - say which of
-those should stop an outreach text and it is a one-line change.
+That is the opposite of Franco and Ning, who are excluded alongside the physicians
+they work with. Implemented as the sheet reads. **If APPs are meant to inherit
+their physician's outreach the way they inherit specialties (F14), this is four
+names and a one-line change.**
 
-### 9. Nothing exercises the manual-review stops
+### 9. Step 15 may still be stricter than intended
+
+1 of 51 walks that reach step 15 comes out SMS-eligible, after the document label
+was removed as a blocker. What still blocks, beyond the named-provider list: a
+missing home address, a referring-provider address, a pending referral
+authorization, and unconfirmed payor eligibility.
+
+Whether a pending authorization should stop an outreach text is the open one.
+Say so and it is a one-line change.
+
+### 10. Nothing exercises the manual-review stops
 
 0 of 300 walks stopped for manual review, so every stop path is unexercised by
 the sampling and the stop-reason section of the report has nothing in it. That is

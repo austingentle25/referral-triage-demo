@@ -79,15 +79,19 @@ not a Camelback assignment, so the question does not arise.
 |---|---|
 | **Eligible** | **1** |
 | In-clinic scheduling only | 16 |
-| No phone number on file | 15 |
-| No text consent recorded | 9 |
-| Missing information (all variants) | 10 |
+| Provider not on the SMS outreach list | 11 |
+| No phone number on file | 11 |
+| No text consent recorded | 8 |
+| Missing information (all variants) | 4 |
 
-**1 in 51 may be stricter than intended, and is the main thing to look at.** The
-same 51 walks came out 20-eligible before this change. The missing-information
-gate is the broadest part: `outstandingItems()` counts an unapplied document
-label and a referring-provider address as missing information, and either one
-currently blocks a text.
+Outreach runs for the ten providers the practice named on 9 September 2026:
+Gramze, Kline, Maki, Klein, Muzaffar, Lichtenwalter, Byrne, Ibrahim, Eckhardt and
+Homes. It is a `smsOutreach` flag on the roster, not a separate list of names, so
+there is one place a provider is described.
+
+The document label no longer blocks a text - it is applied automatically, so
+nobody is waiting on it. It is filtered out of this gate only; the pending list
+and the output card still report it.
 
 Two branches of `buildSmsEligibility()` never fire in 300 walks and did not fire
 in any fixture: `"not scheduled through Valerie"` and `"not a Camelback receiving
@@ -97,7 +101,7 @@ labelled as such rather than left looking load-bearing.
 
 ## Fixtures
 
-`tools/sms-fixtures.js` - 8 cases, **8 pass**. They drive the real page; there is
+`tools/sms-fixtures.js` - 9 cases, **9 pass**. They drive the real page; there is
 no stub of `buildSmsEligibility()`, because a second implementation of the rule
 would pass while the shipped one was broken.
 
