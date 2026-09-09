@@ -43,7 +43,13 @@ window.__HARNESS = function(n){
 const S=(e,v)=>{if(!e)return;const p=e.tagName==='SELECT'?window.HTMLSelectElement:(e.tagName==='TEXTAREA'?window.HTMLTextAreaElement:window.HTMLInputElement);Object.getOwnPropertyDescriptor(p.prototype,'value').set.call(e,v);e.dispatchEvent(new Event('input',{bubbles:true}));e.dispatchEvent(new Event('change',{bubbles:true}));};
 const KNOWN=['22796','45897','3150','1467','679628','1910','58750','100575','549986','325316','112','44273'];
 const DX=['chest pain','angina','stroke','atrial fibrillation','heart failure','hyperlipidemia','aortic stenosis'];
-const NM=['Byrne','Kline','Cataldo','Loli','Bahu','Gupta','Mix','Maki','Sturm','Kholghi','Klein','Ibrahim'];
+// Every restricted provider is named here on purpose. Selection is by typing a
+// surname, so a restricted provider absent from this list is one the walker can
+// never choose - and the "restricted provider says so on the card" invariant
+// then passes without having checked them. Franco and Ning were invisible that
+// way for 2000 walks. Adding a restricted provider to the tool means adding the
+// surname here.
+const NM=['Byrne','Kline','Cataldo','Loli','Bahu','Gupta','Mix','Maki','Sturm','Kholghi','Klein','Ibrahim','Franco','Ning'];
 function walk(seed){
  let s=(seed*2654435761)>>>0; const rnd=()=>{s=(s*1664525+1013904223)>>>0;return s/4294967296;};
  document.getElementById('headerReset').click();

@@ -21,8 +21,21 @@
     var R = window.__HARNESS(n);
     var done = R.filter(function (r) { return r.end === "determination"; });
     var fail = [];
-    function check(name, bad, detail) {
+    // Coverage is recorded next to every verdict. A check that examined nothing
+    // passes and a check that examined everything passes, and without this they
+    // are the same green line. The canonical-diagnosis check silently examined
+    // zero entries whenever the source fetch failed, and the restricted-provider
+    // check covered three of five for 2000 walks because the walker could not
+    // choose the other two. Both read as clean runs.
+    var cover = {};
+    function check(name, bad, detail, examined) {
+      cover[name] = examined;
       if (bad && bad.length) fail.push({ name: name, count: bad.length, of: n, detail: detail, sample: bad.slice(0, 3) });
+    }
+    // Nothing to examine is a fault in the checker, and it is reported as one
+    // rather than left to be read off a coverage number nobody reads at 08:23.
+    function needs(name, examined, why) {
+      if (!examined) fail.push({ name: name, count: 0, of: n, detail: "checked nothing - " + why, sample: [] });
     }
 
     // A harness that counted "the loop stopped" as success once hid a
@@ -30,7 +43,7 @@
     // a stop-with-a-reason is that bug coming back.
     check("every walk ends somewhere",
       R.filter(function (r) { return r.end === "incomplete" || r.end === "error"; }).map(function (r) { return r.seed; }),
-      "walks that ran out of iterations or threw");
+      "walks that ran out of iterations or threw", n);
 
     // Care Team was asked twice on 42% of referrals for a day, and the output
     // card kept whichever answer came second.
@@ -39,12 +52,12 @@
         var seen = {};
         return (r.asked || []).some(function (q) { seen[q] = (seen[q] || 0) + 1; return seen[q] > 1; });
       }).map(function (r) { return r.seed; }),
-      "a repeated question can be answered differently the second time and overwrite the first");
+      "a repeated question can be answered differently the second time and overwrite the first", n);
 
     // The diagnosis is meant to be on every referral - it goes in the chart note.
     check("every determination records a diagnosis",
       done.filter(function (r) { return !/(^|→)\s*Diagnosis: /.test(r.det["Why this path"] || ""); }).map(function (r) { return r.seed; }),
-      "a referral finishing without one leaves the chart note short");
+      "a referral finishing without one leaves the chart note short", done.length);
 
     // Twice now a canonical diagnosis has been added with no keyword behind it.
     // It is pickable and carries nothing, so provider matching degrades in
@@ -95,18 +108,30 @@
         }
       });
       setV.call(dx, ""); dx.dispatchEvent(new Event("input", { bubbles: true }));
-      check("every diagnosis resolves to a specialty", noSpec, "pickable but carrying nothing for provider matching");
+      check("every diagnosis resolves to a specialty", noSpec,
+        "pickable but carrying nothing for provider matching", (window.__CANON || []).length);
     }
+    needs("every diagnosis resolves to a specialty", dx && (window.__CANON || []).length,
+      dx ? "the canonical diagnosis list could not be read out of the served source"
+         : "could not reach a diagnosis screen to drive the picker");
 
     // The in-clinic restriction was set correctly and then stripped by two
     // formatters, so three chart notes read "Ready for Scheduling" with nothing
     // saying not to outreach the patient.
     var RESTRICTED = ["Akil Loli, MD", "Marwan Bahu, MD", "Kristin Franco, ANP", "Amilee Ning, PA-C", "Renzo Cataldo, MD"];
+    var seenRestricted = RESTRICTED.filter(function (name) {
+      return done.some(function (r) { return r.det["Provider"] === name; });
+    });
     check("a restricted provider says so on the card",
       done.filter(function (r) {
         return RESTRICTED.indexOf(r.det["Provider"]) !== -1 && !r.det["Scheduling restriction"];
       }).map(function (r) { return r.seed + " " + r.det["Provider"]; }),
-      "the restriction has been silently dropped by a formatter before");
+      "the restriction has been silently dropped by a formatter before", seenRestricted.length);
+    // Selection is by typed surname, so a restricted provider the walker cannot
+    // type is one this check never sees. It passed on three of five for 2000 walks.
+    needs("a restricted provider says so on the card", seenRestricted.length === RESTRICTED.length,
+      "only reached " + seenRestricted.join(", ") + " of " + RESTRICTED.length +
+      " restricted providers - add the missing surname to NM in walk-harness.js");
 
     // Resume is how work crosses a version boundary. A path that does not come
     // back to the same determination is a path that quietly loses something.
@@ -118,7 +143,8 @@
       var diff = keys.filter(function (k) { return norm(r.det[k]) !== norm(rr.det[k]); });
       if (diff.length) broke.push(r.seed + " " + diff.slice(0, 2).join(", "));
     });
-    check("paths resume to the same determination", broke, "checked on the first 60 walks");
+    check("paths resume to the same determination", broke,
+      "checked on the first 60 walks", Math.min(done.length, 60));
 
     // The reviewer line is the one difference that is real and not a fault. The
     // first referral of a session is asked who is working it; every later one -
@@ -153,6 +179,7 @@
     return {
       ok: fail.length === 0,
       failures: fail,
+      coverage: cover,
       summary: {
         walks: n,
         determinations: done.length + " (" + pct(done.length, n) + ")",
