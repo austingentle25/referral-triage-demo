@@ -1523,6 +1523,11 @@
         "myocardial infarction","nstemi","stemi","unstable angina","aneurysm",
         "peripheral artery disease","pad","peripheral vascular disease","claudication",
         "carotid artery disease","carotid stenosis","cardiac catheterization","post-mi","post mi",
+        // Aortic atherosclerosis sits with the other arterial disease rather than
+        // with structural valve work. Added alongside the canonical entry, which
+        // otherwise landed in the list resolving to no specialty at all - the
+        // same trap "Nonrheumatic aortic (valve) insufficiency" fell into.
+        "atherosclerosis of aorta","aortic atherosclerosis",
         "stent","angioplasty","cabg","coronary artery bypass","bypass surgery",
         "reduced ejection fraction","reduced ef","low ejection fraction","diastolic dysfunction",
         "systolic dysfunction","pulmonary hypertension","cardiogenic shock","pericarditis","myocarditis",
@@ -1674,7 +1679,8 @@
     "Essential (primary) hypertension","Mixed hyperlipidemia","Endocarditis, valve unspecified",
     "Hyperlipidemia, unspecified","Heart failure, unspecified","Chest pain, unspecified",
     "Cardiac arrhythmia, unspecified","Atrial fibrillation, unspecified",
-    "Nonrheumatic aortic (valve) insufficiency","Elevated blood-pressure reading, without diagnosis of hypertension"
+    "Nonrheumatic aortic (valve) insufficiency","Elevated blood-pressure reading, without diagnosis of hypertension",
+    "Atherosclerosis of aorta"
   ];
 
   // Returns true/false if we can determine it, or null if the diagnosis or
@@ -2019,7 +2025,7 @@
              node:"p_reviewer_entry", crumbs:[], out:{}, stepTimings:[], backSteps:[], manualReview:false, manualReviewReason:null,
              manualReviewPart:0, lastPart:0, pendingBanner:null, part1Result:null, part1Reason:null,
              progressHigh:0, providerTreatsDx:false, hasUpcomingAppt:false, awaitingInfo:false, isCamelbackReferral:null, needsEngineeringEscalation:false, isLoliBahu:false, pendingEdgeCase:false, pendingSelfPay:false,
-             _afterDiag:null, _afterDiag2:null, _afterDiag3:null, _afterCareTeam:null };
+             _afterDiag:null, _afterDiag2:null, _afterDiag3:null, _afterCareTeam:null, careTeamDone:false };
   }
 
   function setOut(k,v){ state.out[k]=v; }
@@ -2814,7 +2820,7 @@
       run:function(s){
         s._afterCareTeam = s.providerTreatsDx ? "p4_clear_to_schedule" : "p4_treats_auto";
         if (!s.providerTreatsDx) s._afterDiag3 = "p4_treats_auto";
-        return "p5_careteam1";
+        return "p5_careteam_gate";
       }
     },
     p4_diag_input: { kind:"diagnosis", source:"Referral document", part:1, field:"diagnosisText",
@@ -2918,21 +2924,21 @@
     p5_urgent: { kind:"auto", part:7,
       run:function(s){
         if (s.out.urgent === "YES") return "p5_urgent_appt_check";
-        return "p5_careteam1";
+        return "p5_careteam_gate";
       }
     },
     p5_urgent_fax: { kind:"yesno", source:"Referral document - fax marking", part:7,
       text:"Is the fax marked Urgent?",
       short:"Fax marked Urgent?",
       yes:function(s){ setOut("urgent","YES"); setOut("urgentReason","provider"); return "p5_urgent_appt_check"; },
-      no:function(s){ setOut("urgent","NO"); return "p5_careteam1"; }
+      no:function(s){ setOut("urgent","NO"); return "p5_careteam_gate"; }
     },
     p5_urgent_appt_check: { kind:"auto", part:7,
       run:function(s){
         if (s.hasUpcomingAppt === false){
           if (s.isCamelbackReferral !== true){
             s.crumbs.push({ short:"Urgent appointment check (auto)", answer:"Skipped - no upcoming appointment, non-Camelback, bucket unchanged" });
-            return "p5_careteam1";
+            return "p5_careteam_gate";
           }
           var prevBucket = s.out.bucket;
           var prevNote = s.out.actionNote;
@@ -2941,7 +2947,7 @@
           // referral to scheduling with the reason surviving only as prose.
           if (s.awaitingInfo || prevBucket === "sscardio" || /ineligible/i.test(prevNote || "")){
             s.crumbs.push({ short:"Urgent appointment check (auto)", answer:"Skipped - case already ineligible, routing unchanged" });
-            return "p5_careteam1";
+            return "p5_careteam_gate";
           }
           setOut("bucket","biltmorecardsched");
           if (prevBucket && prevBucket !== "biltmorecardsched"){
@@ -2950,7 +2956,7 @@
             setOut("actionNote","Ready to schedule (no appointment within a week)");
           }
           s.crumbs.push({ short:"Urgent appointment check (auto)", answer:"Skipped - already confirmed no upcoming appointment" });
-          return "p5_careteam1";
+          return "p5_careteam_gate";
         }
         return "p5_urgent_appt_check_ask";
       }
@@ -2958,20 +2964,38 @@
     p5_urgent_appt_check_ask: { kind:"yesno", source:"Quickview → Scheduling → View Patient Appointments", part:7,
       text:"This is urgent - is there an appointment already scheduled within the next week?",
       short:"Urgent - appt within 1 week?",
-      yes:function(s){ s.hasUpcomingAppt = true; return "p5_careteam1"; },
+      yes:function(s){ s.hasUpcomingAppt = true; return "p5_careteam_gate"; },
       no:function(s){
         s.hasUpcomingAppt = false;
-        if (s.isCamelbackReferral !== true) return "p5_careteam1";
+        if (s.isCamelbackReferral !== true) return "p5_careteam_gate";
         var prevBucket = s.out.bucket;
         var prevNote = s.out.actionNote;
         // Same guard as the auto gate: an already-ineligible case must keep its
         // routing rather than being flipped into the scheduling bucket.
-        if (s.awaitingInfo || prevBucket === "sscardio" || /ineligible/i.test(prevNote || "")) return "p5_careteam1";
+        if (s.awaitingInfo || prevBucket === "sscardio" || /ineligible/i.test(prevNote || "")) return "p5_careteam_gate";
         setOut("bucket","biltmorecardsched");
         if (prevBucket && prevBucket !== "biltmorecardsched"){
           setOut("actionNote","Ready to schedule (no appointment within a week) (previously: " + (prevNote || prevBucket) + ")");
         } else {
           setOut("actionNote","Ready to schedule (no appointment within a week)");
+        }
+        return "p5_careteam_gate";
+      }
+    },
+    // The Care Team block is entered from two directions: the insurance gate,
+    // which is where it was moved to yesterday, and the part 7 urgent routes,
+    // which have always ended here. Nothing stopped a run doing both, so 84 of
+    // 200 walks asked "is the referring provider listed with the same address
+    // and fax number" twice - reported twice within eleven minutes.
+    //
+    // It answers a question about the chart, and the chart does not change
+    // between the two visits. Once is right.
+    p5_careteam_gate: { kind:"auto", part:4,
+      run:function(s){
+        if (s.careTeamDone){
+          var next = s._afterCareTeam || "p5_registration";
+          s._afterCareTeam = null;
+          return next;
         }
         return "p5_careteam1";
       }
@@ -3044,6 +3068,7 @@
     // having to know what the other does.
     p5_careteam_done: { kind:"auto", part:4,
       run:function(s){
+        s.careTeamDone = true;
         var next = s._afterCareTeam || "p5_registration";
         s._afterCareTeam = null;
         return next;
@@ -5414,9 +5439,9 @@
       // deliberately: a list nobody prunes stops being read. Internal work does
       // not belong here - only what an operator would notice.
       group('Recent updates', [
+        '<b>9 Sep</b> - Fixed: the Care Team question was being asked twice on a lot of referrals, a regression from moving it after the insurance questions yesterday. It answers something about the chart, and the chart does not change between the two, so it is asked once.',
         '<b>8 Sep</b> - The department pickers show an address beside each location. They are gathered from public listings rather than Athena and are <b>not verified</b> - the screen says so, and Terrace and Kierland are blank because nothing public matched them.',
-        '<b>8 Sep</b> - <b>Urgent referrals use a 7-day window.</b> An appointment further out than a week no longer counts as the upcoming one, so an urgent referral stops taking its provider from a booking weeks away. The diagnosis is asked first now, on every referral, because urgency comes from it as much as from the fax marking.',
-        '<b>8 Sep</b> - The Care Team questions run straight after insurance rather than five questions later, and \"Any other block?\" is now <b>\"Is everything else clear to schedule?\"</b> - Yes is the good answer, as it is everywhere else.'
+        '<b>8 Sep</b> - <b>Urgent referrals use a 7-day window.</b> An appointment further out than a week no longer counts as the upcoming one, so an urgent referral stops taking its provider from a booking weeks away. The diagnosis is asked first now, on every referral, because urgency comes from it as much as from the fax marking.'
       ]) +
 
       group('Insurance', [
