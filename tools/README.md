@@ -53,6 +53,48 @@ It samples paths; it does not enumerate them. **"Never reached in 400 walks"
 means rare, not dead** - use grep for inbound references to prove a node is
 orphaned.
 
+## `scenario-report.js`
+
+```js
+// with walk-harness.js already loaded:
+await window.__REPORT(300)
+```
+
+Outcome and stop-reason distribution, errors, self-loops, iteration-ceiling hits,
+nodes visited twice, node coverage, a static orphan scan, and the step 15 spread.
+Latest run written up in `REPORT-300-scenarios.md`.
+
+**It reports failures; it does not assert success.** Anything it could not
+produce lands in `couldNotRun` rather than being omitted - an absent section and
+a clean section must not look the same. Read that field first.
+
+Node-level facts come from the tool's own session log, read by stubbing the
+clipboard and pressing the export button, so it sees what an operator would
+export rather than a private copy of the truth. **That log cannot see `auto`
+nodes**: they resolve without rendering and are never written to it. Coverage is
+therefore reported over interactive nodes only, with the blind spot named. The
+first version of this counted 33 auto nodes as unreached, including the start
+node, and reported 50 unvisited nodes that had mostly run.
+
+The orphan scan is the only part that proves deadness. Everything else samples,
+and sampling proves rarity.
+
+## `sms-fixtures.js`
+
+```js
+window.__SMS_FIXTURES()
+```
+
+Eight cases for step 15: the eligible path, each condition failing on its own,
+an in-clinic-only physician and their APP, a non-Valerie provider, and a
+non-Camelback assignment. They drive the real page - there is deliberately no
+stub of `buildSmsEligibility()`, since a second implementation of the rule would
+pass while the shipped one was broken.
+
+A fixture needs a provider who actually practises where it puts them. Assigning
+a Camelback-only provider to Arrowhead is corrected by the tool, and the fixture
+then silently tests the Camelback path instead.
+
 ## `invariants.js`
 
 ```js
