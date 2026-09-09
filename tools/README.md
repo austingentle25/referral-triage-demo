@@ -52,3 +52,32 @@ stubs the DOM cannot see it, and reports `p10_pcp_letter` and
 It samples paths; it does not enumerate them. **"Never reached in 400 walks"
 means rare, not dead** - use grep for inbound references to prove a node is
 orphaned.
+
+## `invariants.js`
+
+```js
+// with walk-harness.js already loaded:
+await window.__CHECK(300)   // -> {ok, failures, summary}
+```
+
+Runs the walks and asserts a list of properties that have each been broken at
+least once. Every check names the bug it came from, so nobody deletes one for
+looking redundant:
+
+| Check | Broke on |
+|---|---|
+| Every walk ends somewhere | A harness counted a stopped loop as success and hid a 158-iteration loop |
+| No question asked twice in one walk | Care Team, asked twice on 42% of referrals for a day |
+| Every determination records a diagnosis | Referrals finished with the chart note short |
+| Every diagnosis resolves to a specialty | Twice: an entry pickable with nothing behind it |
+| A restricted provider says so on the card | The in-clinic restriction stripped by two formatters |
+| Paths resume to the same determination | Resume wrote answers into the wrong fields |
+
+It reads the canonical diagnosis list back out of the served source, so it needs
+no setup beyond loading the harness first.
+
+**The reviewer line is normalised before comparing.** The first referral of a
+session is asked who is working it and every later one carries the answer, so the
+same answers legitimately give two different trails. It is excluded by name, not
+by dropping the whole comparison - a checker that reports a known-benign failure
+every run is one nobody reads.
