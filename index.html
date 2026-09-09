@@ -1269,7 +1269,8 @@
     11:"Step 11 - Upload authorization request letter",
     12:"Step 12 - Write unified notes",
     13:"Step 13 - Close document if there is an upcoming appointment",
-    14:"Step 14 - Complete manual follow-through and routing"
+    14:"Step 14 - Complete manual follow-through and routing",
+    15:"Step 15 - SMS Outreach"
   };
   // Rough weight of each part in the overall flow (sums to 100), used to drive
   // the progress bar. PART_INTERACTIVE is the max number of yes/no/text/select
@@ -1283,7 +1284,7 @@
     var start = {}, acc = 0;
     // Steps 1, 12 and 13 carry no questions and so no weight; the || 0 keeps
     // the running total intact across those gaps.
-    for (var p = 0; p <= 14; p++){ start[p] = acc; acc += (PART_WEIGHTS[p] || 0); }
+    for (var p = 0; p <= 15; p++){ start[p] = acc; acc += (PART_WEIGHTS[p] || 0); }
     return start;
   })();
 
@@ -3162,7 +3163,19 @@
             setOut("phoneNote","missing from both chart and referral - send an outbound AthenaFax to the referring provider asking for the patient's phone number");
             setOut("phoneDisposition","Awaiting Patient Phone Number");
             setOut("phoneChartNote","Reviewed by Valerie Health (" + todayDot() + "): awaiting patient phone number from referring provider");
-          } }
+          } },
+        // Step 15 gates outreach on this. Nothing recorded it before - the output
+        // card carried a static "Calls YES, Texts YES" instruction line, which
+        // tells the operator what to set in Athena and is not an answer coming
+        // back. Without a recorded answer the only safe reading of consent is
+        // that we do not have it, so it is asked rather than assumed.
+        { kind:"yesno", short:"Text consent on file?",
+          label:"Has the patient consented to text messages?",
+          definition:"Athena - Communication Preferences on the patient's contact record, the Texts setting. This gates SMS outreach at step 15. If it is not recorded, answer No: a patient who has not consented is not texted.",
+          yesLabel:"Yes - texts allowed",
+          noLabel:"No - or not recorded",
+          yes:function(s){ setOut("textConsent","yes"); setOut("textConsentNote","consent on file - texts allowed"); },
+          no:function(s){ setOut("textConsent","no"); setOut("textConsentNote","no text consent recorded - do not text"); } }
       ],
       next:"p5_doc_label"
     },
@@ -3926,7 +3939,7 @@
   // rather than leaving a gap. A non-Camelback receiving assignment ends the
   // run early, and these are the steps it ends - named here so the path says
   // what was not done and why, instead of simply stopping.
-  var STEPS_SKIPPED_NON_CAMELBACK = [7, 8, 9, 10, 11, 13];
+  var STEPS_SKIPPED_NON_CAMELBACK = [7, 8, 9, 10, 11, 13, 15];
 
   function markStepsNotNeeded(s, reason){
     STEPS_SKIPPED_NON_CAMELBACK.forEach(function(n){
@@ -4656,17 +4669,43 @@
       " | Ran once: " + (o.chkOnce || " - ") +
       " | Chart note added: " + (o.chkNote || " - ");
   }
-  // SMS outreach eligibility. Only meaningful once a referral is actually routed
-  // to the scheduling bucket: providers flagged in-clinic-only are scheduled
-  // without any outreach, so they are explicitly NOT SMS eligible even though the
-  // referral is otherwise ready. Anything held or stopped never reaches outreach,
-  // so the field reads "Not relevant" rather than implying a decision was made.
+  // Step 15 - SMS outreach eligibility. Five conditions, and the step names the
+  // one that blocked it rather than saying only "No": an operator who cannot see
+  // which condition failed has to re-derive the whole thing by hand.
+  //
+  // Conditions 1-3 are the client's. Conditions 4 and 5 - a phone number on file
+  // and a recorded text consent - are ours, and they are gates rather than
+  // warnings on purpose. Texting a patient who has not consented is the one
+  // failure here that cannot be taken back, so an absent consent is treated the
+  // same as a refused one. Absence is never read as permission.
+  //
+  // Restricted providers are excluded off the FLAG, not off a name list, so
+  // adding a provider to PROVIDER_DATA with inClinicOnly is all it takes - the
+  // same lesson as the in-clinic restriction being stripped by two formatters.
+  //
+  // "NR" means the question does not arise - held, stopped, or not a Camelback
+  // assignment. It is kept distinct from "No", which is a decision that outreach
+  // must not happen.
   function buildSmsEligibility(){
     var o = state.out;
     if (state.manualReview) return "NR";
     if (o.bucket !== "biltmorecardsched") return "NR";
-    if (o.phoneDisposition) return "No - no phone number on file";
-    return providerIsInClinicOnly(o.provider) ? "No - in-clinic scheduling only" : "Yes";
+    // 1. Camelback only.
+    if (state.isCamelbackReferral !== true) return "NR - not a Camelback receiving assignment";
+    // 2. In-clinic-only providers are scheduled in clinic with no outreach at
+    // all; non-Valerie providers are not scheduled through Valerie in the first
+    // place, so there is nothing for us to text about.
+    if (providerIsInClinicOnly(o.provider)) return "No - in-clinic scheduling only";
+    if (providerIsNonValerie(o.provider)) return "No - not scheduled through Valerie";
+    // 4 before 3, so a missing phone reports itself rather than arriving as one
+    // unnamed entry inside the missing-information list, which also contains it.
+    if (o.phoneDisposition || !o.phoneNote) return "No - no phone number on file";
+    // 5. Absent and refused are the same answer here.
+    if (o.textConsent !== "yes") return "No - no text consent recorded";
+    // 3. Everything the SOP counts as missing information.
+    var missing = outstandingItems();
+    if (missing.length) return "No - missing information: " + missing.join(", ");
+    return "Yes";
   }
   function computeSchedulingStatus(){
     if (state.manualReview) return "Review";
@@ -4817,7 +4856,7 @@
     L.push("");
     L.push("BUCKET: " + f(o.bucket));
     L.push("SCHEDULING STATUS: " + computeSchedulingStatus());
-    L.push("SMS ELIGIBLE: " + buildSmsEligibility());
+    L.push("STEP 15 - SMS OUTREACH: " + buildSmsEligibility());
     L.push("");
     L.push("URGENT: " + f(o.urgent));
     if (o.urgent === "YES") L.push("URGENT REASON: " + ft(buildUrgentReasonText()));
@@ -4889,7 +4928,11 @@
     items.push({ label:"Bucket", value:f(o.bucket) });
     var schedStatus = computeSchedulingStatus();
     items.push({ label:"Status", value:schedStatus, cls: schedStatus === "Closed" ? "status-closed" : "status-review" });
-    items.push({ label:"SMS eligible", value:buildSmsEligibility() });
+    (function(){
+      var sms = buildSmsEligibility();
+      items.push({ label:"Step 15 - SMS outreach", value:sms,
+                   cls: sms.indexOf("No") === 0 ? "urgent-yes" : "" });
+    })();
 
     items.push({ sec:"Document" });
     items.push({ label:"Urgent", value:f(o.urgent), cls: o.urgent === "YES" ? "urgent-yes" : "" });
@@ -5542,9 +5585,9 @@
       // deliberately: a list nobody prunes stops being read. Internal work does
       // not belong here - only what an operator would notice.
       group('Recent updates', [
-        '<b>9 Sep</b> - Awaiting Info is now only for being unable to call the payor at all - out of hours. A referral you will call during business hours just stays in its bucket. A missing phone number now says to fax the <b>referring provider</b>, not the PCP, and carries the chart note with it. Mercy referrals say to create the authorization object from the PCP letter, which the grid was hiding.',
-        '<b>9 Sep</b> - The in-clinic-only restriction reaches the notes. A referral to Loli, Bahu, Franco or Ning used to produce three chart notes all reading a flat &quot;Ready for Scheduling&quot; with nothing saying not to outreach the patient. It now has its own line on the output card, appears in all three notes, and is said on screen when you pick the provider.',
-        '<b>9 Sep</b> - Fixed: the Care Team question was being asked twice on a lot of referrals, a regression from moving it after the insurance questions yesterday. It answers something about the chart, and the chart does not change between the two, so it is asked once.'
+        '<b>9 Sep</b> - The steps are renumbered to match the fourteen-step workflow. Step 2 now covers what used to be steps 1 and 2, and every step above it moves down by one - the names are unchanged, so &quot;Run Athena eligibility&quot; is step 7 where it used to be step 8. Nothing about how a referral is worked out has changed. When step 2 cannot settle the provider, the reason now stays on screen instead of appearing once and vanishing.',
+        '<b>9 Sep</b> - New step 15, SMS outreach. It says whether the patient can be texted, and when they cannot it names the reason - in-clinic scheduling, no phone number, no text consent, or what is still missing. There is a new question on the demographics screen asking whether the patient has consented to texts, because nothing recorded it before and a patient who has not consented is not texted.',
+        '<b>9 Sep</b> - Awaiting Info is now only for being unable to call the payor at all - out of hours. A referral you will call during business hours just stays in its bucket. A missing phone number now says to fax the <b>referring provider</b>, not the PCP, and carries the chart note with it. Mercy referrals say to create the authorization object from the PCP letter, which the grid was hiding.'
       ]) +
 
       group('Insurance', [
