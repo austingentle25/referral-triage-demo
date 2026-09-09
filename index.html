@@ -515,6 +515,8 @@
   /* A suggestion, not an answer yet - it reads as filled in but lighter, and the
      first keystroke replaces it. */
   .form-text.is-prefilled, .text-input.is-prefilled{ color:var(--ink-soft); }
+  .output-box.ob-warn{ border-color:var(--k45b); box-shadow:inset 3px 0 0 var(--review-solid); }
+  .output-box.ob-warn .ob-label{ color:var(--review); }
   .field-warn{ color:var(--review); font-size:0.75rem; margin-top:6px; }
   .field-warn[hidden]{ display:none; }
 
@@ -2627,6 +2629,10 @@
           if (!s.awaitingInfo){ setOut("bucket","biltmorecardsched"); setOut("actionNote","Ready to schedule - do not manually outreach"); }
           s.isLoliBahu = true;
           s.crumbs.push({ short:"Loli/Bahu/Cataldo check (auto)", answer:"Loli or Bahu - do not manually outreach" });
+          // Said here, where the provider was chosen, rather than only appearing
+          // on the output card twenty questions later.
+          s.pendingBanner = providerShortName(s.out.provider) +
+            " is in-clinic scheduling only - do not manually outreach this patient. It is on the output card and in all three notes.";
           return "p4_valerie_athena_check";
         }
         if (cataldo){
@@ -4347,6 +4353,32 @@
   // printed. An empty result means the segment is omitted entirely, which the spec
   // requires for self-pay, ineligible insurance, awaiting phone and pending auth -
   // in each case another segment already carries the reason.
+  // Reported from Task-2276: a referral to Akil Loli produced three chart notes
+  // all reading a flat "Ready for Scheduling", with nothing saying he must not be
+  // manually outreached. The restriction was set correctly on the action note as
+  // "Ready to schedule - do not manually outreach" and then removed twice over:
+  //
+  //   specDisposition()  matches "ready to schedule" as a substring and returns
+  //                      the generic disposition, dropping the rest.
+  //   shortActionNote()  splits on " - " before a lowercase letter and keeps the
+  //                      first half - and "do not manually outreach" is exactly
+  //                      the shape of clause it was written to trim.
+  //
+  // The only surviving trace was "SMS eligible: No - in-clinic scheduling only",
+  // which is not where anyone looks for a scheduling instruction.
+  //
+  // So it is no longer carried as prose to be re-parsed. It comes off the
+  // provider flag and is rendered where it is needed. Cataldo's survived only
+  // because both halves of his note are capitalised, which is not a property
+  // anyone intended to rely on.
+  function schedulingRestriction(){
+    var name = state.out.provider;
+    if (!name) return "";
+    if (providerIsNonValerie(name)) return "Not scheduled through Valerie - route to SS Cardio";
+    if (providerIsInClinicOnly(name)) return "Do not manually outreach - all scheduling goes to in-clinic";
+    return "";
+  }
+
   function specDisposition(){
     var o = state.out;
     var a = (o.actionNote || "");
@@ -4379,6 +4411,7 @@
       rawDate = String(td.getMonth()+1).padStart(2,"0") + "/" + String(td.getDate()).padStart(2,"0") + "/" + td.getFullYear();
     }
     var label = specDisposition();
+    var restrictionText = schedulingRestriction();
     if (!label){
       if (o.phoneDisposition) label = "Awaiting Patient Phone Number";
       else if ((o.contractedGrid || "").toLowerCase().indexOf("self-pay") !== -1) label = "Self Pay";
@@ -4386,7 +4419,8 @@
       else if ((o.authObjNote || "").toLowerCase().indexOf("pending") !== -1) label = "Referral Authorization Pending";
       else label = "Additional Scheduling Information Required";
     }
-    return "Reviewed By Valerie Health (" + rawDate.replace(/\//g, ".") + ") - " + label;
+    return "Reviewed By Valerie Health (" + rawDate.replace(/\//g, ".") + ") - " + label +
+           (restrictionText ? " - " + restrictionText : "");
   }
 
   // What the SOP treats as missing information: a blank yellow demographic field,
@@ -4420,7 +4454,10 @@
     if (provider === "FIND LOCATION FIRST" || provider === "MANUAL REVIEW") provider = "";
     if (!provider) provider = "N/A";
     var disp = specDisposition() || (state.manualReview ? "Additional Scheduling Information Required" : "Ready for Scheduling");
-    return ["Reviewed By Valerie Health (" + rawDate.replace(/\//g, ".") + ")", provider, disp].join(" - ");
+    var parts = ["Reviewed By Valerie Health (" + rawDate.replace(/\//g, ".") + ")", provider, disp];
+    var restriction = schedulingRestriction();
+    if (restriction) parts.push(restriction);
+    return parts.join(" - ");
   }
 
   function buildInternalNote(){
@@ -4453,6 +4490,8 @@
     // Drop the action segment when there is none (manual review) instead of
     // leaving a dangling "- -" in a note staff paste into Athena.
     var actionShort = shortActionNote(o.actionNote);
+    // Appended after the trim rather than left inside the string it trims.
+    var restrictionText = schedulingRestriction();
     // Notion's template, in its stated order:
     //   {date} - {provider} - {reason for sscardio} - {urgency} - {insurance}
     //   - {missing} - {auths}
@@ -4462,6 +4501,7 @@
 
     var disp = specDisposition();
     if (disp) segs.push(disp);
+    if (restrictionText) segs.push(restrictionText);
 
     if (o.careTeamMismatch === "yes" && o.careTeamReferring) segs.push(o.careTeamReferring.replace(/\.$/, ""));
 
@@ -4814,6 +4854,8 @@
     items.push({ label:"Emergency contact", value:ft(o.emergencyNote) });
 
     items.push({ sec:"Insurance" });
+    var restriction = schedulingRestriction();
+    if (restriction) items.push({ label:"Scheduling restriction", value:restriction, cls:"ob-warn" });
     items.push({ label:"Insurance path", value:insVal });
     if (o.contractedGrid || o.referralRequiredGrid || o.referralAuthRequiredGrid){
       items.push({ label:"Grid: Contracted", value:f(o.contractedGrid) });

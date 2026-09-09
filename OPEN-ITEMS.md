@@ -60,6 +60,7 @@ repo so a decision is not rediscovered as new work later.
 | G10 | Two more ICD-10 phrasings (#24) | **Fixed.** And a fault they exposed: brackets split a keyword, so "Nonrheumatic aortic (valve) insufficiency" matched nothing at all even though "valve insufficiency" is a Structural keyword. Brackets become spaces before matching, which every parenthesised ICD-10 description needed |
 | G11 | Care Team asked twice (#25, #26) | **Fixed.** A regression from moving the block after insurance: it is entered from there and from the part 7 urgent routes, and nothing stopped a run doing both. 84 of 200 walks asked it twice. One gate, asked once |
 | G12 | Atherosclerosis of aorta (#27) | **Added**, with a keyword under Interventional. Without one it would have sat in the list resolving to no specialty - the same trap the valve entry fell into |
+| G13 | The in-clinic restriction never reached the notes | **Fixed.** Reported from Task-2276. Set correctly as prose on the action note, then removed twice: `specDisposition()` substring-matches "ready to schedule" and returns the generic disposition, and `shortActionNote()` trims on " - " before a lowercase letter - which is exactly the shape of "do not manually outreach". It comes off the `inClinicOnly` flag now: its own line on the card, all three notes, and a banner when the provider is picked |
 
 ---
 
