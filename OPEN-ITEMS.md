@@ -61,6 +61,10 @@ repo so a decision is not rediscovered as new work later.
 | G11 | Care Team asked twice (#25, #26) | **Fixed.** A regression from moving the block after insurance: it is entered from there and from the part 7 urgent routes, and nothing stopped a run doing both. 84 of 200 walks asked it twice. One gate, asked once |
 | G12 | Atherosclerosis of aorta (#27) | **Added**, with a keyword under Interventional. Without one it would have sat in the list resolving to no specialty - the same trap the valve entry fell into |
 | G13 | The in-clinic restriction never reached the notes | **Fixed.** Reported from Task-2276. Set correctly as prose on the action note, then removed twice: `specDisposition()` substring-matches "ready to schedule" and returns the generic disposition, and `shortActionNote()` trims on " - " before a lowercase letter - which is exactly the shape of "do not manually outreach". It comes off the `inClinicOnly` flag now: its own line on the card, all three notes, and a banner when the provider is picked |
+| H1 | Awaiting Info meant the wrong thing | **Fixed.** Austin: it is a Valerie status, and only for being unable to call the payor at all - out of hours. Both answers used to set it, so every referral reaching that question came out tagged and dispositioned "Eligibility Pending" whether or not anyone was waiting |
+| H2 | Missing phone was half modelled | **Fixed.** Outbound AthenaFax to the **referring provider**, not the PCP, with the chart note on the card. Ends Pending, which is what it already was - no new terminal state |
+| H3 | Mercy needed the authorization object | **Fixed.** The grid marks authorization "No" on all four Mercy packages, which is right about the payor and wrong here: the object is created from the PCP letter. Left to the grid, the authorization steps were skipped and nobody was told to make it |
+| H4 | PIMC (58277) | **Flagged, not decided.** Eligibility is deliberately still checked. The card says the rule is unsettled and to check before finishing |
 
 ---
 
@@ -89,7 +93,33 @@ Replace the table from Athena when someone can export it - it is one object,
 `DEPT_ADDRESSES`, keyed by the exact department strings.
 
 
-### 2. The step numbering runs backwards
+### 2. Three payor grid rows are cut off mid-sentence
+
+Found while answering the PIMC question. The name field of three rows ends
+mid-sentence, so whatever instruction they carried is not in our copy:
+
+| Package | Text ends |
+|---|---|
+| **58277** PIMC | "...(case policy) - If they are using this as insurance we" |
+| **443448** The Kempton Group | "...the issue with claims has been resolved - we" |
+| 16726 | "BCBS OR" - probably Oregon, probably not truncated |
+
+Either the source grid truncates these or my extraction did. Worth checking the
+original for those two rows.
+
+### 3. Molina Complete Care carries the Mercy note but not the Mercy flag
+
+Package **698480**, "AHCCCS - Molina Complete Care - Medicare Advantage", carries
+the note *"Mercycare Advantage referral must come from PCP (not specialty)"* but
+has no `edgeCase:"Mercy"`, so none of the Mercy handling fires for it.
+
+Either the note was copied down a column in the source grid and does not apply,
+or Molina genuinely needs the same PCP-letter handling and is currently missing
+it. **Not guessed either way.** Austin asked me to check the grid on whether the
+Mercy rule covers all Mercy - it covers the four flagged ones, and this is the
+fifth row that mentions it.
+
+### 4. The step numbering runs backwards
 
 By design, and stated plainly rather than hidden. The workflow is a checklist
 whose steps can be worked in any order; this is a wizard whose order is fixed by
@@ -102,7 +132,7 @@ registration and the commonest jump disappears. Small, provable against the
 120-seed baseline. Not taken.
 
 
-### 3. The insurance mismatch branch is three questions and a free-text box
+### 5. The insurance mismatch branch is three questions and a free-text box
 
 The one thing the measurement turned up. When Valerie and Athena disagree the
 tool asks which insurance needs fixing (51% of grid runs), then what kind of
@@ -119,7 +149,7 @@ it into a form changes crumb structure and the resume path, not just the layout.
 That is a bigger change than the registration consolidation it resembles, and it
 wants doing deliberately rather than at the end of a long day.
 
-### 4. The last single-question trip back to the referral fax
+### 6. The last single-question trip back to the referral fax
 
 The referring provider's specialty question sits alone between Care Team and Full
 Registration, in 38% of walks. Folding it into a form would mean asking it on the

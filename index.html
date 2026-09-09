@@ -2027,7 +2027,8 @@
              node:"p_reviewer_entry", crumbs:[], out:{}, stepTimings:[], backSteps:[], manualReview:false, manualReviewReason:null,
              manualReviewPart:0, lastPart:0, pendingBanner:null, part1Result:null, part1Reason:null,
              progressHigh:0, providerTreatsDx:false, hasUpcomingAppt:false, awaitingInfo:false, isCamelbackReferral:null, needsEngineeringEscalation:false, isLoliBahu:false, pendingEdgeCase:false, pendingSelfPay:false,
-             _afterDiag:null, _afterDiag2:null, _afterDiag3:null, _afterCareTeam:null, careTeamDone:false };
+             _afterDiag:null, _afterDiag2:null, _afterDiag3:null, _afterCareTeam:null, careTeamDone:false,
+             mercyAuthFromLetter:false };
   }
 
   function setOut(k,v){ state.out[k]=v; }
@@ -2696,20 +2697,34 @@
     // rerun - the payor has to be called. The referral waits on that answer and
     // keeps its bucket rather than being held, so the rest of the workflow still
     // runs and the case is not re-triaged from scratch afterwards.
-    p4_ins_awaiting_info: { kind:"yesno", source:"Athena - Insurance + the payor directly", part:5, context:"Insurance Check",
-      definition:"Awaiting Info is the holding state while the payor is contacted. The referral stays in its current bucket - this is not a reason to move it.",
-      text:"Set the referral to Awaiting Info, then call the insurance company to confirm whether the payor is eligible. Mark this complete when done.",
-      short:"Awaiting Info - payor called?",
-      yesLabel:"Done - payor called",
-      noLabel:"Not yet - still to do",
+    p4_ins_awaiting_info: { kind:"yesno3", source:"Athena - Insurance + the payor directly", part:5, context:"Insurance Check",
+      // Austin, 9 Sep 2026: Awaiting Info is a Valerie status, not something we
+      // put in Athena, and it is not the general "we are waiting on the payor"
+      // state. A referral that still needs a call simply stays in its bucket and
+      // gets called. The one case that earns the tag is being unable to call at
+      // all - out of business hours - because then nothing more can happen today.
+      //
+      // Before this, both answers set it, so every referral that reached this
+      // question came out tagged Awaiting Info and dispositioned "Eligibility
+      // Pending" whether or not anyone was actually waiting on anything.
+      definition:"Awaiting Info is a Valerie status and is only for the case where the payor cannot be called at all today. If you can call, or will call during business hours, the referral just stays in its bucket.",
+      text:"Can you call the insurance company to confirm the payor is eligible?",
+      short:"Payor call possible?",
+      yesLabel:"Called - payor confirmed",
+      noLabel:"Not yet - will call during business hours",
+      thirdLabel:"Out of business hours - cannot call today",
       yes:function(s){
-        setOut("insuranceVerifyFlag","Awaiting Info - payor called to confirm eligibility");
+        setOut("insuranceVerifyFlag","payor called to confirm eligibility");
         setOut("bucket","biltmorecardreferral");
-        s.awaitingInfo = true;
         return "p9_payor_id";
       },
       no:function(s){
-        setOut("insuranceVerifyFlag","Awaiting Info - payor still to be called");
+        setOut("insuranceVerifyFlag","payor still to be called - within business hours, no Awaiting Info");
+        setOut("bucket","biltmorecardreferral");
+        return "p9_payor_id";
+      },
+      third:function(s){
+        setOut("insuranceVerifyFlag","Awaiting Info - out of business hours, payor could not be called");
         setOut("bucket","biltmorecardreferral");
         s.awaitingInfo = true;
         return "p9_payor_id";
@@ -2779,6 +2794,15 @@
       noLabel:"No - not on file",
       yes:function(s){
         setOut("pcpLetter","on file - create the edge-case referral authorization from it");
+        // Austin, 9 Sep 2026: what Mercy needs is the letter, and then the
+        // authorization object actually present. The grid marks authorization
+        // "No" on all four Mercy packages, which is right about the payor not
+        // requiring one and wrong about this: the object is created from the
+        // letter. Left to the grid, the authorization steps were skipped and
+        // nobody was told to make it.
+        setOut("authObjNote","Required for Mercy regardless of the grid - create the authorization object from the PCP letter. Type: Pre-Cert (not Referral). Referring provider = the PCP who wrote the letter; Referred-to provider = receiving provider; Specialty = Cardiology; Department = Primary Department; attach or reference the letter.");
+        setOut("outboundExport","no");
+        s.mercyAuthFromLetter = true;
         return s._afterEdgeCase;
       },
       no:function(s){
@@ -3117,8 +3141,12 @@
           noLabel:"No - missing from both",
           yes:function(s){ setOut("phoneNote","available - on file or taken from the referral"); },
           no:function(s){
-            setOut("phoneNote","missing from both chart and referral - request from the referring office");
+            // Austin, 9 Sep 2026: it is the referring provider we fax, not the
+            // PCP, and the note said PCP. If the number is in Athena at all there
+            // is nothing to do here - that is the Yes branch above.
+            setOut("phoneNote","missing from both chart and referral - send an outbound AthenaFax to the referring provider asking for the patient's phone number");
             setOut("phoneDisposition","Awaiting Patient Phone Number");
+            setOut("phoneChartNote","Reviewed by Valerie Health (" + todayDot() + "): awaiting patient phone number from referring provider");
           } }
       ],
       next:"p5_doc_label"
@@ -3353,6 +3381,9 @@
           return "__DONE__";
         }
         if (s.out.referralAuthRequiredGrid === "Yes") return "p5_auth_chart_check";
+        // Mercy's authorization comes from the PCP letter, not from the grid, so
+        // an answer already written here is not replaced by the grid's "No".
+        if (s.mercyAuthFromLetter) return "__DONE__";
         if (s.out.referralAuthRequiredGrid === "No"){
           setOut("authObjNote", isSelfPay(s)
             ? "Not required - self-pay, so there is no payor to authorize anything"
@@ -4343,6 +4374,12 @@
   }
   // Spec D4: the label Athena expects on the referral document itself. Established
   // and New are the same determination as the patient type, so it is derived, not asked.
+  // Today as DD.MM.YYYY in the same shape the chart notes use.
+  function todayDot(){
+    var d = new Date();
+    return String(d.getMonth()+1).padStart(2,"0") + "." + String(d.getDate()).padStart(2,"0") + "." + d.getFullYear();
+  }
+
   function buildDocumentLabel(){
     var st = state.out.status;
     if (!st) return "";
@@ -4856,6 +4893,11 @@
     items.push({ sec:"Insurance" });
     var restriction = schedulingRestriction();
     if (restriction) items.push({ label:"Scheduling restriction", value:restriction, cls:"ob-warn" });
+    if (state.out.pimcFlag) items.push({ label:"PIMC - unsettled rule", value:state.out.pimcFlag, cls:"ob-warn" });
+    if (state.out.phoneChartNote){
+      items.push({ label:"Chart note - awaiting phone", value:state.out.phoneChartNote });
+      items.push({ label:"Outbound fax", value:"AthenaFax to the referring provider, asking for the patient's phone number" });
+    }
     items.push({ label:"Insurance path", value:insVal });
     if (o.contractedGrid || o.referralRequiredGrid || o.referralAuthRequiredGrid){
       items.push({ label:"Grid: Contracted", value:f(o.contractedGrid) });
@@ -5481,9 +5523,9 @@
       // deliberately: a list nobody prunes stops being read. Internal work does
       // not belong here - only what an operator would notice.
       group('Recent updates', [
+        '<b>9 Sep</b> - Awaiting Info is now only for being unable to call the payor at all - out of hours. A referral you will call during business hours just stays in its bucket. A missing phone number now says to fax the <b>referring provider</b>, not the PCP, and carries the chart note with it. Mercy referrals say to create the authorization object from the PCP letter, which the grid was hiding.',
         '<b>9 Sep</b> - The in-clinic-only restriction reaches the notes. A referral to Loli, Bahu, Franco or Ning used to produce three chart notes all reading a flat &quot;Ready for Scheduling&quot; with nothing saying not to outreach the patient. It now has its own line on the output card, appears in all three notes, and is said on screen when you pick the provider.',
-        '<b>9 Sep</b> - Fixed: the Care Team question was being asked twice on a lot of referrals, a regression from moving it after the insurance questions yesterday. It answers something about the chart, and the chart does not change between the two, so it is asked once.',
-        '<b>8 Sep</b> - The department pickers show an address beside each location. They are gathered from public listings rather than Athena and are <b>not verified</b> - the screen says so, and Terrace and Kierland are blank because nothing public matched them.'
+        '<b>9 Sep</b> - Fixed: the Care Team question was being asked twice on a lot of referrals, a regression from moving it after the insurance questions yesterday. It answers something about the chart, and the chart does not change between the two, so it is asked once.'
       ]) +
 
       group('Insurance', [
@@ -6605,6 +6647,18 @@
         ". Confirm with the payor if the case turns on it.");
       if (hit.edgeCase) setOut("edgeCaseInsuranceType", hit.edgeCase);
       if (hit.note) setOut("payorGridNote", hit.note);
+      // Austin, 9 Sep 2026: PIMC probably needs a case policy like the VA
+      // referrals, and the rule has not been settled. The eligibility check is
+      // deliberately NOT skipped. It is flagged instead, so a decision gets made
+      // on a real referral rather than the tool quietly picking one.
+      //
+      // The grid's own text for this row is cut off mid-sentence - "If they are
+      // using this as insurance we" - so the instruction it was carrying is not
+      // in our copy either. Two other rows are truncated the same way; see
+      // OPEN-ITEMS.
+      if (id === "58277"){
+        setOut("pimcFlag","PIMC case policy - the rule for this payor is not settled. The grid row is cut off mid-sentence, so check with Austin or Jingyi before finishing. Eligibility is still checked; nothing is being skipped.");
+      }
       var bits = [];
       if (hit.contracted) bits.push("Contracted: " + hit.contracted);
       if (refFromGrid) bits.push("Referral required: " + refFromGrid + (hit.referralRequired ? "" : " (blank in grid)"));
