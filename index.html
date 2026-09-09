@@ -2034,7 +2034,7 @@
              node:"p_reviewer_entry", crumbs:[], out:{}, stepTimings:[], backSteps:[], manualReview:false, manualReviewReason:null,
              manualReviewPart:0, lastPart:0, pendingBanner:null, part1Result:null, part1Reason:null,
              progressHigh:0, providerTreatsDx:false, hasUpcomingAppt:false, awaitingInfo:false, isCamelbackReferral:null, needsEngineeringEscalation:false, isLoliBahu:false, pendingEdgeCase:false, pendingSelfPay:false,
-             _afterDiag:null, _afterDiag2:null, _afterDiag3:null, _afterCareTeam:null, careTeamDone:false,
+             _afterDiag:null, _afterDiag2:null, _afterCareTeam:null, careTeamDone:false,
              mercyAuthFromLetter:false };
   }
 
@@ -2865,13 +2865,8 @@
     p4_diag_entry: { kind:"auto", part:2,
       run:function(s){
         s._afterCareTeam = s.providerTreatsDx ? "p4_clear_to_schedule" : "p4_treats_auto";
-        if (!s.providerTreatsDx) s._afterDiag3 = "p4_treats_auto";
         return "p5_careteam_gate";
       }
-    },
-    p4_diag_input: { kind:"diagnosis", source:"Referral document", part:2, field:"diagnosisText",
-      text:"What's the diagnosis?", short:"Diagnosis",
-      next:function(s){ return s._afterDiag3; }
     },
     p4_treats_auto: { kind:"auto", part:2,
       run:function(s){
@@ -2972,12 +2967,6 @@
         if (s.out.urgent === "YES") return "p5_urgent_appt_check";
         return "p5_careteam_gate";
       }
-    },
-    p5_urgent_fax: { kind:"yesno", source:"Referral document - fax marking", part:6,
-      text:"Is the fax marked Urgent?",
-      short:"Fax marked Urgent?",
-      yes:function(s){ setOut("urgent","YES"); setOut("urgentReason","provider"); return "p5_urgent_appt_check"; },
-      no:function(s){ setOut("urgent","NO"); return "p5_careteam_gate"; }
     },
     p5_urgent_appt_check: { kind:"auto", part:6,
       run:function(s){

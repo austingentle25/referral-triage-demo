@@ -20,7 +20,7 @@ rather than being left out.
 | Check | Why it says little |
 |---|---|
 | **Stop reasons** | **0 of 300 walks stopped for manual review**, so there were no stop reasons to count. Every stop path in the graph is unexercised by this run. This is a gap in the sampling, not evidence that stops are fine |
-| **Node coverage** | 33 `auto` nodes are invisible to it. They resolve without rendering, are never written to the session log, and the instrument cannot see them either way. Coverage is over the 95 interactive nodes only |
+| **Node coverage** | 33 `auto` nodes are invisible to it. They resolve without rendering, are never written to the session log, and the instrument cannot see them either way. Coverage is over the 93 interactive nodes only |
 | **Not-reached nodes** | Sampling proves rarity, never deadness. The 17 below may all be perfectly reachable |
 
 An earlier version of this report claimed 50 unreached nodes. 33 of those were
@@ -47,28 +47,24 @@ instrument cannot observe is worse than no figure.
 
 ## Node coverage
 
-95 interactive nodes. **78 reached, 17 not.**
+93 interactive nodes. **78 reached, 15 not.**
 
 Not reached in 300 walks - rare, not proven dead:
 
 `p1_diag_input` · `p_provider_specialty` · `p1_check_treats` · `p2_diag_input2` ·
 `p2_diag_written_check` · `p2_diag_q` · `p3_q1` · `p3_q2a` · `p3_dept_other` ·
-`p3_q2b` · `p4_q2` · `p4_referral_required` · `p4_referral_auth` ·
-`p4_diag_input` · `p4_q3` · `p5_urgent_fax` · `p5_insurance1_ask`
+`p3_q2b` · `p4_q2` · `p4_referral_required` · `p4_referral_auth` · `p4_q3` ·
+`p5_insurance1_ask`
 
 ## Orphans - this is the check that proves deadness
 
 Static scan for node ids with **zero inbound references** anywhere in the source:
+**none.**
 
-| Node | Kind | Status |
-|---|---|---|
-| `p4_diag_input` | diagnosis | **Dead.** Appears once in the file, its own definition |
-| `p5_urgent_fax` | yesno | **Dead.** Appears once in the file, its own definition |
-
-Both pre-date this branch - they are orphaned in `fed4d81` too, so neither was
-introduced by the renumber. Not removed here: this phase was asked for a report,
-and deleting graph nodes is a decision to take deliberately, the way
-`p1_name_manual` was. Logged in `OPEN-ITEMS.md`.
+`p4_diag_input` and `p5_urgent_fax` were found by this scan and have since been
+removed. Removing them changed nothing: the same 300 seeds produced an identical
+question sequence and an identical determination on every walk, which is what
+removing unreachable code should do and is the only way to show it did.
 
 ## Step 15 - SMS Outreach
 
